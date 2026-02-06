@@ -1,3 +1,5 @@
+# app.py
+
 import streamlit as st
 
 from flow_tuinaanleg import TuinaanlegFlow
@@ -46,6 +48,15 @@ def lower_costs_menu_text() -> str:
         "Reageer met 1, 2 of 3."
     )
 
+# ✅ nieuw: menu na het bereiken van het interne limiet
+def limit_followup_text() -> str:
+    return (
+        "Hoe wilt u verder?\n"
+        "1) Contact voor offerte op maat (vrijblijvend)\n"
+        "2) Het hierbij laten\n\n"
+        "Reageer met 1 of 2."
+    )
+
 def _eur(v: int) -> str:
     return f"€{int(v):,}".replace(",", ".")
 
@@ -87,7 +98,7 @@ def apply_savings_option(answers: dict, option: str):
 
         expl = (
             "Ik heb gekeken waar we (zonder functies te veranderen) materialen iets voordeliger kunnen kiezen "
-            "— bijvoorbeeld keramiek → gebakken, gebakken → beton. Als u geen keramiek had gekozen, kan het effect beperkt zijn."
+            "— bijvoorbeeld keramiek → gebakken, gebakken → beton."
         )
 
     elif option == "2":
@@ -149,11 +160,10 @@ if "messages" not in st.session_state:
 if "done" not in st.session_state:
     st.session_state.done = False
 
-# Post-offer menu state (zelfde als main)
 if "post_offer_mode" not in st.session_state:
     st.session_state.post_offer_mode = False
 if "post_offer_stage" not in st.session_state:
-    st.session_state.post_offer_stage = None  # "menu" | "lower_costs" | "contact_details" | "end"
+    st.session_state.post_offer_stage = None  # "menu" | "lower_costs" | "limit_followup" | "contact_details" | "end"
 
 if "last_answers" not in st.session_state:
     st.session_state.last_answers = None
@@ -162,6 +172,10 @@ if "last_costs" not in st.session_state:
 
 if "recalc_count" not in st.session_state:
     st.session_state.recalc_count = 0
+
+# ✅ onthoud toegepaste besparingen (zodat dubbelklikken niet je 3-tegoed kost)
+if "applied_savings" not in st.session_state:
+    st.session_state.applied_savings = set()
 
 
 # =====================
@@ -185,6 +199,7 @@ with st.sidebar:
         st.session_state.last_answers = None
         st.session_state.last_costs = None
         st.session_state.recalc_count = 0
+        st.session_state.applied_savings = set()
 
         st.rerun()
 
@@ -207,36 +222,27 @@ for msg in st.session_state.messages:
 # =====================
 user_text = st.chat_input("Typ je antwoord…")
 if user_text:
-    # toon user
     st.session_state.messages.append({"role": "user", "content": user_text})
 
     # -----------------------------------------
-    # Post-offer menu logic (zelfde als main)
+    # Post-offer menu logic
     # -----------------------------------------
     if st.session_state.post_offer_mode:
-        t = user_text.strip()
+        t_raw = user_text.strip()
+        t_low = t_raw.lower()
 
-        # menu
-        if st.session_state.post_offer_stage == "menu":
-            if t == "1":
-                if remaining_recalcs() <= 0:
-                    st.session_state.messages.append({"role": "assistant", "content": soft_limit_message()})
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": (
-                            "Wilt u dat we dit samen verder verfijnen in een vrijblijvende offerte?\n\n"
-                            "Stuur dan naam + postcode + telefoon/e-mail + een korte omschrijving."
-                        )
-                    })
-                    st.session_state.post_offer_mode = False
-                    st.session_state.post_offer_stage = "end"
-                    st.rerun()
+        # ✅ "contact/offerte" overal in post-offer laten werken
+        if t_low in {"contact", "offerte", "advies"}:
+            st.session_state.post_offer_stage = "contact_details"
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": "Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?"
+            })
+            st.rerun()
 
-                st.session_state.post_offer_stage = "lower_costs"
-                st.session_state.messages.append({"role": "assistant", "content": lower_costs_menu_text()})
-                st.rerun()
-
-            elif t == "2":
+        # ✅ limit follow-up (als het interne limiet bereikt is)
+        if st.session_state.post_offer_stage == "limit_followup":
+            if t_raw == "1":
                 st.session_state.post_offer_stage = "contact_details"
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -244,7 +250,7 @@ if user_text:
                 })
                 st.rerun()
 
-            elif t == "3":
+            elif t_raw == "2":
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": "Helemaal goed. Fijn dat u even heeft gekeken. 👋"
@@ -252,32 +258,74 @@ if user_text:
                 st.session_state.post_offer_mode = False
                 st.session_state.post_offer_stage = "end"
                 st.rerun()
+
+            else:
+                st.session_state.messages.append({"role": "assistant", "content": limit_followup_text()})
+                st.rerun()
+
+        # menu
+        if st.session_state.post_offer_stage == "menu":
+            if t_raw == "1":
+                if remaining_recalcs() <= 0:
+                    st.session_state.messages.append({"role": "assistant", "content": soft_limit_message()})
+                    st.session_state.post_offer_stage = "limit_followup"
+                    st.session_state.messages.append({"role": "assistant", "content": limit_followup_text()})
+                    st.rerun()
+
+                st.session_state.post_offer_stage = "lower_costs"
+                st.session_state.messages.append({"role": "assistant", "content": lower_costs_menu_text()})
+                st.rerun()
+
+            elif t_raw == "2":
+                st.session_state.post_offer_stage = "contact_details"
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?"
+                })
+                st.rerun()
+
+            elif t_raw == "3":
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "Helemaal goed. Fijn dat u even heeft gekeken. 👋"
+                })
+                st.session_state.post_offer_mode = False
+                st.session_state.post_offer_stage = "end"
+                st.rerun()
+
             else:
                 st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
                 st.rerun()
 
         # lower_costs wizard
         if st.session_state.post_offer_stage == "lower_costs":
-            if t not in {"1", "2", "3"}:
+            if t_raw not in {"1", "2", "3"}:
                 st.session_state.messages.append({"role": "assistant", "content": lower_costs_menu_text()})
                 st.rerun()
 
-            if remaining_recalcs() <= 0:
-                st.session_state.messages.append({"role": "assistant", "content": soft_limit_message()})
+            # ✅ al toegepast => NIET meetellen in recalc_count
+            # ✅ direct terug naar hoofdmenu (geen verwarring)
+            if t_raw in st.session_state.applied_savings:
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": (
-                        "Wilt u dat we dit samen verder verfijnen in een vrijblijvende offerte?\n\n"
-                        "Stuur dan naam + postcode + telefoon/e-mail + een korte omschrijving."
-                    )
+                    "content": "Deze kostenbesparing is al doorgevoerd in de huidige indicatie."
                 })
-                st.session_state.post_offer_mode = False
-                st.session_state.post_offer_stage = "end"
+                st.session_state.post_offer_stage = "menu"
+                st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
                 st.rerun()
 
-            st.session_state.recalc_count += 1
+            # ✅ pas nu checken of er nog 'tegoed' is
+            if remaining_recalcs() <= 0:
+                st.session_state.messages.append({"role": "assistant", "content": soft_limit_message()})
+                st.session_state.post_offer_stage = "limit_followup"
+                st.session_state.messages.append({"role": "assistant", "content": limit_followup_text()})
+                st.rerun()
 
-            new_answers, explanation = apply_savings_option(st.session_state.last_answers or {}, t)
+            # ✅ nu pas telt het als een echte herberekening
+            st.session_state.recalc_count += 1
+            st.session_state.applied_savings.add(t_raw)
+
+            new_answers, explanation = apply_savings_option(st.session_state.last_answers or {}, t_raw)
             new_costs = estimate_tuinaanleg_costs(new_answers)
 
             old_tr = _total_range(st.session_state.last_costs or {}) or (0, 0)
@@ -296,21 +344,16 @@ if user_text:
             klanttekst = format_tuinaanleg_costs_for_customer(new_costs)
             st.session_state.messages.append({"role": "assistant", "content": klanttekst})
 
-            # update last_*
             st.session_state.last_answers = dict(new_answers)
             st.session_state.last_costs = dict(new_costs)
 
-            # terug naar menu
             st.session_state.post_offer_stage = "menu"
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
             st.rerun()
 
         # contact details
         if st.session_state.post_offer_stage == "contact_details":
-            contact_text = user_text.strip()
             # Hier later: opslaan / mailen / CRM
-            # st.write(contact_text)
-
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": "Dank u wel! We nemen zo snel mogelijk contact met u op!"
@@ -332,20 +375,16 @@ if user_text:
             costs = estimate_tuinaanleg_costs(ans)
             klanttekst = format_tuinaanleg_costs_for_customer(costs)
 
-            # geruststellende zin vóór prijs
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": "Iedere tuin is uniek. Deze indicatie is bedoeld als richting, niet als definitieve offerte."
             })
-
-            # kostenweergave
             st.session_state.messages.append({"role": "assistant", "content": klanttekst})
 
-            # bewaar voor “kosten verlagen”
             st.session_state.last_answers = dict(ans)
             st.session_state.last_costs = dict(costs)
+            st.session_state.applied_savings = set()
 
-            # start post-offer menu
             st.session_state.post_offer_mode = True
             st.session_state.post_offer_stage = "menu"
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})

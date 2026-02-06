@@ -21,13 +21,16 @@ flow = None  # wordt TuinaanlegFlow zodra iemand tuinaanleg-intent heeft
 
 # Post-offer menu (na prijsindicatie)
 post_offer_mode = False
-post_offer_stage = None  # "menu" | "lower_costs" | "contact_details" | "end"
+post_offer_stage = None  # "menu" | "lower_costs" | "limit_followup" | "contact_details" | "end"
 last_answers = None
 last_costs = None
 
 # ✅ Recalc limiter (intern)
 MAX_RECALC = 3
 recalc_count = 0
+
+# ✅ onthoud welke bespaar-opties al zijn toegepast (bijv. {"1","2"})
+applied_savings: set[str] = set()
 
 # =====================
 # Debug flags
@@ -99,6 +102,15 @@ def lower_costs_menu_text() -> str:
     )
 
 
+def limit_followup_text() -> str:
+    return (
+        "Hoe wilt u verder?\n"
+        "1) Contact voor offerte op maat (vrijblijvend)\n"
+        "2) Het hierbij laten\n\n"
+        "Reageer met 1 of 2."
+    )
+
+
 def _eur(v: int) -> str:
     return f"€{int(v):,}".replace(",", ".")
 
@@ -146,7 +158,7 @@ def apply_savings_option(answers: dict, option: str) -> tuple[dict, str]:
 
         expl = (
             "Ik heb gekeken waar we (zonder functies te veranderen) materialen iets voordeliger kunnen kiezen "
-            "— bijvoorbeeld keramiek → gebakken, gebakken → beton. Als u geen keramiek had gekozen, kan het effect beperkt zijn."
+            "— bijvoorbeeld keramiek → gebakken, gebakken → beton."
         )
 
     elif option == "2":
@@ -195,7 +207,7 @@ def apply_savings_option(answers: dict, option: str) -> tuple[dict, str]:
 
 
 # =====================
-# Intake summary (zoals jij al had)
+# Intake summary
 # =====================
 def ratio_label_bestrating_groen(v: str | None) -> str:
     mapping = {
@@ -255,17 +267,6 @@ def pretty_intake_summary(ans: dict) -> str:
     overkapping = yn(ans.get("overkapping"))
     verlichting = yn(ans.get("verlichting"))
 
-    overige = ans.get("overige_wensen")
-    if overige in (None, [], ""):
-        overige_list: list[str] = []
-        overige_raw_list: list[str] = []
-    elif isinstance(overige, list):
-        overige_raw_list = [str(x).strip() for x in overige if str(x).strip()]
-        overige_list = [x.lower() for x in overige_raw_list]
-    else:
-        overige_raw_list = [str(overige).strip()]
-        overige_list = [str(overige).strip().lower()]
-
     lines: list[str] = []
     lines.append(f"- Oppervlakte: {m2} m²")
     lines.append(f"- Verhouding bestrating/groen: {ratio_bg}")
@@ -278,48 +279,9 @@ def pretty_intake_summary(ans: dict) -> str:
     lines.append(f"- Overkapping: {overkapping}")
     lines.append(f"- Verlichting: {verlichting}")
 
-    overige_set = set(overige_list)
-
-    if "vlonder" in overige_set:
-        vt = vlonder_type_label(ans.get("vlonder_type"))
-        lines.append(f"- Vlonder ({vt})")
-
-    if "erfafscheiding" in overige_set:
-        items = ans.get("erfafscheiding_items") or []
-        type_label_map = {
-            "haag": "Haag",
-            "betonschutting": "Betonschutting",
-            "design_schutting": "Design schutting",
-        }
-        if not items:
-            lines.append("- Erfafscheiding")
-        else:
-            for i, it in enumerate(items, start=1):
-                t = (it.get("type") or "").strip().lower()
-                meters = it.get("meter")
-                poortdeur_val = it.get("poortdeur")
-
-                t_label = type_label_map.get(t, "Erfafscheiding")
-                line = f"- Erfafscheiding #{i}: {t_label}"
-                if meters not in (None, "", 0):
-                    line += f" ({meters} m¹)"
-                lines.append(line)
-
-                if t in ("betonschutting", "design_schutting"):
-                    lines.append(f"  - Poortdeur: {yn(poortdeur_val)}")
-
-    if "beregening" in overige_set:
-        scope = (ans.get("beregening_scope") or "").strip().lower()
-        scope_label_map = {
-            "gazon": "alleen gazon",
-            "beplanting": "alleen beplanting",
-            "allebei": "gazon én beplanting",
-        }
-        scope_label = scope_label_map.get(scope, "—")
-        if scope and scope_label != "—":
-            lines.append(f"- Beregening ({scope_label})")
-        else:
-            lines.append("- Beregening")
+    overige = ans.get("overige_wensen") or []
+    if isinstance(overige, list) and overige:
+        lines.append(f"- Overige wensen: {', '.join([str(x) for x in overige])}")
 
     return "\n".join(lines)
 
@@ -365,32 +327,53 @@ while True:
 
     try:
         # -------------------------
-        # Post-offer menu (na prijsindicatie)
+        # Post-offer menu
         # -------------------------
         if post_offer_mode:
-            t = user_input.strip()
+            t_raw = user_input.strip()
+            t_low = t_raw.lower()
 
-            # 1) menu
+            # ✅ "contact/offerte" overal in post-offer laten werken
+            if t_low in {"contact", "offerte", "advies"}:
+                post_offer_stage = "contact_details"
+                print("Chatbot: Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?\n")
+                continue
+
+            # ✅ limiet follow-up
+            if post_offer_stage == "limit_followup":
+                if t_raw == "1":
+                    post_offer_stage = "contact_details"
+                    print("Chatbot: Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?\n")
+                    continue
+
+                if t_raw == "2":
+                    print("Chatbot: Helemaal goed. Fijn dat u even heeft gekeken. 👋\n")
+                    post_offer_mode = False
+                    post_offer_stage = "end"
+                    break
+
+                print("Chatbot:", limit_followup_text(), "\n")
+                continue
+
+            # menu
             if post_offer_stage == "menu":
-                if t == "1":
+                if t_raw == "1":
                     if remaining_recalcs() <= 0:
                         print("Chatbot:", soft_limit_message(), "\n")
-                        print("Chatbot: Wilt u dat we dit samen verder verfijnen in een vrijblijvende offerte?")
-                        print("Chatbot: Stuur dan naam + postcode + telefoon/e-mail + een korte omschrijving.\n")
-                        post_offer_mode = False
-                        post_offer_stage = "end"
-                        break
+                        post_offer_stage = "limit_followup"
+                        print("Chatbot:", limit_followup_text(), "\n")
+                        continue
 
                     post_offer_stage = "lower_costs"
                     print("Chatbot:", lower_costs_menu_text(), "\n")
                     continue
 
-                if t == "2":
+                if t_raw == "2":
                     post_offer_stage = "contact_details"
                     print("Chatbot: Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?\n")
                     continue
 
-                if t == "3":
+                if t_raw == "3":
                     print("Chatbot: Helemaal goed. Fijn dat u even heeft gekeken. 👋\n")
                     post_offer_mode = False
                     post_offer_stage = "end"
@@ -399,23 +382,32 @@ while True:
                 print("Chatbot:", post_offer_choices_text(), "\n")
                 continue
 
-            # 2) lower_costs wizard
+            # lower_costs wizard
             if post_offer_stage == "lower_costs":
-                if t not in {"1", "2", "3"}:
+                if t_raw not in {"1", "2", "3"}:
                     print("Chatbot:", lower_costs_menu_text(), "\n")
                     continue
 
+                # ✅ al toegepast => NIET meetellen in recalc_count
+                # ✅ en direct terug naar hoofdmenu (geen verwarring)
+                if t_raw in applied_savings:
+                    print("Chatbot: Deze kostenbesparing is al doorgevoerd in de huidige indicatie.\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
+
+                # ✅ pas nu checken of er nog 'tegoed' is
                 if remaining_recalcs() <= 0:
                     print("Chatbot:", soft_limit_message(), "\n")
-                    print("Chatbot: Wilt u dat we dit samen verder verfijnen in een vrijblijvende offerte?")
-                    print("Chatbot: Stuur dan naam + postcode + telefoon/e-mail + een korte omschrijving.\n")
-                    post_offer_mode = False
-                    post_offer_stage = "end"
-                    break
+                    post_offer_stage = "limit_followup"
+                    print("Chatbot:", limit_followup_text(), "\n")
+                    continue
 
+                # ✅ nu pas telt het als een echte herberekening
                 recalc_count += 1
+                applied_savings.add(t_raw)
 
-                new_answers, explanation = apply_savings_option(last_answers or {}, t)
+                new_answers, explanation = apply_savings_option(last_answers or {}, t_raw)
                 new_costs = estimate_tuinaanleg_costs(new_answers)
 
                 old_tr = _total_range(last_costs or {}) or (0, 0)
@@ -447,14 +439,9 @@ while True:
                 print("Chatbot:", post_offer_choices_text(), "\n")
                 continue
 
-            # 3) contact details
+            # contact details
             if post_offer_stage == "contact_details":
-                contact_text = user_input.strip()
-                # Hier later koppelen aan CRM/email/opslaan in bestand
-                # print("DEBUG contact:", contact_text)
-                # print("DEBUG last_answers:", last_answers)
-                # print("DEBUG last_costs:", last_costs)
-
+                # Hier later: opslaan / mailen / CRM
                 print("Chatbot: Dank u wel! We nemen zo snel mogelijk contact met u op!\n")
                 print("Chatbot: Tot ziens! 👋\n")
 
@@ -463,17 +450,18 @@ while True:
                 break
 
         # -------------------------
-        # 1) Flow start detectie
+        # Flow start detectie
         # -------------------------
         if flow is None and looks_like_tuinaanleg_intent(user_input):
             recalc_count = 0
+            applied_savings = set()
             flow = TuinaanlegFlow(prijzen=PRIJZEN)
             print("\nChatbot: Ik stel u een paar korte vragen over uw tuin, zodat ik u een gerichte indicatie kan geven.")
             print("Chatbot:", flow.get_question(), "\n")
             continue
 
         # -------------------------
-        # 2) Als flow actief is -> handle via flow
+        # Als flow actief is -> handle via flow
         # -------------------------
         if flow is not None:
             mapped = map_numeric_menu_to_valid_input(user_input, flow.step_index)
@@ -493,7 +481,6 @@ while True:
                     print(json.dumps(costs, ensure_ascii=False, indent=2))
                     print()
 
-                # geruststellende zin vóór prijs
                 print("Chatbot: Iedere tuin is uniek. Deze indicatie is bedoeld als richting, niet als definitieve offerte.\n")
 
                 customer_text = format_tuinaanleg_costs_for_customer(costs)
@@ -503,6 +490,7 @@ while True:
 
                 last_answers = dict(flow.answers)
                 last_costs = dict(costs)
+                applied_savings = set()
 
                 # Flow uit en post-offer menu starten
                 flow = None
@@ -515,7 +503,7 @@ while True:
             continue
 
         # -------------------------
-        # 3) Geen flow actief -> GEEN AI (alleen database/regels)
+        # Geen flow actief -> GEEN AI (alleen database/regels)
         # -------------------------
         reply = db_reply_or_none(user_input)
         if reply:
@@ -525,4 +513,3 @@ while True:
 
     except Exception:
         print("Chatbot: Oeps, er ging iets mis. Probeer het later opnieuw.\n")
-        # print("DEBUG:", repr(e))
