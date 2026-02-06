@@ -431,6 +431,7 @@ class TuinaanlegFlow:
                 "2) Gemengd 50/50\n"
                 "3) Veel groen 30/70\n"
                 "4) Zelf invullen\n"
+                "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1","2","3","4"),
             error_prompt="Kies 1, 2, 3 of 4. Hoe wilt u de verhouding bestrating/groen?"),
@@ -446,6 +447,7 @@ class TuinaanlegFlow:
                 "2) Gemengd 50/50\n"
                 "3) Veel beplanting 30/70\n"
                 "4) Zelf invullen\n"
+                "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1","2","3","4"),
             error_prompt="Kies 1, 2, 3 of 4. Hoe wilt u het groen verdelen tussen gazon en beplanting?"),
@@ -461,6 +463,7 @@ class TuinaanlegFlow:
                 "2) 40% oprit / 30% paden / 30% terras\n"
                 "3) 30% oprit / 30% paden / 40% terras\n"
                 "4) 20% oprit / 30% paden / 50% terras\n"
+                "\n"
                 "5) Zelf invullen\n"
                 "Reageer met 1 t/m 5."
             ), allowed=("1","2","3","4","5"),
@@ -479,6 +482,7 @@ class TuinaanlegFlow:
                 "2) Gebakken klinkers\n"
                 "3) Keramiek\n"
                 "4) Grind\n"
+                "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1","2","3","4"),
             error_prompt="Kies 1, 2, 3 of 4. Welk materiaal wilt u voor de oprit?"),
@@ -489,6 +493,7 @@ class TuinaanlegFlow:
                 "2) Gebakken klinkers\n"
                 "3) Keramiek\n"
                 "4) Grind\n"
+                "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1","2","3","4"),
             error_prompt="Kies 1, 2, 3 of 4. Welk materiaal wilt u voor de paden?"),
@@ -499,6 +504,7 @@ class TuinaanlegFlow:
                 "2) Gebakken klinkers\n"
                 "3) Keramiek\n"
                 "4) Grind\n"
+                "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1","2","3","4"),
             error_prompt="Kies 1, 2, 3 of 4. Welk materiaal wilt u voor het terras?"),
@@ -521,6 +527,7 @@ class TuinaanlegFlow:
                 "4) Zwembad\n"
                 "5) Vijver\n"
                 "6) Overig (licht dit toe)\n"
+                "\n"
                 "Of typ 'nee' als u geen extra wensen hebt."
             ), error_prompt="Kies 1–6, typ 'nee', of omschrijf uw wens in eigen woorden."),
 
@@ -530,6 +537,7 @@ class TuinaanlegFlow:
                 "1) Alleen gazon\n"
                 "2) Alleen beplanting\n"
                 "3) Gazon én beplanting\n"
+                "\n"
                 "Reageer met 1, 2 of 3."
             ), allowed=("1","2","3"),
             error_prompt="Kies 1, 2 of 3. Voor welk deel wilt u beregening?"),
@@ -541,6 +549,7 @@ class TuinaanlegFlow:
                 "2) Betonschutting\n"
                 "3) Design schutting\n"
                 "Reageer met 1, 2 of 3."
+                "\n"
             ), allowed=("1","2","3"),
             error_prompt="Kies 1, 2 of 3. Welk type erfafscheiding wilt u toevoegen?"),
 
@@ -562,6 +571,7 @@ class TuinaanlegFlow:
                 "1) Zachthout (bijv. Douglas)\n"
                 "2) Hardhout\n"
                 "3) Composiet\n"
+                "\n"
                 "Reageer met 1, 2 of 3."
             ), allowed=("1","2","3"),
             error_prompt="Kies 1, 2 of 3. Welk type vlonder wilt u?"),
