@@ -1,8 +1,10 @@
 # flow_tuinaanleg.py
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
+
 
 _M2_RE = re.compile(r"(?P<num>\d+(?:[.,]\d+)?)\s*(?:m2|m²)?", re.IGNORECASE)
 _NUM_RE = re.compile(r"(?P<num>\d+(?:[.,]\d+)?)", re.IGNORECASE)
@@ -118,30 +120,58 @@ class TuinaanlegFlow:
             "vlonder_type": None,
 
             # erfafscheiding (MEERDERE)
-            "erfafscheiding_items": [],      # list[{"type":..., "meter":..., "poortdeur":...}]
-            "_erfafscheiding_current": None, # current item dict
-            "_trigger_erfafscheiding": False,
-            "_trigger_beregening": False,
-            "_trigger_vlonder": False,
+            "erfafscheiding_items": [],  # list[{"type":..., "meter":..., "poortdeur":...}]
+
+            # interne flow-state
+            "_pending_extras": [],  # queue met next steps: ["erfafscheiding_type","vlonder_type","beregening_scope"]
+            "_erfafscheiding_types_selected": [],  # ["haag","betonschutting",...]
+            "_erfafscheiding_idx": 0,
+            "_erfafscheiding_current_type": None,
+            "_erfafscheiding_current_meter": None,
         }
 
     def is_done(self) -> bool:
         return self.step_index >= len(self.steps)
 
+    # -------------------------
+    # Mini confirms / labels
+    # -------------------------
+    def _confirm_prefix(self, title: str, items: List[str]) -> str:
+        items = [str(x).strip() for x in items if str(x).strip()]
+        if not items:
+            return ""
+        return f"Gekozen {title}: " + ", ".join(items) + ".\n\n"
+
+    def _erf_type_pretty(self, t: Optional[str]) -> str:
+        m = {
+            "haag": "haag",
+            "betonschutting": "betonschutting",
+            "design_schutting": "design schutting",
+        }
+        return m.get((t or "").strip().lower(), "erfafscheiding")
+
     def get_question(self) -> str:
         if self.is_done():
             return "Bedankt voor het invullen! Ik heb genoeg info. Hieronder kunt u de prijzen terug vinden."
-        return self.steps[self.step_index].prompt
+
+        step = self.steps[self.step_index]
+
+        # Dynamische vraagtekst voor erfafscheiding (zodat altijd duidelijk is waar je meters invult)
+        if step.key == "erfafscheiding_meter":
+            t = self._erf_type_pretty(self.answers.get("_erfafscheiding_current_type"))
+            return f"Hoeveel meter {t} is het ongeveer? (bijv. 10)"
+
+        if step.key == "poortdeur":
+            t = self._erf_type_pretty(self.answers.get("_erfafscheiding_current_type"))
+            return f"Wilt u bij deze {t} ook een poortdeur opnemen? (ja/nee)"
+
+        return step.prompt
 
     def _goto_step(self, key: str) -> None:
         for i, s in enumerate(self.steps):
             if s.key == key:
                 self.step_index = i
                 return
-
-    def _overige_has(self, tag: str) -> bool:
-        arr = self.answers.get("overige_wensen") or []
-        return any(str(x).strip().lower() == tag for x in arr)
 
     def _append_overige_once(self, tag: str) -> None:
         tag = str(tag).strip().lower()
@@ -151,129 +181,181 @@ class TuinaanlegFlow:
             arr.append(tag)
         self.answers["overige_wensen"] = arr
 
+    # -------------------------
+    # Multi-select parsing (dummy proof)
+    # - accepteert: "1,3" "1 3" "13" "31" "1/3" "1-3" etc.
+    # - verwijdert duplicates, behoudt volgorde
+    # -------------------------
+    def _parse_multi_digits(self, user_text: str, *, allowed: Tuple[str, ...]) -> Optional[Tuple[str, ...]]:
+        t = (user_text or "").strip().lower()
+        if not t:
+            return None
+
+        # speciale case: nee
+        if t in ("nee", "n", "no"):
+            return ("nee",)
+
+        # haal alle digits uit de input, bv "1, 3" => ["1","3"], "13" => ["1","3"]
+        digits = re.findall(r"\d", t)
+        if not digits:
+            return None
+
+        out: List[str] = []
+        seen = set()
+        for d in digits:
+            if d in allowed and d not in seen:
+                out.append(d)
+                seen.add(d)
+
+        if not out:
+            return None
+
+        return tuple(out)
+
+    # -------------------------
+    # Pending extras queue helpers
+    # -------------------------
+    def _start_pending_extras(self, selected: Tuple[str, ...]) -> Tuple[str, bool]:
+        wanted = set(selected)
+
+        chosen_labels: List[str] = []
+        pending: List[str] = []
+
+        # volgorde: erfafscheiding -> vlonder -> beregening
+        if "1" in wanted:
+            self._append_overige_once("erfafscheiding")
+            chosen_labels.append("Erfafscheiding")
+            pending.append("erfafscheiding_type")
+
+        if "2" in wanted:
+            self._append_overige_once("vlonder")
+            chosen_labels.append("Vlonder")
+            pending.append("vlonder_type")
+
+        if "3" in wanted:
+            self._append_overige_once("beregening")
+            chosen_labels.append("Beregening")
+            pending.append("beregening_scope")
+
+        self.answers["_pending_extras"] = pending
+
+        prefix = self._confirm_prefix("opties", chosen_labels)
+
+        if pending:
+            self._goto_step(pending[0])
+            return prefix + self.get_question(), False
+
+        # geen pending => klaar
+        self.step_index = len(self.steps)
+        return self.get_question(), True
+
+    def _advance_pending_extras(self) -> Tuple[str, bool]:
+        pending: List[str] = list(self.answers.get("_pending_extras") or [])
+        if not pending:
+            self.step_index = len(self.steps)
+            return self.get_question(), True
+
+        # pop current
+        pending = pending[1:]
+        self.answers["_pending_extras"] = pending
+
+        if not pending:
+            self.step_index = len(self.steps)
+            return self.get_question(), True
+
+        self._goto_step(pending[0])
+        return self.get_question(), False
+
+    # -------------------------
+    # Main handler
+    # -------------------------
     def handle(self, user_text: str) -> Tuple[str, bool]:
         if self.is_done():
             return self.get_question(), True
 
         step = self.steps[self.step_index]
         ok, value = self._validate(step, user_text)
-
         if not ok:
             return (step.error_prompt or step.prompt), False
 
         # -------------------------
-        # Overige wensen menu: onbeperkt herhalen tot "nee"
+        # Overige wensen (multi-select, 1x)
         # -------------------------
         if step.key == "overige_wensen":
-            low = str(value).strip().lower()
-
-            # "nee" => direct klaar
-            if low == "nee":
+            if value == ("nee",):
                 self.step_index = len(self.steps)
                 return self.get_question(), True
 
-            # reset triggers
-            self.answers["_trigger_erfafscheiding"] = False
-            self.answers["_trigger_beregening"] = False
-            self.answers["_trigger_vlonder"] = False
-
-            if low == "1":
-                self._append_overige_once("erfafscheiding")
-                self.answers["_trigger_erfafscheiding"] = True
-                self.answers["_erfafscheiding_current"] = None
-                self._goto_step("erfafscheiding_type")
-                return self.get_question(), False
-
-            if low == "2":
-                self._append_overige_once("vlonder")
-                self.answers["_trigger_vlonder"] = True
-                self._goto_step("vlonder_type")
-                return self.get_question(), False
-
-            if low == "3":
-                self._append_overige_once("beregening")
-                self.answers["_trigger_beregening"] = True
-                self._goto_step("beregening_scope")
-                return self.get_question(), False
-
-            if low == "4":
-                self._append_overige_once("zwembad")
-                # terug naar menu
-                self._goto_step("overige_wensen")
-                return self.get_question(), False
-
-            if low == "5":
-                self._append_overige_once("vijver")
-                self._goto_step("overige_wensen")
-                return self.get_question(), False
-
-            # 6 of vrije tekst
-            if low == "6":
-                # “overig” tag, maar gebruiker moet toelichten -> we bewaren volgende input als tekst
-                self._append_overige_once("overig")
-                return ("Licht uw wens kort toe (1 zin).", False)
-
-            # vrije tekst: voeg toe als losse wens
-            self.answers["overige_wensen"].append(str(value).strip())
-            self._goto_step("overige_wensen")
-            return self.get_question(), False
+            # start queue + mini confirm
+            return self._start_pending_extras(value)
 
         # -------------------------
-        # beregening scope
+        # Beregening
         # -------------------------
         if step.key == "beregening_scope":
             self.answers["beregening_scope"] = value
-            # terug naar menu (onbeperkt)
-            self._goto_step("overige_wensen")
-            return self.get_question(), False
+            return self._advance_pending_extras()
 
         # -------------------------
-        # vlonder
+        # Vlonder
         # -------------------------
         if step.key == "vlonder_type":
             self.answers["vlonder_type"] = value
-            self._goto_step("overige_wensen")
-            return self.get_question(), False
+            return self._advance_pending_extras()
 
         # -------------------------
-        # erfafscheiding (multi)
+        # Erfafscheiding: multi type-select -> vervolgens per type meter (en evt poortdeur)
         # -------------------------
         if step.key == "erfafscheiding_type":
-            self.answers["_erfafscheiding_current"] = {"type": value, "meter": None, "poortdeur": None}
+            # value: tuple keuzes ("1","2") etc.
+            mapping = {"1": "haag", "2": "betonschutting", "3": "design_schutting"}
+            types = [mapping[c] for c in value if c in mapping]
+
+            if not types:
+                return (step.error_prompt or step.prompt), False
+
+            self.answers["_erfafscheiding_types_selected"] = types
+            self.answers["_erfafscheiding_idx"] = 0
+            self.answers["_erfafscheiding_current_type"] = types[0]
+            self.answers["_erfafscheiding_current_meter"] = None
+
+            pretty_map = {
+                "haag": "Haag",
+                "betonschutting": "Betonschutting",
+                "design_schutting": "Design schutting",
+            }
+            prefix = self._confirm_prefix("erfafscheiding", [pretty_map.get(t, t) for t in types])
+
             self._goto_step("erfafscheiding_meter")
-            return self.get_question(), False
+            return prefix + self.get_question(), False
 
         if step.key == "erfafscheiding_meter":
-            cur = self.answers.get("_erfafscheiding_current") or {"type": None, "meter": None, "poortdeur": None}
-            cur["meter"] = value
-            self.answers["_erfafscheiding_current"] = cur
+            cur_type = (self.answers.get("_erfafscheiding_current_type") or "").strip().lower()
+            self.answers["_erfafscheiding_current_meter"] = value
 
-            t = (cur.get("type") or "").strip().lower()
-            if t in ("betonschutting", "design_schutting"):
+            # schutting types => poortdeur vraag
+            if cur_type in ("betonschutting", "design_schutting"):
                 self._goto_step("poortdeur")
                 return self.get_question(), False
 
-            # haag: direct opslaan en vragen of nog een erfafscheiding
-            self.answers["erfafscheiding_items"].append(cur)
-            self.answers["_erfafscheiding_current"] = None
-            self._goto_step("meer_erfafscheiding")
-            return self.get_question(), False
+            # haag => poortdeur niet nodig, direct opslaan
+            self.answers["erfafscheiding_items"].append({
+                "type": cur_type,
+                "meter": value,
+                "poortdeur": None
+            })
+            return self._next_erfafscheiding_or_advance()
 
         if step.key == "poortdeur":
-            cur = self.answers.get("_erfafscheiding_current") or {"type": None, "meter": None, "poortdeur": None}
-            cur["poortdeur"] = value
-            self.answers["erfafscheiding_items"].append(cur)
-            self.answers["_erfafscheiding_current"] = None
-            self._goto_step("meer_erfafscheiding")
-            return self.get_question(), False
+            cur_type = (self.answers.get("_erfafscheiding_current_type") or "").strip().lower()
+            meter = self.answers.get("_erfafscheiding_current_meter")
 
-        if step.key == "meer_erfafscheiding":
-            if value is True:
-                self._goto_step("erfafscheiding_type")
-                return self.get_question(), False
-            # klaar met erfafscheiding => terug naar menu
-            self._goto_step("overige_wensen")
-            return self.get_question(), False
+            self.answers["erfafscheiding_items"].append({
+                "type": cur_type,
+                "meter": meter,
+                "poortdeur": value
+            })
+            return self._next_erfafscheiding_or_advance()
 
         # -------------------------
         # normale velden
@@ -326,7 +408,11 @@ class TuinaanlegFlow:
                 self.answers["bestrating_pct"] = None
                 self.answers["groen_pct"] = None
                 self._goto_step("bestrating_pct")
-                return (f"De totalen moeten samen 100% zijn. Nu is het {b+g}%. Welk percentage wordt bestrating? (0–100%)", False)
+                return (
+                    f"De totalen moeten samen 100% zijn. Nu is het {b+g}%. "
+                    f"Welk percentage wordt bestrating? (0–100%)",
+                    False
+                )
 
         if step.key == "beplanting_pct":
             ga = int(self.answers.get("gazon_pct") or 0)
@@ -335,7 +421,11 @@ class TuinaanlegFlow:
                 self.answers["gazon_pct"] = None
                 self.answers["beplanting_pct"] = None
                 self._goto_step("gazon_pct")
-                return (f"De totalen moeten samen 100% zijn. Nu is het {ga+bp}%. Welk percentage van het groen wordt gazon? (0–100%)", False)
+                return (
+                    f"De totalen moeten samen 100% zijn. Nu is het {ga+bp}%. "
+                    f"Welk percentage van het groen wordt gazon? (0–100%)",
+                    False
+                )
 
         if step.key == "terras_pct":
             o = int(self.answers.get("oprit_pct") or 0)
@@ -346,7 +436,11 @@ class TuinaanlegFlow:
                 self.answers["paden_pct"] = None
                 self.answers["terras_pct"] = None
                 self._goto_step("oprit_pct")
-                return (f"De totalen moeten samen 100% zijn. Nu is het {o+p+t}%. Welk percentage wordt oprit? (0–100%)", False)
+                return (
+                    f"De totalen moeten samen 100% zijn. Nu is het {o+p+t}%. "
+                    f"Welk percentage wordt oprit? (0–100%)",
+                    False
+                )
 
         # next step (standaard)
         self.step_index += 1
@@ -370,60 +464,92 @@ class TuinaanlegFlow:
 
         return self.get_question(), False
 
+    def _next_erfafscheiding_or_advance(self) -> Tuple[str, bool]:
+        types: List[str] = list(self.answers.get("_erfafscheiding_types_selected") or [])
+        idx = int(self.answers.get("_erfafscheiding_idx") or 0)
+        idx += 1
+        self.answers["_erfafscheiding_idx"] = idx
+
+        if idx < len(types):
+            self.answers["_erfafscheiding_current_type"] = types[idx]
+            self.answers["_erfafscheiding_current_meter"] = None
+            self._goto_step("erfafscheiding_meter")
+            return self.get_question(), False
+
+        # klaar met alle gekozen types
+        self.answers["_erfafscheiding_current_type"] = None
+        self.answers["_erfafscheiding_current_meter"] = None
+        self.answers["_erfafscheiding_types_selected"] = []
+        self.answers["_erfafscheiding_idx"] = 0
+        return self._advance_pending_extras()
+
+    # -------------------------
+    # Validation
+    # -------------------------
     def _validate(self, step: Step, user_text: str) -> Tuple[bool, Any]:
         if step.kind == "m2":
             v = parse_m2(user_text)
             return (v is not None), v
+
         if step.kind == "number":
             v = parse_number(user_text, min_v=0.0, max_v=100000.0)
             return (v is not None), v
+
         if step.kind == "pct":
             v = parse_pct(user_text)
             return (v is not None), v
+
         if step.kind == "yesno":
             v = parse_yesno(user_text)
             return (v is not None), v
+
         if step.kind == "choice":
             v = parse_choice(user_text, step.allowed)
             if v is None:
                 return False, None
 
             if step.key == "verhouding_bestrating_groen":
-                return True, {"1":"70_30","2":"50_50","3":"30_70","4":"custom"}[v]
+                return True, {"1": "70_30", "2": "50_50", "3": "30_70", "4": "custom"}[v]
             if step.key == "verhouding_gazon_beplanting":
-                return True, {"1":"70_30","2":"50_50","3":"30_70","4":"custom"}[v]
+                return True, {"1": "70_30", "2": "50_50", "3": "30_70", "4": "custom"}[v]
             if step.key == "verhouding_oprit_paden_terras":
-                return True, {"1":"50_30_20","2":"40_30_30","3":"30_30_40","4":"20_30_50","5":"custom"}[v]
-            if step.key in ("materiaal_oprit","materiaal_paden","materiaal_terras"):
-                return True, {"1":"beton","2":"gebakken","3":"keramiek","4":"grind"}[v]
+                return True, {"1": "50_30_20", "2": "40_30_30", "3": "30_30_40", "4": "20_30_50", "5": "custom"}[v]
+            if step.key in ("materiaal_oprit", "materiaal_paden", "materiaal_terras"):
+                return True, {"1": "beton", "2": "gebakken", "3": "keramiek", "4": "grind"}[v]
             if step.key == "beregening_scope":
-                return True, {"1":"gazon","2":"beplanting","3":"allebei"}[v]
-            if step.key == "erfafscheiding_type":
-                return True, {"1":"haag","2":"betonschutting","3":"design_schutting"}[v]
-            if step.key == "vlonder_type":
-                return True, {"1":"zachthout","2":"hardhout","3":"composiet"}[v]
+                return True, {"1": "gazon", "2": "beplanting", "3": "allebei"}[v]
 
             return True, v
 
-        # overige wensen menu: accepteer 1-6 of "nee" of vrije tekst
+        # multi-select: overige wensen (1-3 + nee)
         if step.key == "overige_wensen":
-            t = user_text.strip()
-            if not t:
+            parsed = self._parse_multi_digits(user_text, allowed=("1", "2", "3"))
+            if parsed is None:
                 return False, None
-            low = t.lower().strip()
-            if low in ("1","2","3","4","5","6","nee"):
-                return True, low
-            return True, t
+            return True, parsed
+
+        # multi-select: erfafscheiding types (1-3)
+        if step.key == "erfafscheiding_type":
+            parsed = self._parse_multi_digits(user_text, allowed=("1", "2", "3"))
+            if parsed is None or parsed == ("nee",):
+                return False, None
+            return True, parsed
 
         return True, user_text.strip()
 
+    # -------------------------
+    # Steps
+    # -------------------------
     def _build_steps(self) -> Tuple[Step, ...]:
         overkapping_txt = self._overkapping_price_text()
         verlichting_txt = self._verlichting_price_text()
 
         return (
-            Step("tuin_m2", "m2", "Hoe groot is uw tuin in m²? (geef een getal)",
-                 error_prompt="Ik heb alleen een getal nodig, bijvoorbeeld 60. Hoe groot is uw tuin in m²?"),
+            Step(
+                "tuin_m2", "m2",
+                "Hoe groot is uw tuin in m²? (geef een getal)",
+                error_prompt="Ik heb alleen een getal nodig, bijvoorbeeld 60. Hoe groot is uw tuin in m²?"
+            ),
 
             Step("verhouding_bestrating_groen", "choice", (
                 "Hoe wilt u de verhouding tussen bestrating en groen?\n"
@@ -433,7 +559,7 @@ class TuinaanlegFlow:
                 "4) Zelf invullen\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
-            ), allowed=("1","2","3","4"),
+            ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Hoe wilt u de verhouding bestrating/groen?"),
 
             Step("bestrating_pct", "pct", "Welk percentage van de tuin wordt bestrating? (0–100%)",
@@ -449,7 +575,7 @@ class TuinaanlegFlow:
                 "4) Zelf invullen\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
-            ), allowed=("1","2","3","4"),
+            ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Hoe wilt u het groen verdelen tussen gazon en beplanting?"),
 
             Step("gazon_pct", "pct", "Welk percentage van het groen wordt gazon? (0–100%)",
@@ -466,7 +592,7 @@ class TuinaanlegFlow:
                 "\n"
                 "5) Zelf invullen\n"
                 "Reageer met 1 t/m 5."
-            ), allowed=("1","2","3","4","5"),
+            ), allowed=("1", "2", "3", "4", "5"),
             error_prompt="Kies 1 t/m 5. Hoe wilt u de bestrating verdelen tussen oprit/paden/terras?"),
 
             Step("oprit_pct", "pct", "Welk percentage van de bestrating wordt oprit? (0–100%)",
@@ -484,7 +610,7 @@ class TuinaanlegFlow:
                 "4) Grind\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
-            ), allowed=("1","2","3","4"),
+            ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Welk materiaal wilt u voor de oprit?"),
 
             Step("materiaal_paden", "choice", (
@@ -495,7 +621,7 @@ class TuinaanlegFlow:
                 "4) Grind\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
-            ), allowed=("1","2","3","4"),
+            ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Welk materiaal wilt u voor de paden?"),
 
             Step("materiaal_terras", "choice", (
@@ -506,7 +632,7 @@ class TuinaanlegFlow:
                 "4) Grind\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
-            ), allowed=("1","2","3","4"),
+            ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Welk materiaal wilt u voor het terras?"),
 
             Step("onkruidwerend_gevoegd", "yesno", "Wilt u de bestrating gevoegd hebben tegen onkruid? (ja/nee)",
@@ -518,18 +644,16 @@ class TuinaanlegFlow:
             Step("verlichting", "yesno", f"Wilt u een basispakket tuinverlichting? {verlichting_txt} (ja/nee)".strip(),
                  error_prompt="Antwoord met ja of nee. Wilt u een basispakket tuinverlichting?"),
 
-            # ✅ menu (onbeperkt herhalen)
+            # ✅ overige wensen (multi-select, 1x)
             Step("overige_wensen", "menu", (
                 "Heeft u nog overige wensen?\n"
                 "1) Erfafscheiding\n"
                 "2) Vlonder\n"
                 "3) Beregening\n"
-                "4) Zwembad\n"
-                "5) Vijver\n"
-                "6) Overig (licht dit toe)\n"
                 "\n"
+                "U kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt).\n"
                 "Of typ 'nee' als u geen extra wensen hebt."
-            ), error_prompt="Kies 1–6, typ 'nee', of omschrijf uw wens in eigen woorden."),
+            ), error_prompt="Kies 1, 2, 3 (eventueel meerdere tegelijk, bijv. 1,3 of 13) of typ 'nee'."),
 
             # beregening
             Step("beregening_scope", "choice", (
@@ -539,31 +663,27 @@ class TuinaanlegFlow:
                 "3) Gazon én beplanting\n"
                 "\n"
                 "Reageer met 1, 2 of 3."
-            ), allowed=("1","2","3"),
+            ), allowed=("1", "2", "3"),
             error_prompt="Kies 1, 2 of 3. Voor welk deel wilt u beregening?"),
 
-            # erfafscheiding multi
-            Step("erfafscheiding_type", "choice", (
+            # erfafscheiding multi-select type
+            Step("erfafscheiding_type", "menu", (
                 "Welk type erfafscheiding wilt u toevoegen?\n"
                 "1) Haag\n"
                 "2) Betonschutting\n"
                 "3) Design schutting\n"
-                "Reageer met 1, 2 of 3."
                 "\n"
-            ), allowed=("1","2","3"),
-            error_prompt="Kies 1, 2 of 3. Welk type erfafscheiding wilt u toevoegen?"),
+                "U kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt).\n"
+                "Reageer met 1, 2 of 3."
+            ), error_prompt="Kies 1, 2 of 3 (eventueel meerdere tegelijk, bijv. 1,3 of 13)."),
 
             Step("erfafscheiding_meter", "number",
                  "Hoeveel meter is deze erfafscheiding ongeveer? (bijv. 10)",
-                 error_prompt="Geef een getal, bijvoorbeeld 10. Hoeveel meter is deze erfafscheiding ongeveer?"),
+                 error_prompt="Geef een getal, bijvoorbeeld 10."),
 
             Step("poortdeur", "yesno",
                  "Wilt u bij deze erfafscheiding ook een poortdeur opnemen? (ja/nee)",
-                 error_prompt="Antwoord met ja of nee. Wilt u bij deze erfafscheiding ook een poortdeur opnemen?"),
-
-            Step("meer_erfafscheiding", "yesno",
-                 "Wilt u nog een extra erfafscheiding toevoegen? (ja/nee)",
-                 error_prompt="Antwoord met ja of nee. Wilt u nog een extra erfafscheiding toevoegen?"),
+                 error_prompt="Antwoord met ja of nee."),
 
             # vlonder
             Step("vlonder_type", "choice", (
@@ -573,7 +693,7 @@ class TuinaanlegFlow:
                 "3) Composiet\n"
                 "\n"
                 "Reageer met 1, 2 of 3."
-            ), allowed=("1","2","3"),
+            ), allowed=("1", "2", "3"),
             error_prompt="Kies 1, 2 of 3. Welk type vlonder wilt u?"),
         )
 

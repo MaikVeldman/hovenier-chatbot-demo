@@ -425,7 +425,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
         })
 
     # ------------------------------------------------------------
-    # ✅ 5b) Erfafscheiding (MEERDERE items) + poortdeur per item
+    # ✅ 5b) Erfafscheiding (MEERDERE items) + ✅ poortdeuren samenvoegen
     # ------------------------------------------------------------
     erf_gevraagd = any(str(x).strip().lower() == "erfafscheiding" for x in (overige or []))
     items = answers.get("erfafscheiding_items") or []
@@ -436,6 +436,8 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     old_poort = answers.get("poortdeur")
     if (not items) and old_type and old_meter > 0:
         items = [{"type": old_type, "meter": old_meter, "poortdeur": (old_poort is True) if old_poort is not None else None}]
+
+    poortdeur_count = 0
 
     if erf_gevraagd and items:
         for it in items:
@@ -472,20 +474,24 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                     "notes": "Indicatief; afhankelijk van uitvoering, ondergrond en bereikbaarheid."
                 })
 
-                # poortdeur per item (alleen bij schutting)
-                if pd and t in ("betonschutting", "design_schutting") and "plaatsen_poortdeur_per_st" in PRIJZEN:
-                    pk = "plaatsen_poortdeur_per_st"
-                    pr = PRIJZEN[pk]
-                    prng = (float(pr[0]), float(pr[1]))
-                    total = _range_add(total, prng)
-                    breakdown.append({
-                        "key": pk,
-                        "label": _label(pk, "Poortdeur plaatsen"),
-                        "unit": _unit(pk, "€/stuk"),
-                        "qty": 1,
-                        "range_eur": [_eur(prng[0]), _eur(prng[1])],
-                        "notes": "Indicatief; afhankelijk van maatvoering, beslag en fundering."
-                    })
+                # ✅ poortdeur tellen (later 1 regel)
+                if pd and t in ("betonschutting", "design_schutting"):
+                    poortdeur_count += 1
+
+        # ✅ Samengevoegde poortdeuren als 1 post
+        if poortdeur_count > 0 and "plaatsen_poortdeur_per_st" in PRIJZEN:
+            pk = "plaatsen_poortdeur_per_st"
+            pr = PRIJZEN[pk]
+            rng = (float(pr[0]) * poortdeur_count, float(pr[1]) * poortdeur_count)
+            total = _range_add(total, rng)
+            breakdown.append({
+                "key": pk,
+                "label": _label(pk, "Poortdeur plaatsen"),
+                "unit": _unit(pk, "€/stuk"),
+                "qty": poortdeur_count,
+                "range_eur": [_eur(rng[0]), _eur(rng[1])],
+                "notes": "Indicatief; afhankelijk van maatvoering, beslag en fundering."
+            })
 
         # ✅ voorkom dat 'erfafscheiding' later nog als 'Overige wensen' terugkomt
         overige_clean = [x for x in overige_clean if x != "erfafscheiding"]
@@ -740,11 +746,11 @@ def format_tuinaanleg_costs_for_customer(costs: Dict[str, Any]) -> str:
         return f"€{v:,}".replace(",", ".")
 
     lines: List[str] = []
-    lines.append("Op basis van uw keuzes kan ik een **globale kostenindicatie** geven:")
+    lines.append("✅ **Globale kostenindicatie** ✅")
+    lines.append("Op basis van uw keuzes kan ik een globale kostenindicatie geven:")
     lines.append("")
     lines.append(f"**Totale indicatie:** {eur(int(total_min))} – {eur(int(total_max))}")
     lines.append("")
-    lines.append("**Indicatieve opbouw:**")
 
     for item in costs.get("breakdown", []):
         label = item.get("label", "Onderdeel")
