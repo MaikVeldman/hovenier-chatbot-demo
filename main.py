@@ -21,7 +21,7 @@ flow = None  # wordt TuinaanlegFlow zodra iemand tuinaanleg-intent heeft
 
 # Post-offer menu (na prijsindicatie)
 post_offer_mode = False
-post_offer_stage = None  # "recalc" | "contact_ask" | "contact_details"
+post_offer_stage = None  # "choice" | "recalc" | "contact_ask" | "contact_details"
 last_answers = None
 last_costs = None
 
@@ -74,13 +74,6 @@ def ask_yes_no(question: str) -> str:
 
 def remaining_recalcs() -> int:
     return max(0, MAX_RECALC - recalc_count)
-
-
-def recalc_question() -> str:
-    r = remaining_recalcs()
-    if r <= 0:
-        return "U heeft het maximum aantal herberekeningen bereikt."
-    return f"Wilt u een nieuwe prijsindicatie berekenen met andere keuzes? (nog {r} keer mogelijk)"
 
 
 def ratio_label_bestrating_groen(v: str | None) -> str:
@@ -136,6 +129,17 @@ def yn(v) -> str:
     return "—"
 
 
+def post_offer_choices_text() -> str:
+    return (
+        "Hoe wilt u verder?\n"
+        "1) Kijken of er keuzes zijn om de kosten te verlagen\n"
+        "2) Contact voor offerte op maat (vrijblijvend)\n"
+        "3) Het hierbij laten\n"
+        "\n"
+        "Reageer met 1, 2 of 3."
+    )
+
+
 # =====================
 # ✅ UPDATED: Intake summary (incl. erfafscheiding items + beregening scope)
 # =====================
@@ -152,7 +156,6 @@ def pretty_intake_summary(ans: dict) -> str:
     overkapping = yn(ans.get("overkapping"))
     verlichting = yn(ans.get("verlichting"))
 
-    # Overige wensen (lijst of tekst) normaliseren
     overige = ans.get("overige_wensen")
     if overige in (None, [], ""):
         overige_list: list[str] = []
@@ -178,12 +181,10 @@ def pretty_intake_summary(ans: dict) -> str:
 
     overige_set = set(overige_list)
 
-    # ✅ Vlonder
     if "vlonder" in overige_set:
         vt = vlonder_type_label(ans.get("vlonder_type"))
         lines.append(f"- Vlonder ({vt})")
 
-    # ✅ Erfafscheiding: meerdere items
     if "erfafscheiding" in overige_set:
         items = ans.get("erfafscheiding_items") or []
         type_label_map = {
@@ -206,10 +207,8 @@ def pretty_intake_summary(ans: dict) -> str:
                 lines.append(line)
 
                 if t in ("betonschutting", "design_schutting"):
-                    # ✅ FIX: poortdeur_val (geen typo)
                     lines.append(f"  - Poortdeur: {yn(poortdeur_val)}")
 
-    # ✅ Beregening: scope
     if "beregening" in overige_set:
         scope = (ans.get("beregening_scope") or "").strip().lower()
         scope_label_map = {
@@ -223,7 +222,6 @@ def pretty_intake_summary(ans: dict) -> str:
         else:
             lines.append("- Beregening")
 
-    # Andere bekende wensen
     known_map = {
         "zwembad": "Zwembad",
         "vijver": "Vijver",
@@ -232,7 +230,6 @@ def pretty_intake_summary(ans: dict) -> str:
         if key in overige_set:
             lines.append(f"- {label}")
 
-    # Vrije tekst-wensen
     skip_tags = {
         "erfafscheiding", "vlonder", "beregening", "zwembad", "vijver", "overig",
         "haag", "betonschutting", "design schutting", "design_schutting", "poort", "poortdeur"
@@ -260,7 +257,7 @@ def db_reply_or_none(user_input: str) -> str | None:
     if "telefoon" in t or "nummer" in t:
         return "Wilt u tuinaanleg, onderhoud of ontwerp? Dan kan ik u verder helpen via de juiste flow."
     if "prijs" in t or "kosten" in t:
-        return "Voor een prijsindicatie kan ik u helpen via de juiste intake. Gaat het om tuinaanleg of onderhoud?"
+        return "Om u te helpen inschatten of dit bij uw wensen past kan ik een globale indicatie maken. Gaat het om tuinaanleg of onderhoud?"
 
     return None
 
@@ -279,7 +276,7 @@ def no_ai_fallback_message() -> str:
 # Console demo
 # =====================
 print("🤖 Hovenier-chatbot gestart (typ 'stop' om te stoppen)\n")
-print("Chatbot: Hoi! 👋 Waar kan ik u mee helpen ontwerp, aanleg of onderhoud?\n")
+print("Chatbot: Hoi! 👋 Waar kan ik u mee helpen: ontwerp, aanleg of onderhoud?\n")
 
 while True:
     user_input = input("U: ").strip()
@@ -298,18 +295,17 @@ while True:
         if post_offer_mode:
             t = user_input.strip().lower()
 
-            if post_offer_stage == "recalc":
-                if is_yes(t):
+            if post_offer_stage == "choice":
+                if t == "1":
                     if remaining_recalcs() <= 0:
                         print(
-                            "Chatbot: Ik kan maximaal 3 nieuwe berekeningen per gesprek doen om onnodige kosten te voorkomen.\n"
-                            "Chatbot: Wilt u dat we contact met u opnemen voor een offerte op maat? (ja/nee)\n"
+                            "Chatbot: Ik kan maximaal 3 nieuwe berekeningen per gesprek doen.\n"
+                            "Chatbot: Wilt u dat we dit samen verfijnen en advies op maat geven? (ja/nee)\n"
                         )
                         post_offer_stage = "contact_ask"
                         continue
 
                     recalc_count += 1
-                    # ✅ geef PRIJZEN mee zodat flow prijs-tekst kan tonen
                     flow = TuinaanlegFlow(prijzen=PRIJZEN)
                     post_offer_mode = False
                     post_offer_stage = None
@@ -317,18 +313,27 @@ while True:
                     print("Chatbot:", flow.get_question(), "\n")
                     continue
 
-                if is_no(t):
-                    post_offer_stage = "contact_ask"
-                    print("Chatbot:", ask_yes_no("Wilt u dat we contact met u opnemen voor een offerte op maat?"), "\n")
+                if t == "2":
+                    post_offer_stage = "contact_details"
+                    print(
+                        "Chatbot: Top. Stuur gerust uw naam + postcode + telefoon/e-mail + een korte omschrijving.\n"
+                    )
                     continue
 
-                print("Chatbot: Antwoord met ja of nee.\nChatbot:", ask_yes_no(recalc_question()), "\n")
+                if t == "3":
+                    print("Chatbot: Helemaal goed. Fijn dat u even heeft gekeken. 👋\n")
+                    post_offer_mode = False
+                    post_offer_stage = None
+                    break
+
+                print("Chatbot: Kies 1, 2 of 3.\n")
+                print("Chatbot:", post_offer_choices_text(), "\n")
                 continue
 
             if post_offer_stage == "contact_ask":
                 if is_yes(t):
                     post_offer_stage = "contact_details"
-                    print("Chatbot: Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?\n")
+                    print("Chatbot: Top. Stuur gerust uw naam + postcode + telefoon/e-mail + een korte omschrijving.\n")
                     continue
 
                 if is_no(t):
@@ -337,7 +342,7 @@ while True:
                     print("Chatbot: Helemaal goed. Als u later nog vragen heeft, help ik graag. 👋\n")
                     continue
 
-                print("Chatbot: Antwoord met ja of nee. Wilt u dat we contact met u opnemen?\n")
+                print("Chatbot: Antwoord met ja of nee.\nChatbot: Wilt u dat we dit samen verfijnen met advies op maat? (ja/nee)\n")
                 continue
 
             if post_offer_stage == "contact_details":
@@ -360,9 +365,8 @@ while True:
         # -------------------------
         if flow is None and looks_like_tuinaanleg_intent(user_input):
             recalc_count = 0
-            # ✅ geef PRIJZEN mee
             flow = TuinaanlegFlow(prijzen=PRIJZEN)
-            print("\nChatbot: Voor tuinaanleg kan ik een gerichtere indicatie maken met een paar korte vragen.")
+            print("\nChatbot: Ik stel u een paar korte vragen over uw tuin, zodat ik u een gerichte indicatie kan geven.")
             print("Chatbot:", flow.get_question(), "\n")
             continue
 
@@ -378,7 +382,7 @@ while True:
             if done:
                 print("✅ Intake samenvatting:")
                 print(pretty_intake_summary(flow.answers))
-                print()  # 
+                print()
 
                 costs = estimate_tuinaanleg_costs(flow.answers)
 
@@ -398,17 +402,9 @@ while True:
                 # Flow uit en post-offer menu starten
                 flow = None
                 post_offer_mode = True
-                post_offer_stage = "recalc"
+                post_offer_stage = "choice"
 
-                if remaining_recalcs() <= 0:
-                    print(
-                        "Chatbot: U heeft het maximum aantal herberekeningen bereikt.\n"
-                        "Chatbot: Wilt u dat we contact met u opnemen voor een offerte op maat? (ja/nee)\n"
-                    )
-                    post_offer_stage = "contact_ask"
-                else:
-                    print("Chatbot:", ask_yes_no(recalc_question()), "\n")
-
+                print("Chatbot:", post_offer_choices_text(), "\n")
                 continue
 
             continue

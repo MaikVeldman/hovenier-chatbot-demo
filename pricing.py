@@ -36,7 +36,10 @@ PRIJZEN: Dict[str, Tuple[int, int]] = {
     "beplanting_boom_per_stuk": (220, 600),                             # €/stuk
 
     "overkapping_basis_per_stuk": (10000, 15000),                       # €/stuk
-    "verlichting_basis 3 armaturen _per_stuk": (1000, 1500),            # €/stuk
+
+    # ✅ FIX: key consistent maken (anders werkt PRICE_META + flow/verlichting niet goed)
+    "verlichting_basis_per_stuk": (1000, 1500),                         # €/stuk
+
     "beregening_basis_per_m2": (20, 40),                                # €/m²
 
     "plaatsen_betonschutting_per_m1": (150, 250),                       # €/m¹
@@ -272,7 +275,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
             "unit": _unit(key, "€/m²"),
             "qty": int(round(m2_part)),
             "range_eur": [_eur(rng[0]), _eur(rng[1])],
-            "notes": "Indicatief; onderbouw/fundering, snijwerk en complexiteit beïnvloeden prijs."
+            "notes": "Indicatief; onderbouw/fundering, snijwerk en complexiteit beïnvloeden de prijs."
         })
 
     add_surface_cost("Oprit", oprit_m2, mat_oprit)
@@ -421,7 +424,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
             "unit": _unit(border_key, "€/m²"),
             "qty": int(round(border_m2)),
             "range_eur": [_eur(border_range[0]), _eur(border_range[1])],
-            "notes": "Indicatief; soort beplanting en plantdichtheid beïnvloeden de prijs."
+            "notes": "Indicatief; soort, ondergrond, beplanting en plantdichtheid beïnvloeden de prijs."
         })
 
     # ------------------------------------------------------------
@@ -471,14 +474,12 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                     "unit": _unit(key, unit_fallback),
                     "qty": int(round(meters)),
                     "range_eur": [_eur(rng[0]), _eur(rng[1])],
-                    "notes": "Indicatief; afhankelijk van uitvoering, ondergrond en bereikbaarheid."
+                    "notes": "Indicatief; afhankelijk van soort, formaat, ondergrond en bereikbaarheid."
                 })
 
-                # ✅ poortdeur tellen (later 1 regel)
                 if pd and t in ("betonschutting", "design_schutting"):
                     poortdeur_count += 1
 
-        # ✅ Samengevoegde poortdeuren als 1 post
         if poortdeur_count > 0 and "plaatsen_poortdeur_per_st" in PRIJZEN:
             pk = "plaatsen_poortdeur_per_st"
             pr = PRIJZEN[pk]
@@ -493,7 +494,6 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 "notes": "Indicatief; afhankelijk van maatvoering, beslag en fundering."
             })
 
-        # ✅ voorkom dat 'erfafscheiding' later nog als 'Overige wensen' terugkomt
         overige_clean = [x for x in overige_clean if x != "erfafscheiding"]
 
     # ------------------------------------------------------------
@@ -526,7 +526,6 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 "notes": f"Indicatief; berekend over {scope_txt}. Afhankelijk van zones, waterpunt en besturing."
             })
 
-        # ✅ verwijder uit overige_clean zodat het niet als "Overige wensen" verschijnt
         overige_clean = [x for x in overige_clean if x != "beregening"]
 
     # ------------------------------------------------------------
@@ -612,7 +611,6 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
 
         overige_clean = [x for x in overige_clean if x != "vlonder"]
 
-    # Overige wensen die we niet doorrekenen
     if overige_clean:
         breakdown.append({
             "key": None,
@@ -658,7 +656,6 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
 
         new_breakdown.append(item)
 
-    # voeg geaggregeerde posten toe
     for k in ("grond_afvoer_per_m3", "zand_aanvoer_per_m3", "puin_aanvoer_per_m3"):
         if k in agg:
             a = agg[k]
@@ -685,8 +682,8 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     def _prio(item: Dict[str, Any]) -> Tuple[int, int]:
         k = item.get("key")
         if k in order:
-            return (0, order[k])   # eerst grondwerk, in vaste volgorde
-        return (1, 0)              # daarna de rest
+            return (0, order[k])
+        return (1, 0)
 
     breakdown.sort(key=_prio)
 
@@ -737,7 +734,7 @@ def format_tuinaanleg_costs_for_customer(costs: Dict[str, Any]) -> str:
     if not costs or not costs.get("total_range_eur"):
         return (
             "Op basis van de ingevulde gegevens kan ik nu nog geen "
-            "betrouwbare prijsindicatie geven. We helpen u graag verder met een offerte op maat."
+            "betrouwbare indicatie geven. We helpen u graag verder met een offerte op maat."
         )
 
     total_min, total_max = costs["total_range_eur"]
@@ -746,9 +743,22 @@ def format_tuinaanleg_costs_for_customer(costs: Dict[str, Any]) -> str:
         return f"€{v:,}".replace(",", ".")
 
     lines: List[str] = []
-    lines.append("✅ **Globale kostenindicatie** ✅")
-    lines.append("Op basis van uw keuzes kan ik een globale kostenindicatie geven:")
+
+    # ✅ 1) “prijs” herpositioneren
+    lines.append("✅ **Globale inschatting**")
+    lines.append(
+        "Om u te helpen inschatten of dit past bij uw wensen en verwachtingen, "
+        "kan ik op basis van uw keuzes een globale indicatie geven."
+    )
     lines.append("")
+
+    # ✅ 2) geruststelling vóór bedragen
+    lines.append(
+        "_Iedere tuin is uniek. Deze indicatie is bedoeld als richting, "
+        "niet als definitieve offerte._"
+    )
+    lines.append("")
+
     lines.append(f"**Totale indicatie:** {eur(int(total_min))} – {eur(int(total_max))}")
     lines.append("")
 
@@ -777,11 +787,14 @@ def format_tuinaanleg_costs_for_customer(costs: Dict[str, Any]) -> str:
 
     lines.append("")
     lines.append(
-        "_Deze prijsindicatie is globaal en gebaseerd op aannames. "
-        "De exacte prijs hangt af van onder andere locatie, bereikbaarheid, "
-        "ondergrond en materiaalkeuze._"
+        "_Deze globale prijsindicatie is gebaseerd op aannames en is inclusief arbeid en standaard materialen._"
     )
     lines.append("")
-    lines.append("Wilt u een **definitieve prijs**? Dan komen we graag langs voor een vrijblijvende offerte.")
+
+    # ✅ 3) menselijk contact als plus/volgende stap
+    lines.append(
+        "Wilt u dat we dit samen verfijnen en kijken wat er mogelijk is binnen uw wensen? "
+        "Dan komen we graag langs voor een vrijblijvende offerte."
+    )
 
     return "\n".join(lines)

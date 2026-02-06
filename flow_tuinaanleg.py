@@ -445,9 +445,11 @@ class TuinaanlegFlow:
         # next step (standaard)
         self.step_index += 1
 
-        # skip pct vragen bij presets
+        # ✅ skip vragen die niet relevant zijn (incl. materiaal bij 0%)
         while not self.is_done():
             k = self.steps[self.step_index].key
+
+            # skip pct vragen bij presets
             if k in ("bestrating_pct", "groen_pct") and self.answers.get("verhouding_bestrating_groen") != "custom":
                 self.step_index += 1
                 continue
@@ -457,6 +459,23 @@ class TuinaanlegFlow:
             if k in ("oprit_pct", "paden_pct", "terras_pct") and self.answers.get("verhouding_oprit_paden_terras") != "custom":
                 self.step_index += 1
                 continue
+
+            # ✅ skip materiaalvraag als het onderdeel 0% is
+            if k == "materiaal_oprit" and int(self.answers.get("oprit_pct") or 0) == 0:
+                self.answers["materiaal_oprit"] = None
+                self.step_index += 1
+                continue
+
+            if k == "materiaal_paden" and int(self.answers.get("paden_pct") or 0) == 0:
+                self.answers["materiaal_paden"] = None
+                self.step_index += 1
+                continue
+
+            if k == "materiaal_terras" and int(self.answers.get("terras_pct") or 0) == 0:
+                self.answers["materiaal_terras"] = None
+                self.step_index += 1
+                continue
+
             break
 
         if self.is_done():
@@ -589,7 +608,6 @@ class TuinaanlegFlow:
                 "2) 40% oprit / 30% paden / 30% terras\n"
                 "3) 30% oprit / 30% paden / 40% terras\n"
                 "4) 20% oprit / 30% paden / 50% terras\n"
-                "\n"
                 "5) Zelf invullen\n"
                 "Reageer met 1 t/m 5."
             ), allowed=("1", "2", "3", "4", "5"),
