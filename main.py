@@ -378,6 +378,7 @@ while True:
             if done:
                 print("✅ Intake samenvatting:")
                 print(pretty_intake_summary(flow.answers))
+                print()  # 
 
                 costs = estimate_tuinaanleg_costs(flow.answers)
 
