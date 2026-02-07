@@ -1,5 +1,4 @@
 # app.py
-
 import re
 import streamlit as st
 
@@ -18,13 +17,54 @@ st.caption(f"{BEDRIJFSNAAM} • {REGIO}")
 
 
 # =====================
-# Helpers (zelfde logica als main.py)
+# Constants / Session defaults
 # =====================
 MAX_RECALC = 5  # gelijk aan main.py
 
 
+def _init_state():
+    if "flow" not in st.session_state:
+        st.session_state.flow = TuinaanlegFlow(prijzen=PRIJZEN)
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{
+            "role": "assistant",
+            "content": (
+                "Hoi! Ik stel u een paar korte vragen over uw tuin, zodat ik u een gerichte indicatie kan geven.\n\n"
+                "Hoe groot is uw tuin in m²? (geef een getal)"
+            )
+        }]
+
+    if "done" not in st.session_state:
+        st.session_state.done = False
+
+    if "post_offer_mode" not in st.session_state:
+        st.session_state.post_offer_mode = False
+
+    if "post_offer_stage" not in st.session_state:
+        st.session_state.post_offer_stage = None  # "menu" | ... (zie hieronder)
+
+    if "last_answers" not in st.session_state:
+        st.session_state.last_answers = None
+
+    if "last_costs" not in st.session_state:
+        st.session_state.last_costs = None
+
+    if "recalc_count" not in st.session_state:
+        st.session_state.recalc_count = 0
+
+    if "_pending_material_part" not in st.session_state:
+        st.session_state._pending_material_part = None  # "1"/"2"/"3"/"4"
+
+
+_init_state()
+
+
+# =====================
+# Helpers (alignment met main.py)
+# =====================
 def remaining_recalcs() -> int:
-    return max(0, MAX_RECALC - st.session_state.recalc_count)
+    return max(0, MAX_RECALC - int(st.session_state.recalc_count or 0))
 
 
 def soft_limit_message() -> str:
@@ -37,19 +77,19 @@ def soft_limit_message() -> str:
 def post_offer_choices_text() -> str:
     return (
         "Hoe wilt u verder?\n"
-        "1) Kijken of er keuzes zijn om de kosten te verlagen\n"
-        "2) Contact voor offerte op maat (vrijblijvend)\n"
-        "3) Het hierbij laten\n\n"
-        "Reageer met 1, 2 of 3."
+        "- **1)** Kijken of er keuzes zijn om de kosten te verlagen\n"
+        "- **2)** Contact voor offerte op maat (vrijblijvend)\n"
+        "- **3)** Het hierbij laten\n\n"
+        "Reageer met **1**, **2** of **3**."
     )
 
 
 def limit_followup_text() -> str:
     return (
         "Hoe wilt u verder?\n"
-        "1) Contact voor offerte op maat (vrijblijvend)\n"
-        "2) Het hierbij laten\n\n"
-        "Reageer met 1 of 2."
+        "- **1)** Contact voor offerte op maat (vrijblijvend)\n"
+        "- **2)** Het hierbij laten\n\n"
+        "Reageer met **1** of **2**."
     )
 
 
@@ -113,10 +153,13 @@ def parse_multi_digits(user_text: str, *, allowed: tuple[str, ...]) -> tuple[str
 
 
 # ============================================================
-# ✅ Besparing: consistent, gecontroleerd, gekoppelde posten mee
-# (kopie van main.py, zodat Streamlit exact gelijk rekent/teksten toont)
+# ✅ Besparing: consistent + gekoppelde posten mee (zoals main.py)
 # ============================================================
 def _sum_breakdown_range_allow_zero(costs: dict | None, *, keys: tuple[str, ...]) -> tuple[int, int]:
+    """
+    Sommeer range_eur uit costs['breakdown'] voor opgegeven keys.
+    Missende keys tellen als 0.
+    """
     if not costs or not isinstance(costs, dict):
         return (0, 0)
 
@@ -137,10 +180,15 @@ def _sum_breakdown_range_allow_zero(costs: dict | None, *, keys: tuple[str, ...]
             mx += int(r[1])
         except Exception:
             continue
+
     return (mn, mx)
 
 
 def _saving_text_from_delta(base_costs: dict, preview_costs: dict, *, keys: tuple[str, ...]) -> str:
+    """
+    Besparing op basis van delta binnen een set gekoppelde posten.
+    Toon alleen goedkoper.
+    """
     bmin, bmax = _sum_breakdown_range_allow_zero(base_costs, keys=keys)
     pmin, pmax = _sum_breakdown_range_allow_zero(preview_costs, keys=keys)
 
@@ -153,11 +201,10 @@ def _saving_text_from_delta(base_costs: dict, preview_costs: dict, *, keys: tupl
     save_min = max(0, save_min)
     save_max = max(0, save_max)
 
-    return f"(besparing: −{_eur(save_min)} tot −{_eur(save_max)})"
-
-
-def get_current_costs(ans: dict | None) -> dict:
-    return estimate_tuinaanleg_costs(dict(ans or {}))
+    # altijd oplopend tonen
+    lo = min(save_min, save_max)
+    hi = max(save_min, save_max)
+    return f"(besparing: −{_eur(lo)} tot −{_eur(hi)})"
 
 
 # ---------------------
@@ -194,9 +241,9 @@ def _nice_vlonder(v: str | None) -> str:
     return {"composiet": "Composiet", "hardhout": "Hardhout", "zachthout": "Zachthout"}.get(vv, "Hardhout")
 
 
-# =====================
+# ---------------------
 # Keysets per bespaaroptie (gekoppelde posten)
-# =====================
+# ---------------------
 GREEN_LINKED_KEYS = (
     "grond_afvoer_per_m3",
     "zand_aanvoer_per_m3",
@@ -241,19 +288,19 @@ ERF_KEYS = (
 
 
 # =====================
-# Menu texts (prijsbesparing)
+# Menu texts (prijsbesparing) — altijd Markdown-lijsten
 # =====================
 def lower_costs_menu_text(ans: dict | None) -> str:
     lines = [
         "Waar wilt u eventueel op besparen?",
-        "1) Minder bestrating, meer groen (kies een voordeligere verhouding)",
-        "2) Extra’s aanpassen (kies welke extra’s u wilt weglaten)",
-        "3) Bestratingmateriaal goedkoper kiezen (toon besparing per optie)",
+        "- **1)** Minder bestrating, meer groen (kies een voordeligere verhouding)",
+        "- **2)** Extra’s aanpassen (kies welke extra’s u wilt weglaten)",
+        "- **3)** Bestratingmateriaal goedkoper kiezen (toon besparing per optie)",
     ]
     if has_vlonder(ans):
-        lines.append("4) Vlonder goedkoper maken (toon besparing per optie)")
+        lines.append("- **4)** Vlonder goedkoper maken (toon besparing per optie)")
     if has_erfafscheiding(ans):
-        lines.append("5) Erfafscheiding aanpassen/verwijderen (incl. poortdeuren, toon besparing per optie)")
+        lines.append("- **5)** Erfafscheiding aanpassen/verwijderen (incl. poortdeuren, toon besparing per optie)")
     lines.append("\nReageer met het nummer.")
     return "\n".join(lines)
 
@@ -267,7 +314,10 @@ def more_green_choice_text(ans: dict | None, base_costs: dict | None) -> tuple[s
         ("2", "30_70", "30/70 (veel groen)"),
     ]
 
-    out = ["Welke verhouding wilt u kiezen? (ik toon alleen opties die goedkoper uitpakken)"]
+    out = [
+        "Welke verhouding wilt u kiezen?",
+        "_Ik toon alleen opties die goedkoper uitpakken:_",
+    ]
     mapping: dict[str, str] = {}
 
     for digit, ratio_code, label in candidates:
@@ -279,7 +329,7 @@ def more_green_choice_text(ans: dict | None, base_costs: dict | None) -> tuple[s
         if not s:
             continue
 
-        out.append(f"{digit}) {label} {s}")
+        out.append(f"- **{digit}) {label}** {s}")
         mapping[digit] = ratio_code
 
     if not mapping:
@@ -298,52 +348,49 @@ def extras_select_menu_text(ans: dict | None, base_costs: dict | None) -> tuple[
     base_costs = base_costs or estimate_tuinaanleg_costs(a)
     overige = _overige_clean(a)
 
-    labels = {
-        "1": "Voegen",
-        "2": "Overkapping",
-        "3": "Verlichting",
-        "4": "Beregening",
-    }
+    labels = {"1": "Voegen", "2": "Overkapping", "3": "Verlichting", "4": "Beregening"}
 
     lines = [
         "Welke extra’s wilt u weglaten?",
-        "(u kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt))",
-        "Ik toon alleen opties die goedkoper uitpakken:",
+        "_U kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt)_",
+        "_Ik toon alleen opties die goedkoper uitpakken:_",
     ]
 
     allowed: list[str] = []
 
-    def add_option(opt: str, is_active: bool, preview_ans: dict):
+    def add_option(opt: str, preview_ans: dict):
         nonlocal allowed, lines
-        if not is_active:
-            return
         preview_costs = estimate_tuinaanleg_costs(preview_ans)
         s = _saving_text_from_delta(base_costs, preview_costs, keys=EXTRA_KEYS[opt])
         if not s:
             return
-        lines.append(f"{opt}) {labels[opt]} {s}")
+        lines.append(f"- **{opt}) {labels[opt]}** {s}")
         allowed.append(opt)
 
+    # voegen
     if a.get("onkruidwerend_gevoegd") is True:
         p = dict(a)
         p["onkruidwerend_gevoegd"] = False
-        add_option("1", True, p)
+        add_option("1", p)
 
+    # overkapping
     if a.get("overkapping") is True:
         p = dict(a)
         p["overkapping"] = False
-        add_option("2", True, p)
+        add_option("2", p)
 
+    # verlichting
     if a.get("verlichting") is True:
         p = dict(a)
         p["verlichting"] = False
-        add_option("3", True, p)
+        add_option("3", p)
 
+    # beregening
     if "beregening" in overige:
         p = dict(a)
         p["beregening_scope"] = None
         p["overige_wensen"] = [x for x in overige if x != "beregening"]
-        add_option("4", True, p)
+        add_option("4", p)
 
     if not allowed:
         return (
@@ -352,8 +399,7 @@ def extras_select_menu_text(ans: dict | None, base_costs: dict | None) -> tuple[
             tuple()
         )
 
-    lines.append("")
-    lines.append("Typ 'nee' als u niets wilt weglaten.")
+    lines.append("\nTyp **'nee'** als u niets wilt weglaten.")
     return "\n".join(lines), tuple(allowed)
 
 
@@ -363,12 +409,14 @@ def material_part_menu_text(ans: dict | None) -> str:
     p = int(a.get("paden_pct") or 0)
     t = int(a.get("terras_pct") or 0)
 
-    lines = ["Welk onderdeel wilt u goedkoper maken?"]
-    lines.append(f"1) Oprit (nu: {_nice_mat(a.get('materiaal_oprit'))})" + ("" if o > 0 else " (niet van toepassing)"))
-    lines.append(f"2) Paden (nu: {_nice_mat(a.get('materiaal_paden'))})" + ("" if p > 0 else " (niet van toepassing)"))
-    lines.append(f"3) Terras (nu: {_nice_mat(a.get('materiaal_terras'))})" + ("" if t > 0 else " (niet van toepassing)"))
-    lines.append("4) Alle onderdelen")
-    lines.append("\nReageer met 1, 2, 3 of 4.")
+    lines = [
+        "Welk onderdeel wilt u goedkoper maken?",
+        f"- **1)** Oprit (nu: {_nice_mat(a.get('materiaal_oprit'))})" + ("" if o > 0 else " _(niet van toepassing)_"),
+        f"- **2)** Paden (nu: {_nice_mat(a.get('materiaal_paden'))})" + ("" if p > 0 else " _(niet van toepassing)_"),
+        f"- **3)** Terras (nu: {_nice_mat(a.get('materiaal_terras'))})" + ("" if t > 0 else " _(niet van toepassing)_"),
+        "- **4)** Alle onderdelen",
+        "\nReageer met **1**, **2**, **3** of **4**."
+    ]
     return "\n".join(lines)
 
 
@@ -407,11 +455,12 @@ def material_choice_menu_text_cheaper(ans: dict | None, base_costs: dict | None,
 
     parts_label = {"materiaal_oprit": "Oprit", "materiaal_paden": "Paden", "materiaal_terras": "Terras"}
 
-    lines = ["Huidige materiaalkeuze:"]
+    lines = ["**Huidige materiaalkeuze:**"]
     for k, m in current:
         lines.append(f"- {parts_label.get(k, k)}: {_nice_mat(m)}")
     lines.append("")
-    lines.append("Kies een goedkoper materiaal (1 is duurst, 4 is goedkoopst). Ik toon alleen opties die goedkoper uitpakken:")
+    lines.append("Kies een goedkoper materiaal (1 is duurst, 4 is goedkoopst).")
+    lines.append("_Ik toon alleen opties die goedkoper uitpakken:_")
 
     allowed: set[str] = set()
 
@@ -430,7 +479,7 @@ def material_choice_menu_text_cheaper(ans: dict | None, base_costs: dict | None,
         if not savings:
             continue
 
-        lines.append(f"{choice}) {_nice_mat(_MAT_BY_CHOICE[choice])} {savings}")
+        lines.append(f"- **{choice}) {_nice_mat(_MAT_BY_CHOICE[choice])}** {savings}")
         allowed.add(choice)
 
     if not allowed:
@@ -455,9 +504,10 @@ def vlonder_choice_menu_text(ans: dict | None, base_costs: dict | None) -> tuple
     cur_rank = _vlonder_rank(cur)
 
     lines = [
-        f"Huidige vlonder: {_nice_vlonder(cur)}",
+        f"**Huidige vlonder:** {_nice_vlonder(cur)}",
         "",
-        "Kies een goedkopere optie. Ik toon alleen opties die goedkoper uitpakken:",
+        "Kies een goedkopere optie.",
+        "_Ik toon alleen opties die goedkoper uitpakken:_",
     ]
 
     allowed: set[str] = set()
@@ -475,7 +525,7 @@ def vlonder_choice_menu_text(ans: dict | None, base_costs: dict | None) -> tuple
         if not savings:
             continue
 
-        lines.append(f"{choice}) {_nice_vlonder(mat)} {savings}")
+        lines.append(f"- **{choice}) {_nice_vlonder(mat)}** {savings}")
         allowed.add(choice)
 
     # verwijderen
@@ -486,7 +536,7 @@ def vlonder_choice_menu_text(ans: dict | None, base_costs: dict | None) -> tuple
     preview_costs = estimate_tuinaanleg_costs(preview)
     savings = _saving_text_from_delta(base_costs, preview_costs, keys=VLONDER_KEYS)
     if savings:
-        lines.append(f"9) Vlonder verwijderen {savings}")
+        lines.append(f"- **9) Vlonder verwijderen** {savings}")
         allowed.add("9")
 
     if not allowed:
@@ -508,7 +558,6 @@ def erf_stats(ans: dict | None) -> dict:
         "betonschutting_m": 0.0,
         "design_schutting_m": 0.0,
         "poortdeur_count": 0,
-        "has_any": False,
     }
     for it in items:
         t = (it.get("type") or "").strip().lower()
@@ -520,15 +569,12 @@ def erf_stats(ans: dict | None) -> dict:
 
         if t == "haag":
             stats["haag_m"] += m
-            stats["has_any"] = True
         elif t == "betonschutting":
             stats["betonschutting_m"] += m
-            stats["has_any"] = True
             if it.get("poortdeur") is True:
                 stats["poortdeur_count"] += 1
         elif t == "design_schutting":
             stats["design_schutting_m"] += m
-            stats["has_any"] = True
             if it.get("poortdeur") is True:
                 stats["poortdeur_count"] += 1
     return stats
@@ -543,7 +589,7 @@ def erf_remove_select_menu_text(ans: dict | None, base_costs: dict | None) -> tu
     base_costs = base_costs or estimate_tuinaanleg_costs(a)
     stt = erf_stats(a)
 
-    lines = ["Uw huidige erfafscheiding (op basis van uw invoer):"]
+    lines = ["**Uw huidige erfafscheiding (op basis van uw invoer):**"]
     if stt["haag_m"] > 0:
         lines.append(f"- Haag: {stt['haag_m']:.1f} m")
     if stt["betonschutting_m"] > 0:
@@ -553,9 +599,12 @@ def erf_remove_select_menu_text(ans: dict | None, base_costs: dict | None) -> tu
     if stt["poortdeur_count"] > 0:
         lines.append(f"- Poortdeur(en): {stt['poortdeur_count']} st")
 
-    lines.append("")
-    lines.append("Wat wilt u verwijderen? (u kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt))")
-    lines.append("Ik toon alleen opties die goedkoper uitpakken:")
+    lines += [
+        "",
+        "Wat wilt u verwijderen?",
+        "_U kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt)_",
+        "_Ik toon alleen opties die goedkoper uitpakken:_",
+    ]
 
     allowed: list[str] = []
 
@@ -565,34 +614,25 @@ def erf_remove_select_menu_text(ans: dict | None, base_costs: dict | None) -> tu
         savings = _saving_text_from_delta(base_costs, preview_costs, keys=ERF_KEYS)
         if not savings:
             return
-        lines.append(f"{opt_digit}) {label} {savings}")
+        lines.append(f"- **{opt_digit}) {label}** {savings}")
         allowed.append(opt_digit)
 
     # 1 haag weg
     if stt["haag_m"] > 0:
         p = dict(a)
         p["erfafscheiding_items"] = [it for it in items if (it.get("type") or "").strip().lower() != "haag"]
-        if not p["erfafscheiding_items"]:
-            ov = _overige_clean(p)
-            p["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
         add_option("1", "Haag verwijderen", p)
 
     # 2 betonschutting weg
     if stt["betonschutting_m"] > 0:
         p = dict(a)
         p["erfafscheiding_items"] = [it for it in items if (it.get("type") or "").strip().lower() != "betonschutting"]
-        if not p["erfafscheiding_items"]:
-            ov = _overige_clean(p)
-            p["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
         add_option("2", "Betonschutting verwijderen", p)
 
     # 3 design schutting weg
     if stt["design_schutting_m"] > 0:
         p = dict(a)
         p["erfafscheiding_items"] = [it for it in items if (it.get("type") or "").strip().lower() != "design_schutting"]
-        if not p["erfafscheiding_items"]:
-            ov = _overige_clean(p)
-            p["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
         add_option("3", "Design schutting verwijderen", p)
 
     # 4 poortdeuren vervallen
@@ -615,35 +655,37 @@ def erf_remove_select_menu_text(ans: dict | None, base_costs: dict | None) -> tu
             tuple()
         )
 
-    lines.append("")
-    lines.append("Typ 'nee' als u niets wilt verwijderen.")
+    lines.append("\nTyp **'nee'** als u niets wilt verwijderen.")
     return "\n".join(lines), tuple(allowed)
 
 
 # =====================
-# Apply changes
+# Apply changes (zelfde als main.py)
 # =====================
 def apply_set_ratio(answers: dict, ratio_code: str) -> tuple[dict, str]:
     a = dict(answers or {})
     a["verhouding_bestrating_groen"] = ratio_code
     pretty = {"50_50": "50/50", "30_70": "30/70", "70_30": "70/30"}.get(ratio_code, ratio_code)
-    return a, f"Ik heb de verhouding bestrating/groen aangepast naar {pretty}."
+    return a, f"Ik heb de verhouding bestrating/groen aangepast naar **{pretty}**."
 
 
 def apply_remove_selected_extras(answers: dict, selected: tuple[str, ...]) -> tuple[dict, str]:
     a = dict(answers or {})
     overige = _overige_clean(a)
-
     chosen_labels = []
+
     if "1" in selected:
         a["onkruidwerend_gevoegd"] = False
         chosen_labels.append("Voegen")
+
     if "2" in selected:
         a["overkapping"] = False
         chosen_labels.append("Overkapping")
+
     if "3" in selected:
         a["verlichting"] = False
         chosen_labels.append("Verlichting")
+
     if "4" in selected:
         a["beregening_scope"] = None
         overige = [x for x in overige if x != "beregening"]
@@ -653,7 +695,7 @@ def apply_remove_selected_extras(answers: dict, selected: tuple[str, ...]) -> tu
 
     if not chosen_labels:
         return a, "Er is geen extra aangepast."
-    return a, "Ik heb aangepast: " + ", ".join(chosen_labels) + "."
+    return a, "Ik heb aangepast: **" + ", ".join(chosen_labels) + "**."
 
 
 def apply_material_change(answers: dict, part: str, choice_digit: str) -> tuple[dict, str]:
@@ -690,7 +732,7 @@ def apply_material_change(answers: dict, part: str, choice_digit: str) -> tuple[
     if not changed_targets:
         return a, "Dit is niet goedkoper dan uw huidige keuze (geen wijziging)."
 
-    return a, f"Ik heb het materiaal aangepast naar {mat} voor: {', '.join(changed_targets)}."
+    return a, f"Ik heb het materiaal aangepast naar **{_nice_mat(mat)}** voor: **{', '.join(changed_targets)}**."
 
 
 def apply_vlonder_change(answers: dict, choice: str) -> tuple[dict, str]:
@@ -710,7 +752,7 @@ def apply_vlonder_change(answers: dict, choice: str) -> tuple[dict, str]:
         return a, "Dit is niet goedkoper dan uw huidige vlonderkeuze (geen wijziging)."
 
     a["vlonder_type"] = choice
-    return a, f"Ik heb de vlonder aangepast naar {choice} (goedkoper)."
+    return a, f"Ik heb de vlonder aangepast naar **{_nice_vlonder(choice)}** (goedkoper)."
 
 
 def apply_erf_changes(answers: dict, selected: tuple[str, ...]) -> tuple[dict, str]:
@@ -735,11 +777,6 @@ def apply_erf_changes(answers: dict, selected: tuple[str, ...]) -> tuple[dict, s
         items = [it for it in items if (it.get("type") or "").strip().lower() not in remove_types]
 
     a["erfafscheiding_items"] = items
-
-    if not items:
-        ov = _overige_clean(a)
-        a["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
-
     msgs = []
     pretty = {"haag": "haag", "betonschutting": "betonschutting", "design_schutting": "design schutting"}
     if remove_types:
@@ -750,46 +787,7 @@ def apply_erf_changes(answers: dict, selected: tuple[str, ...]) -> tuple[dict, s
     if not msgs:
         return a, "Geen geldige keuze (geen wijziging)."
 
-    return a, "Ik heb aangepast: " + " • ".join(msgs) + "."
-
-
-# =====================
-# Session init
-# =====================
-if "flow" not in st.session_state:
-    st.session_state.flow = TuinaanlegFlow(prijzen=PRIJZEN)
-
-if "messages" not in st.session_state:
-    st.session_state.messages = [{
-        "role": "assistant",
-        "content": (
-            "Hoi! Ik stel u een paar korte vragen over uw tuin, zodat ik u een gerichte indicatie kan geven.\n\n"
-            "Hoe groot is uw tuin in m²? (geef een getal)"
-        )
-    }]
-
-if "done" not in st.session_state:
-    st.session_state.done = False
-
-if "post_offer_mode" not in st.session_state:
-    st.session_state.post_offer_mode = False
-
-if "post_offer_stage" not in st.session_state:
-    # "menu" | "lower_costs_menu" | "lc_more_green_choice" | "lc_extras_select" | "lc_material_part" | "lc_material_choice"
-    # | "lc_vlonder_choice" | "lc_erf_remove_select" | "limit_followup" | "contact_details" | "end"
-    st.session_state.post_offer_stage = None
-
-if "last_answers" not in st.session_state:
-    st.session_state.last_answers = None
-
-if "last_costs" not in st.session_state:
-    st.session_state.last_costs = None
-
-if "recalc_count" not in st.session_state:
-    st.session_state.recalc_count = 0
-
-if "_pending_material_part" not in st.session_state:
-    st.session_state._pending_material_part = None
+    return a, "Ik heb aangepast: **" + " • ".join(msgs) + "**."
 
 
 # =====================
@@ -797,6 +795,7 @@ if "_pending_material_part" not in st.session_state:
 # =====================
 with st.sidebar:
     st.subheader("Demo controls")
+
     if st.button("🔄 Reset gesprek", use_container_width=True):
         st.session_state.flow = TuinaanlegFlow(prijzen=PRIJZEN)
         st.session_state.messages = [{
@@ -807,14 +806,12 @@ with st.sidebar:
             )
         }]
         st.session_state.done = False
-
         st.session_state.post_offer_mode = False
         st.session_state.post_offer_stage = None
         st.session_state.last_answers = None
         st.session_state.last_costs = None
         st.session_state.recalc_count = 0
         st.session_state._pending_material_part = None
-
         st.rerun()
 
     st.divider()
@@ -824,11 +821,12 @@ with st.sidebar:
 
 
 # =====================
-# Render chat history
+# Render chat history (normalize line breaks)
 # =====================
 for msg in st.session_state.messages:
+    content = (msg.get("content") or "").replace("\r\n", "\n").replace("\r", "\n")
     with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+        st.markdown(content)
 
 
 # =====================
@@ -839,13 +837,13 @@ if user_text:
     st.session_state.messages.append({"role": "user", "content": user_text})
 
     # -----------------------------------------
-    # Post-offer menu logic
+    # Post-offer menu logic (zoals main.py)
     # -----------------------------------------
     if st.session_state.post_offer_mode:
         t_raw = user_text.strip()
         t_low = t_raw.lower()
 
-        # ✅ "contact/offerte" overal in post-offer laten werken
+        # contact/offerte shortcut
         if t_low in {"contact", "offerte", "advies"}:
             st.session_state.post_offer_stage = "contact_details"
             st.session_state.messages.append({
@@ -854,7 +852,7 @@ if user_text:
             })
             st.rerun()
 
-        # ✅ limiet follow-up
+        # limit follow-up
         if st.session_state.post_offer_stage == "limit_followup":
             if t_raw == "1":
                 st.session_state.post_offer_stage = "contact_details"
@@ -863,20 +861,16 @@ if user_text:
                     "content": "Top. Wilt u uw naam + postcode + telefoon/e-mail + een korte omschrijving sturen?"
                 })
                 st.rerun()
-
-            if t_raw == "2":
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "Helemaal goed. Fijn dat u even heeft gekeken. 👋"
-                })
+            elif t_raw == "2":
+                st.session_state.messages.append({"role": "assistant", "content": "Helemaal goed. Fijn dat u even heeft gekeken. 👋"})
                 st.session_state.post_offer_mode = False
                 st.session_state.post_offer_stage = "end"
                 st.rerun()
+            else:
+                st.session_state.messages.append({"role": "assistant", "content": limit_followup_text()})
+                st.rerun()
 
-            st.session_state.messages.append({"role": "assistant", "content": limit_followup_text()})
-            st.rerun()
-
-        # ✅ hoofdmenu na indicatie
+        # hoofdmenu
         if st.session_state.post_offer_stage == "menu":
             if t_raw == "1":
                 if remaining_recalcs() <= 0:
@@ -889,7 +883,7 @@ if user_text:
                 st.session_state.messages.append({"role": "assistant", "content": lower_costs_menu_text(st.session_state.last_answers)})
                 st.rerun()
 
-            if t_raw == "2":
+            elif t_raw == "2":
                 st.session_state.post_offer_stage = "contact_details"
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -897,19 +891,17 @@ if user_text:
                 })
                 st.rerun()
 
-            if t_raw == "3":
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "Helemaal goed. Fijn dat u even heeft gekeken. 👋"
-                })
+            elif t_raw == "3":
+                st.session_state.messages.append({"role": "assistant", "content": "Helemaal goed. Fijn dat u even heeft gekeken. 👋"})
                 st.session_state.post_offer_mode = False
                 st.session_state.post_offer_stage = "end"
                 st.rerun()
 
-            st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
-            st.rerun()
+            else:
+                st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
+                st.rerun()
 
-        # ✅ kostenbesparing: categorie keuze
+        # kostenbesparing: categorie
         if st.session_state.post_offer_stage == "lower_costs_menu":
             allowed = {"1", "2", "3"}
             if has_vlonder(st.session_state.last_answers):
@@ -921,11 +913,8 @@ if user_text:
                 st.session_state.messages.append({"role": "assistant", "content": lower_costs_menu_text(st.session_state.last_answers)})
                 st.rerun()
 
-            # ✅ altijd actuele base_costs (fix volgorde issues)
-            base_costs = get_current_costs(st.session_state.last_answers)
-
             if t_raw == "1":
-                menu, mapping = more_green_choice_text(st.session_state.last_answers, base_costs)
+                menu, mapping = more_green_choice_text(st.session_state.last_answers, st.session_state.last_costs)
                 if not mapping:
                     st.session_state.messages.append({"role": "assistant", "content": menu})
                     st.session_state.post_offer_stage = "menu"
@@ -937,7 +926,7 @@ if user_text:
                 st.rerun()
 
             if t_raw == "2":
-                menu, allowed_extras = extras_select_menu_text(st.session_state.last_answers, base_costs)
+                menu, allowed_extras = extras_select_menu_text(st.session_state.last_answers, st.session_state.last_costs)
                 if not allowed_extras:
                     st.session_state.messages.append({"role": "assistant", "content": menu})
                     st.session_state.post_offer_stage = "menu"
@@ -953,32 +942,33 @@ if user_text:
                 st.session_state.messages.append({"role": "assistant", "content": material_part_menu_text(st.session_state.last_answers)})
                 st.rerun()
 
-            if t_raw == "4":
-                menu, allowed_v = vlonder_choice_menu_text(st.session_state.last_answers, base_costs)
+            if t_raw == "4" and has_vlonder(st.session_state.last_answers):
+                menu, allowed_v = vlonder_choice_menu_text(st.session_state.last_answers, st.session_state.last_costs)
                 if not allowed_v:
                     st.session_state.messages.append({"role": "assistant", "content": menu})
                     st.session_state.post_offer_stage = "menu"
                     st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
                     st.rerun()
+
                 st.session_state.post_offer_stage = "lc_vlonder_choice"
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.rerun()
 
-            if t_raw == "5":
-                menu, allowed_e = erf_remove_select_menu_text(st.session_state.last_answers, base_costs)
+            if t_raw == "5" and has_erfafscheiding(st.session_state.last_answers):
+                menu, allowed_e = erf_remove_select_menu_text(st.session_state.last_answers, st.session_state.last_costs)
                 if not allowed_e:
                     st.session_state.messages.append({"role": "assistant", "content": menu})
                     st.session_state.post_offer_stage = "menu"
                     st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
                     st.rerun()
+
                 st.session_state.post_offer_stage = "lc_erf_remove_select"
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.rerun()
 
-        # ✅ minder bestrating / meer groen: kies verhouding
+        # verhouding groen/bestrating
         if st.session_state.post_offer_stage == "lc_more_green_choice":
-            base_costs = get_current_costs(st.session_state.last_answers)
-            menu, mapping = more_green_choice_text(st.session_state.last_answers, base_costs)
+            menu, mapping = more_green_choice_text(st.session_state.last_answers, st.session_state.last_costs)
             if not mapping:
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.session_state.post_offer_stage = "menu"
@@ -996,18 +986,19 @@ if user_text:
                 st.rerun()
 
             before_a = dict(st.session_state.last_answers or {})
-            before_c = get_current_costs(before_a)
+            before_c = dict(st.session_state.last_costs or {})
             new_a, expl = apply_set_ratio(before_a, mapping[t_raw])
 
             st.session_state.recalc_count += 1
             new_c = estimate_tuinaanleg_costs(new_a)
 
             st.session_state.messages.append({"role": "assistant", "content": expl})
-            old_tr = _total_range(before_c) or (0, 0)
-            new_tr = _total_range(new_c) or (0, 0)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": f"**Oude indicatie:** {_eur(old_tr[0])} – {_eur(old_tr[1])}\n\n**Nieuwe indicatie:** {_eur(new_tr[0])} – {_eur(new_tr[1])}"
+                "content": (
+                    f"**Oude indicatie:** {_eur((_total_range(before_c) or (0,0))[0])} – {_eur((_total_range(before_c) or (0,0))[1])}\n\n"
+                    f"**Nieuwe indicatie:** {_eur((_total_range(new_c) or (0,0))[0])} – {_eur((_total_range(new_c) or (0,0))[1])}"
+                )
             })
             st.session_state.messages.append({"role": "assistant", "content": format_tuinaanleg_costs_for_customer(new_c)})
 
@@ -1018,10 +1009,9 @@ if user_text:
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
             st.rerun()
 
-        # ✅ extra’s: multi-select verwijderen
+        # extra’s select
         if st.session_state.post_offer_stage == "lc_extras_select":
-            base_costs = get_current_costs(st.session_state.last_answers)
-            menu, allowed_extras = extras_select_menu_text(st.session_state.last_answers, base_costs)
+            menu, allowed_extras = extras_select_menu_text(st.session_state.last_answers, st.session_state.last_costs)
             if not allowed_extras:
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.session_state.post_offer_stage = "menu"
@@ -1046,18 +1036,19 @@ if user_text:
                 st.rerun()
 
             before_a = dict(st.session_state.last_answers or {})
-            before_c = get_current_costs(before_a)
+            before_c = dict(st.session_state.last_costs or {})
             new_a, expl = apply_remove_selected_extras(before_a, parsed)
 
             st.session_state.recalc_count += 1
             new_c = estimate_tuinaanleg_costs(new_a)
 
             st.session_state.messages.append({"role": "assistant", "content": expl})
-            old_tr = _total_range(before_c) or (0, 0)
-            new_tr = _total_range(new_c) or (0, 0)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": f"**Oude indicatie:** {_eur(old_tr[0])} – {_eur(old_tr[1])}\n\n**Nieuwe indicatie:** {_eur(new_tr[0])} – {_eur(new_tr[1])}"
+                "content": (
+                    f"**Oude indicatie:** {_eur((_total_range(before_c) or (0,0))[0])} – {_eur((_total_range(before_c) or (0,0))[1])}\n\n"
+                    f"**Nieuwe indicatie:** {_eur((_total_range(new_c) or (0,0))[0])} – {_eur((_total_range(new_c) or (0,0))[1])}"
+                )
             })
             st.session_state.messages.append({"role": "assistant", "content": format_tuinaanleg_costs_for_customer(new_c)})
 
@@ -1068,15 +1059,19 @@ if user_text:
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
             st.rerun()
 
-        # ✅ materiaal: onderdeel
+        # materiaal: onderdeel
         if st.session_state.post_offer_stage == "lc_material_part":
             if t_raw not in {"1", "2", "3", "4"}:
                 st.session_state.messages.append({"role": "assistant", "content": material_part_menu_text(st.session_state.last_answers)})
                 st.rerun()
 
             st.session_state._pending_material_part = t_raw
-            base_costs = get_current_costs(st.session_state.last_answers)
-            menu, allowed_choices = material_choice_menu_text_cheaper(st.session_state.last_answers, base_costs, st.session_state._pending_material_part)
+            menu, allowed_choices = material_choice_menu_text_cheaper(
+                st.session_state.last_answers,
+                st.session_state.last_costs,
+                st.session_state._pending_material_part
+            )
+
             if not allowed_choices:
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.session_state.post_offer_stage = "menu"
@@ -1087,13 +1082,12 @@ if user_text:
             st.session_state.messages.append({"role": "assistant", "content": menu})
             st.rerun()
 
-        # ✅ materiaal: keuze
+        # materiaal: keuze
         if st.session_state.post_offer_stage == "lc_material_choice":
-            base_costs = get_current_costs(st.session_state.last_answers)
             menu, allowed_choices = material_choice_menu_text_cheaper(
                 st.session_state.last_answers,
-                base_costs,
-                st.session_state._pending_material_part or "4",
+                st.session_state.last_costs,
+                st.session_state._pending_material_part or "4"
             )
             if not allowed_choices:
                 st.session_state.messages.append({"role": "assistant", "content": menu})
@@ -1112,18 +1106,19 @@ if user_text:
                 st.rerun()
 
             before_a = dict(st.session_state.last_answers or {})
-            before_c = get_current_costs(before_a)
+            before_c = dict(st.session_state.last_costs or {})
             new_a, expl = apply_material_change(before_a, st.session_state._pending_material_part or "4", t_raw)
 
             st.session_state.recalc_count += 1
             new_c = estimate_tuinaanleg_costs(new_a)
 
             st.session_state.messages.append({"role": "assistant", "content": expl})
-            old_tr = _total_range(before_c) or (0, 0)
-            new_tr = _total_range(new_c) or (0, 0)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": f"**Oude indicatie:** {_eur(old_tr[0])} – {_eur(old_tr[1])}\n\n**Nieuwe indicatie:** {_eur(new_tr[0])} – {_eur(new_tr[1])}"
+                "content": (
+                    f"**Oude indicatie:** {_eur((_total_range(before_c) or (0,0))[0])} – {_eur((_total_range(before_c) or (0,0))[1])}\n\n"
+                    f"**Nieuwe indicatie:** {_eur((_total_range(new_c) or (0,0))[0])} – {_eur((_total_range(new_c) or (0,0))[1])}"
+                )
             })
             st.session_state.messages.append({"role": "assistant", "content": format_tuinaanleg_costs_for_customer(new_c)})
 
@@ -1135,10 +1130,9 @@ if user_text:
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
             st.rerun()
 
-        # ✅ vlonder keuze
+        # vlonder
         if st.session_state.post_offer_stage == "lc_vlonder_choice":
-            base_costs = get_current_costs(st.session_state.last_answers)
-            menu, allowed_v = vlonder_choice_menu_text(st.session_state.last_answers, base_costs)
+            menu, allowed_v = vlonder_choice_menu_text(st.session_state.last_answers, st.session_state.last_costs)
             if not allowed_v:
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.session_state.post_offer_stage = "menu"
@@ -1156,7 +1150,7 @@ if user_text:
                 st.rerun()
 
             before_a = dict(st.session_state.last_answers or {})
-            before_c = get_current_costs(before_a)
+            before_c = dict(st.session_state.last_costs or {})
 
             if t_raw == "9":
                 new_a, expl = apply_vlonder_change(before_a, "remove")
@@ -1167,11 +1161,12 @@ if user_text:
             new_c = estimate_tuinaanleg_costs(new_a)
 
             st.session_state.messages.append({"role": "assistant", "content": expl})
-            old_tr = _total_range(before_c) or (0, 0)
-            new_tr = _total_range(new_c) or (0, 0)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": f"**Oude indicatie:** {_eur(old_tr[0])} – {_eur(old_tr[1])}\n\n**Nieuwe indicatie:** {_eur(new_tr[0])} – {_eur(new_tr[1])}"
+                "content": (
+                    f"**Oude indicatie:** {_eur((_total_range(before_c) or (0,0))[0])} – {_eur((_total_range(before_c) or (0,0))[1])}\n\n"
+                    f"**Nieuwe indicatie:** {_eur((_total_range(new_c) or (0,0))[0])} – {_eur((_total_range(new_c) or (0,0))[1])}"
+                )
             })
             st.session_state.messages.append({"role": "assistant", "content": format_tuinaanleg_costs_for_customer(new_c)})
 
@@ -1182,10 +1177,9 @@ if user_text:
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
             st.rerun()
 
-        # ✅ erfafscheiding keuze
+        # erfafscheiding
         if st.session_state.post_offer_stage == "lc_erf_remove_select":
-            base_costs = get_current_costs(st.session_state.last_answers)
-            menu, allowed_e = erf_remove_select_menu_text(st.session_state.last_answers, base_costs)
+            menu, allowed_e = erf_remove_select_menu_text(st.session_state.last_answers, st.session_state.last_costs)
             if not allowed_e:
                 st.session_state.messages.append({"role": "assistant", "content": menu})
                 st.session_state.post_offer_stage = "menu"
@@ -1210,18 +1204,19 @@ if user_text:
                 st.rerun()
 
             before_a = dict(st.session_state.last_answers or {})
-            before_c = get_current_costs(before_a)
+            before_c = dict(st.session_state.last_costs or {})
             new_a, expl = apply_erf_changes(before_a, parsed)
 
             st.session_state.recalc_count += 1
             new_c = estimate_tuinaanleg_costs(new_a)
 
             st.session_state.messages.append({"role": "assistant", "content": expl})
-            old_tr = _total_range(before_c) or (0, 0)
-            new_tr = _total_range(new_c) or (0, 0)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": f"**Oude indicatie:** {_eur(old_tr[0])} – {_eur(old_tr[1])}\n\n**Nieuwe indicatie:** {_eur(new_tr[0])} – {_eur(new_tr[1])}"
+                "content": (
+                    f"**Oude indicatie:** {_eur((_total_range(before_c) or (0,0))[0])} – {_eur((_total_range(before_c) or (0,0))[1])}\n\n"
+                    f"**Nieuwe indicatie:** {_eur((_total_range(new_c) or (0,0))[0])} – {_eur((_total_range(new_c) or (0,0))[1])}"
+                )
             })
             st.session_state.messages.append({"role": "assistant", "content": format_tuinaanleg_costs_for_customer(new_c)})
 
@@ -1232,18 +1227,15 @@ if user_text:
             st.session_state.messages.append({"role": "assistant", "content": post_offer_choices_text()})
             st.rerun()
 
-        # ✅ contact details
+        # contact details
         if st.session_state.post_offer_stage == "contact_details":
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "Dank u wel! We nemen zo snel mogelijk contact met u op!"
-            })
+            st.session_state.messages.append({"role": "assistant", "content": "Dank u wel! We nemen zo snel mogelijk contact met u op!"})
             st.session_state.post_offer_mode = False
             st.session_state.post_offer_stage = "end"
             st.rerun()
 
     # -----------------------------------------
-    # Flow logic (intake)
+    # Flow logic
     # -----------------------------------------
     if not st.session_state.done and not st.session_state.post_offer_mode:
         reply, done = st.session_state.flow.handle(user_text)
