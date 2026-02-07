@@ -2,6 +2,7 @@
 
 import os
 import json
+import re
 from dotenv import load_dotenv
 
 from pricing import (
@@ -21,16 +22,23 @@ flow = None  # wordt TuinaanlegFlow zodra iemand tuinaanleg-intent heeft
 
 # Post-offer menu (na prijsindicatie)
 post_offer_mode = False
-post_offer_stage = None  # "menu" | "lower_costs" | "limit_followup" | "contact_details" | "end"
+post_offer_stage = None  # "menu"
+                         # "lower_costs_menu"
+                         # "lc_more_green_choice"
+                         # "lc_extras_select"
+                         # "lc_material_part" -> "lc_material_choice"
+                         # "lc_vlonder_choice"
+                         # "lc_erf_remove_select"
+                         # "limit_followup" | "contact_details" | "end"
 last_answers = None
 last_costs = None
 
 # ✅ Recalc limiter (intern)
-MAX_RECALC = 3
+MAX_RECALC = 5
 recalc_count = 0
 
-# ✅ onthoud welke bespaar-opties al zijn toegepast (bijv. {"1","2"})
-applied_savings: set[str] = set()
+# materiaal wizard state
+_pending_material_part = None  # "1"/"2"/"3"/"4"
 
 # =====================
 # Debug flags
@@ -92,16 +100,6 @@ def post_offer_choices_text() -> str:
     )
 
 
-def lower_costs_menu_text() -> str:
-    return (
-        "Goed idee. Welke aanpassing wilt u proberen om de kosten te verlagen?\n"
-        "1) Kies voordeliger materialen (waar mogelijk)\n"
-        "2) Iets meer groen, iets minder bestrating\n"
-        "3) Extra’s weglaten (voegen/overkapping/verlichting en extra opties)\n\n"
-        "Reageer met 1, 2 of 3."
-    )
-
-
 def limit_followup_text() -> str:
     return (
         "Hoe wilt u verder?\n"
@@ -122,92 +120,782 @@ def _total_range(costs: dict) -> tuple[int, int] | None:
     return int(tr[0]), int(tr[1])
 
 
-def _materials_downgrade(mat: str) -> str:
-    m = (mat or "").strip().lower()
-    if m == "keramiek":
-        return "gebakken"
-    if m == "gebakken":
-        return "beton"
-    return m or "beton"
-
-
-def apply_savings_option(answers: dict, option: str) -> tuple[dict, str]:
-    """
-    Past één 'bespaar-optie' toe op answers en geeft een uitleg terug.
-    Belangrijk: we muteren niet-in-place (kopie).
-    """
-    a = dict(answers or {})
-    expl = ""
-
-    # Zorg dat list velden goed blijven
-    overige = a.get("overige_wensen") or []
+def _overige_clean(ans: dict | None) -> list[str]:
+    if not ans:
+        return []
+    overige = ans.get("overige_wensen") or []
     if not isinstance(overige, list):
         overige = [str(overige)]
-    overige_clean = [str(x).strip().lower() for x in overige if str(x).strip()]
+    return [str(x).strip().lower() for x in overige if str(x).strip()]
 
-    if option == "1":
-        # Voordeliger materialen
-        a["materiaal_oprit"] = _materials_downgrade(a.get("materiaal_oprit"))
-        a["materiaal_paden"] = _materials_downgrade(a.get("materiaal_paden"))
-        a["materiaal_terras"] = _materials_downgrade(a.get("materiaal_terras"))
 
-        # Vlonder type (als gekozen)
-        vt = (a.get("vlonder_type") or "").strip().lower()
-        if "vlonder" in overige_clean and vt in ("hardhout", "composiet"):
-            a["vlonder_type"] = "zachthout"
+def has_vlonder(ans: dict | None) -> bool:
+    return "vlonder" in _overige_clean(ans)
 
-        expl = (
-            "Ik heb gekeken waar we (zonder functies te veranderen) materialen iets voordeliger kunnen kiezen "
-            "— bijvoorbeeld keramiek → gebakken, gebakken → beton."
-        )
 
-    elif option == "2":
-        # Minder bestrating (ratio één stap richting meer groen)
-        ratio = (a.get("verhouding_bestrating_groen") or "").strip().lower()
-        if ratio == "70_30":
-            a["verhouding_bestrating_groen"] = "50_50"
-        elif ratio == "50_50":
-            a["verhouding_bestrating_groen"] = "30_70"
-        elif ratio == "30_70":
-            a["verhouding_bestrating_groen"] = "30_70"
-        else:
-            # custom/unknown -> zet naar 30/70 als veilige bespaar-variant
-            a["verhouding_bestrating_groen"] = "30_70"
+def has_beregening(ans: dict | None) -> bool:
+    return "beregening" in _overige_clean(ans)
 
-        expl = (
-            "Ik heb de verhouding iets verschoven naar meer groen en minder bestrating. "
-            "Dat verlaagt vaak de kosten, omdat verharding (incl. onderbouw/grondwerk) relatief zwaar meetelt."
-        )
 
-    elif option == "3":
-        # Extra's weglaten
-        a["onkruidwerend_gevoegd"] = False
-        a["overkapping"] = False
-        a["verlichting"] = False
+def has_erfafscheiding(ans: dict | None) -> bool:
+    if not ans:
+        return False
+    if "erfafscheiding" in _overige_clean(ans):
+        return True
+    items = ans.get("erfafscheiding_items") or []
+    return bool(items)
 
-        # verwijder extra wensen die vaak extra kosten geven
-        remove_tags = {"vlonder", "beregening", "erfafscheiding"}
-        overige_clean = [x for x in overige_clean if x not in remove_tags]
-        a["overige_wensen"] = overige_clean
 
-        # reset gerelateerde velden
-        a["vlonder_type"] = None
-        a["beregening_scope"] = None
-        a["erfafscheiding_items"] = []
+def parse_multi_digits(user_text: str, *, allowed: tuple[str, ...]) -> tuple[str, ...] | None:
+    """
+    Dummy-proof multi-select:
+    - accepteert: "1,3" "1 3" "13" "31" "1/3" "1-3" etc.
+    - verwijdert duplicates, behoudt volgorde
+    """
+    t = (user_text or "").strip().lower()
+    if not t:
+        return None
+    if t in ("nee", "n", "no"):
+        return ("nee",)
 
-        expl = (
-            "Ik heb de extra’s uitgezet (voegen/overkapping/verlichting en extra opties zoals vlonder/beregening/erfafscheiding). "
-            "Dat geeft vaak direct de grootste besparing."
-        )
+    digits = re.findall(r"\d", t)
+    if not digits:
+        return None
 
-    else:
-        expl = "Onbekende keuze — er is niets aangepast."
+    out = []
+    seen = set()
+    for d in digits:
+        if d in allowed and d not in seen:
+            out.append(d)
+            seen.add(d)
 
-    return a, expl
+    return tuple(out) if out else None
+
+
+# ============================================================
+# ✅ Besparing: consistent, gecontroleerd, gekoppelde posten mee
+# ============================================================
+def _sum_breakdown_range_allow_zero(costs: dict | None, *, keys: tuple[str, ...]) -> tuple[int, int]:
+    """
+    Sommeer range_eur uit costs['breakdown'] voor opgegeven keys.
+    Missende keys tellen als 0.
+    """
+    if not costs or not isinstance(costs, dict):
+        return (0, 0)
+
+    breakdown = costs.get("breakdown") or []
+    if not isinstance(breakdown, list):
+        return (0, 0)
+
+    mn = 0
+    mx = 0
+
+    for it in breakdown:
+        if it.get("key") not in keys:
+            continue
+        r = it.get("range_eur")
+        if not r or not isinstance(r, (list, tuple)) or len(r) != 2:
+            continue
+        try:
+            mn += int(r[0])
+            mx += int(r[1])
+        except Exception:
+            continue
+
+    return (mn, mx)
+
+
+def _saving_text_from_delta(base_costs: dict, preview_costs: dict, *, keys: tuple[str, ...]) -> str:
+    """
+    Besparing op basis van delta binnen een set gekoppelde posten.
+    We tonen alleen goedkoper: als preview niet goedkoper is => "".
+    """
+    bmin, bmax = _sum_breakdown_range_allow_zero(base_costs, keys=keys)
+    pmin, pmax = _sum_breakdown_range_allow_zero(preview_costs, keys=keys)
+
+    save_min = bmin - pmin
+    save_max = bmax - pmax
+
+    if save_max <= 0:
+        return ""
+
+    save_min = max(0, save_min)
+    save_max = max(0, save_max)
+
+    return f"(besparing: −{_eur(save_min)} tot −{_eur(save_max)})"
+
+
+def _show_recalc_result(before_answers: dict, before_costs: dict, after_answers: dict, after_costs: dict, explanation: str) -> None:
+    old_tr = _total_range(before_costs or {}) or (0, 0)
+    new_tr = _total_range(after_costs or {}) or (0, 0)
+
+    print("Chatbot:", explanation)
+    print()
+
+    print(
+        f"Chatbot: Oude indicatie: {_eur(old_tr[0])} – {_eur(old_tr[1])}\n"
+        f"Chatbot: Nieuwe indicatie: {_eur(new_tr[0])} – {_eur(new_tr[1])}\n"
+    )
+
+    if DEBUG_COSTS_JSON:
+        print("📌 Debug kostenindicatie — JSON:")
+        print(json.dumps(after_costs, ensure_ascii=False, indent=2))
+        print()
+
+    customer_text = format_tuinaanleg_costs_for_customer(after_costs)
+    print(customer_text)
+    print()
+
+
+# ---------------------
+# Material ranking (1 duurst -> 4 goedkoopst)
+# ---------------------
+_MAT_BY_CHOICE = {"1": "keramiek", "2": "gebakken", "3": "beton", "4": "grind"}
+_MAT_ORDER = {"keramiek": 1, "gebakken": 2, "beton": 3, "grind": 4}
+
+
+def _material_rank(mat: str | None) -> int:
+    m = (mat or "").strip().lower()
+    return _MAT_ORDER.get(m, 3)
+
+
+def _nice_mat(mat: str | None) -> str:
+    m = (mat or "").strip().lower()
+    return {"keramiek": "Keramiek", "gebakken": "Gebakken", "beton": "Beton", "grind": "Grind"}.get(m, "Beton")
+
+
+# ---------------------
+# Vlonder ranking (composiet duurst -> zachthout goedkoopst)
+# ---------------------
+_VLONDER_BY_CHOICE = {"1": "composiet", "2": "hardhout", "3": "zachthout"}
+_VLONDER_ORDER = {"composiet": 1, "hardhout": 2, "zachthout": 3}
+
+
+def _vlonder_rank(v: str | None) -> int:
+    vv = (v or "").strip().lower()
+    return _VLONDER_ORDER.get(vv, 2)
+
+
+def _nice_vlonder(v: str | None) -> str:
+    vv = (v or "").strip().lower()
+    return {"composiet": "Composiet", "hardhout": "Hardhout", "zachthout": "Zachthout"}.get(vv, "Hardhout")
 
 
 # =====================
-# Intake summary
+# Keysets per bespaaroptie (gekoppelde posten)
+# =====================
+# Groenverhouding: gekoppeld -> straatwerk + grondwerk + zaag + voegen + groen + beregening
+GREEN_LINKED_KEYS = (
+    "grond_afvoer_per_m3",
+    "zand_aanvoer_per_m3",
+    "puin_aanvoer_per_m3",
+    "zaagwerk_per_m1",
+    "voegen_straatwerk_per_m2",
+    "beregening_basis_per_m2",
+    "keramisch_straatwerk_per_m2",
+    "beton_gebakken_straatwerk_per_m2",
+    "grind_per_m2",
+    "graszoden_per_m2",
+    "beplanting_border_per_m2",
+)
+
+# Materiaal: kan ook effect hebben op voegen/zaagwerk (grind telt niet als straatwerk)
+MATERIAL_LINKED_KEYS = (
+    "keramisch_straatwerk_per_m2",
+    "beton_gebakken_straatwerk_per_m2",
+    "grind_per_m2",
+    "voegen_straatwerk_per_m2",
+    "zaagwerk_per_m1",
+)
+
+# Extra's: per optie eigen key (delta op breakdown = letterlijk wat je weglaat)
+EXTRA_KEYS = {
+    "1": ("voegen_straatwerk_per_m2",),
+    "2": ("overkapping_basis_per_stuk",),
+    "3": ("verlichting_basis_per_stuk",),
+    "4": ("beregening_basis_per_m2",),
+}
+
+# Vlonder: alle varianten
+VLONDER_KEYS = (
+    "vlonder_zachthout_per_m2",
+    "vlonder_hardhout_per_m2",
+    "vlonder_composiet_per_m2",
+)
+
+# Erfafscheiding + poorten
+ERF_KEYS = (
+    "beplanting_haag_per_m1",
+    "plaatsen_betonschutting_per_m1",
+    "plaatsen_designschutting_per_m1",
+    "plaatsen_poortdeur_per_st",
+)
+
+
+# =====================
+# Menu texts (prijsbesparing)
+# =====================
+def lower_costs_menu_text(ans: dict | None) -> str:
+    lines = [
+        "Waar wilt u eventueel op besparen?",
+        "1) Minder bestrating, meer groen (kies een voordeligere verhouding)",
+        "2) Extra’s aanpassen (kies welke extra’s u wilt weglaten)",
+        "3) Bestratingmateriaal goedkoper kiezen (toon besparing per optie)",
+    ]
+    if has_vlonder(ans):
+        lines.append("4) Vlonder goedkoper maken (toon besparing per optie)")
+    if has_erfafscheiding(ans):
+        lines.append("5) Erfafscheiding aanpassen/verwijderen (incl. poortdeuren, toon besparing per optie)")
+    lines.append("\nReageer met het nummer.")
+    return "\n".join(lines)
+
+
+def more_green_choice_text(ans: dict | None, base_costs: dict | None) -> tuple[str, dict[str, str]]:
+    """
+    Toon alleen verhoudingen die goedkoper uitpakken.
+    Besparing = delta op gekoppelde posten (incl. grondwerk/zaag/voegen/beregening).
+    """
+    a = dict(ans or {})
+    base_costs = base_costs or estimate_tuinaanleg_costs(a)
+
+    candidates = [
+        ("1", "50_50", "50/50 (gemengd)"),
+        ("2", "30_70", "30/70 (veel groen)"),
+    ]
+
+    out = ["Welke verhouding wilt u kiezen? (ik toon alleen opties die goedkoper uitpakken)"]
+    mapping: dict[str, str] = {}
+
+    for digit, ratio_code, label in candidates:
+        preview = dict(a)
+        preview["verhouding_bestrating_groen"] = ratio_code
+        preview_costs = estimate_tuinaanleg_costs(preview)
+
+        s = _saving_text_from_delta(base_costs, preview_costs, keys=GREEN_LINKED_KEYS)
+        if not s:
+            continue
+
+        out.append(f"{digit}) {label} {s}")
+        mapping[digit] = ratio_code
+
+    if not mapping:
+        return (
+            "Ik zie op basis van uw invoer geen verhouding die duidelijk goedkoper uitpakt.\n"
+            "Kies gerust een andere bespaaroptie.",
+            {}
+        )
+
+    out.append("\nReageer met het nummer.")
+    return "\n".join(out), mapping
+
+
+def extras_select_menu_text(ans: dict | None, base_costs: dict | None) -> tuple[str, tuple[str, ...]]:
+    """
+    Extra’s aanpassen = alleen echte extra’s (geen vlonder/erf).
+    Multi-select dummy-proof.
+    Besparing = delta binnen de betreffende key (waardoor dit exact het “weg te laten” bedrag is).
+    """
+    a = dict(ans or {})
+    base_costs = base_costs or estimate_tuinaanleg_costs(a)
+    overige = _overige_clean(a)
+
+    labels = {
+        "1": "Voegen",
+        "2": "Overkapping",
+        "3": "Verlichting",
+        "4": "Beregening",
+    }
+
+    lines = [
+        "Welke extra’s wilt u weglaten?",
+        "(u kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt))",
+        "Ik toon alleen opties die goedkoper uitpakken:",
+    ]
+
+    allowed: list[str] = []
+
+    def add_option(opt: str, is_active: bool, preview_ans: dict):
+        nonlocal allowed, lines
+        if not is_active:
+            return
+        preview_costs = estimate_tuinaanleg_costs(preview_ans)
+        s = _saving_text_from_delta(base_costs, preview_costs, keys=EXTRA_KEYS[opt])
+        if not s:
+            return
+        lines.append(f"{opt}) {labels[opt]} {s}")
+        allowed.append(opt)
+
+    # 1 voegen
+    if a.get("onkruidwerend_gevoegd") is True:
+        p = dict(a)
+        p["onkruidwerend_gevoegd"] = False
+        add_option("1", True, p)
+
+    # 2 overkapping
+    if a.get("overkapping") is True:
+        p = dict(a)
+        p["overkapping"] = False
+        add_option("2", True, p)
+
+    # 3 verlichting
+    if a.get("verlichting") is True:
+        p = dict(a)
+        p["verlichting"] = False
+        add_option("3", True, p)
+
+    # 4 beregening
+    if "beregening" in overige:
+        p = dict(a)
+        p["beregening_scope"] = None
+        p["overige_wensen"] = [x for x in overige if x != "beregening"]
+        add_option("4", True, p)
+
+    if not allowed:
+        return (
+            "Ik zie geen extra’s die u nu kunt weglaten met een duidelijke besparing (op basis van uw invoer).\n"
+            "Kies gerust een andere bespaaroptie.",
+            tuple()
+        )
+
+    lines.append("")
+    lines.append("Typ 'nee' als u niets wilt weglaten.")
+    return "\n".join(lines), tuple(allowed)
+
+
+def material_part_menu_text(ans: dict | None) -> str:
+    a = ans or {}
+    o = int(a.get("oprit_pct") or 0)
+    p = int(a.get("paden_pct") or 0)
+    t = int(a.get("terras_pct") or 0)
+
+    lines = ["Welk onderdeel wilt u goedkoper maken?"]
+    lines.append(f"1) Oprit (nu: {_nice_mat(a.get('materiaal_oprit'))})" + ("" if o > 0 else " (niet van toepassing)"))
+    lines.append(f"2) Paden (nu: {_nice_mat(a.get('materiaal_paden'))})" + ("" if p > 0 else " (niet van toepassing)"))
+    lines.append(f"3) Terras (nu: {_nice_mat(a.get('materiaal_terras'))})" + ("" if t > 0 else " (niet van toepassing)"))
+    lines.append("4) Alle onderdelen")
+    lines.append("\nReageer met 1, 2, 3 of 4.")
+    return "\n".join(lines)
+
+
+def material_choice_menu_text_cheaper(ans: dict | None, base_costs: dict | None, part: str) -> tuple[str, set[str]]:
+    """
+    Toont alleen goedkopere materiaal-opties + besparing per optie.
+    Besparing = delta op gekoppelde posten (straatwerk + grind + voegen + zaagwerk).
+    """
+    a = dict(ans or {})
+    base_costs = base_costs or estimate_tuinaanleg_costs(a)
+
+    def applicable(k: str) -> bool:
+        if k == "materiaal_oprit":
+            return int(a.get("oprit_pct") or 0) > 0
+        if k == "materiaal_paden":
+            return int(a.get("paden_pct") or 0) > 0
+        if k == "materiaal_terras":
+            return int(a.get("terras_pct") or 0) > 0
+        return True
+
+    if part == "1":
+        targets = ["materiaal_oprit"]
+    elif part == "2":
+        targets = ["materiaal_paden"]
+    elif part == "3":
+        targets = ["materiaal_terras"]
+    else:
+        targets = ["materiaal_oprit", "materiaal_paden", "materiaal_terras"]
+
+    current = []
+    for k in targets:
+        if applicable(k):
+            current.append((k, (a.get(k) or "beton").strip().lower()))
+
+    if not current:
+        return ("Dit onderdeel is niet van toepassing (0% gekozen). Kies een ander onderdeel.", set())
+
+    # Goedkoper = hogere rank
+    max_rank = max(_material_rank(m) for _, m in current)
+    cheaper_choices = {c for c, m in _MAT_BY_CHOICE.items() if _material_rank(m) > max_rank}
+
+    parts_label = {"materiaal_oprit": "Oprit", "materiaal_paden": "Paden", "materiaal_terras": "Terras"}
+
+    lines = ["Huidige materiaalkeuze:"]
+    for k, m in current:
+        lines.append(f"- {parts_label.get(k, k)}: {_nice_mat(m)}")
+    lines.append("")
+    lines.append("Kies een goedkoper materiaal (1 is duurst, 4 is goedkoopst). Ik toon alleen opties die goedkoper uitpakken:")
+
+    allowed: set[str] = set()
+
+    for choice in ("1", "2", "3", "4"):
+        if choice not in cheaper_choices:
+            continue
+
+        preview = dict(a)
+
+        # toepassen op gekozen targets (alleen als onderdeel van toepassing is)
+        for k, _m in current:
+            if _material_rank(_MAT_BY_CHOICE[choice]) <= _material_rank(preview.get(k) or "beton"):
+                continue
+            preview[k] = _MAT_BY_CHOICE[choice]
+
+        preview_costs = estimate_tuinaanleg_costs(preview)
+        savings = _saving_text_from_delta(base_costs, preview_costs, keys=MATERIAL_LINKED_KEYS)
+        if not savings:
+            continue
+
+        lines.append(f"{choice}) {_nice_mat(_MAT_BY_CHOICE[choice])} {savings}")
+        allowed.add(choice)
+
+    if not allowed:
+        return (
+            "Er is geen materiaaloptie die op basis van uw invoer duidelijk goedkoper uitpakt.\n"
+            "Kies gerust een andere bespaaroptie.",
+            set()
+        )
+
+    lines.append("\nReageer met het nummer.")
+    return "\n".join(lines), allowed
+
+
+def vlonder_choice_menu_text(ans: dict | None, base_costs: dict | None) -> tuple[str, set[str]]:
+    """
+    Toon alleen goedkopere vlonder-opties + besparing per optie.
+    Besparing = delta binnen vlonder keys.
+    Inclusief optie om de vlonder te verwijderen (9) als dat goedkoper uitpakt.
+    """
+    a = dict(ans or {})
+    if not has_vlonder(a):
+        return ("Vlonder is niet gekozen. Kies een andere bespaaroptie.", set())
+
+    base_costs = base_costs or estimate_tuinaanleg_costs(a)
+
+    cur = (a.get("vlonder_type") or "composiet").strip().lower()
+    cur_rank = _vlonder_rank(cur)
+
+    lines = [
+        f"Huidige vlonder: {_nice_vlonder(cur)}",
+        "",
+        "Kies een goedkopere optie. Ik toon alleen opties die goedkoper uitpakken:",
+    ]
+
+    allowed: set[str] = set()
+
+    # goedkopere materialen (hogere rank)
+    for choice in ("1", "2", "3"):
+        mat = _VLONDER_BY_CHOICE[choice]
+        if _vlonder_rank(mat) <= cur_rank:
+            continue
+
+        preview = dict(a)
+        preview["vlonder_type"] = mat
+        preview_costs = estimate_tuinaanleg_costs(preview)
+
+        savings = _saving_text_from_delta(base_costs, preview_costs, keys=VLONDER_KEYS)
+        if not savings:
+            continue
+
+        lines.append(f"{choice}) {_nice_vlonder(mat)} {savings}")
+        allowed.add(choice)
+
+    # verwijderen als dat goedkoper uitpakt
+    preview = dict(a)
+    overige = _overige_clean(preview)
+    preview["vlonder_type"] = None
+    preview["overige_wensen"] = [x for x in overige if x != "vlonder"]
+    preview_costs = estimate_tuinaanleg_costs(preview)
+    savings = _saving_text_from_delta(base_costs, preview_costs, keys=VLONDER_KEYS)
+    if savings:
+        lines.append(f"9) Vlonder verwijderen {savings}")
+        allowed.add("9")
+
+    if not allowed:
+        return (
+            "Ik zie geen vlonder-optie die op basis van uw invoer duidelijk goedkoper uitpakt.\n"
+            "Kies gerust een andere bespaaroptie.",
+            set()
+        )
+
+    lines.append("\nReageer met het nummer.")
+    return "\n".join(lines), allowed
+
+
+def erf_stats(ans: dict | None) -> dict:
+    a = ans or {}
+    items = list(a.get("erfafscheiding_items") or [])
+    stats = {
+        "haag_m": 0.0,
+        "betonschutting_m": 0.0,
+        "design_schutting_m": 0.0,
+        "poortdeur_count": 0,
+        "has_any": False,
+    }
+    for it in items:
+        t = (it.get("type") or "").strip().lower()
+        m = it.get("meter") or 0
+        try:
+            m = float(m)
+        except Exception:
+            m = 0.0
+
+        if t == "haag":
+            stats["haag_m"] += m
+            stats["has_any"] = True
+        elif t == "betonschutting":
+            stats["betonschutting_m"] += m
+            stats["has_any"] = True
+            if it.get("poortdeur") is True:
+                stats["poortdeur_count"] += 1
+        elif t == "design_schutting":
+            stats["design_schutting_m"] += m
+            stats["has_any"] = True
+            if it.get("poortdeur") is True:
+                stats["poortdeur_count"] += 1
+
+    return stats
+
+
+def erf_remove_select_menu_text(ans: dict | None, base_costs: dict | None) -> tuple[str, tuple[str, ...]]:
+    """
+    Toon alleen verwijder-opties die goedkoper uitpakken + besparing per optie.
+    Besparing = delta binnen ERF_KEYS (incl poortdeur-key).
+    Multi-select mogelijk.
+    """
+    a = dict(ans or {})
+    items = list(a.get("erfafscheiding_items") or [])
+    if not items:
+        return ("Ik zie geen ingevulde erfafscheiding-items om te verwijderen.", tuple())
+
+    base_costs = base_costs or estimate_tuinaanleg_costs(a)
+    stt = erf_stats(a)
+
+    lines = ["Uw huidige erfafscheiding (op basis van uw invoer):"]
+    if stt["haag_m"] > 0:
+        lines.append(f"- Haag: {stt['haag_m']:.1f} m")
+    if stt["betonschutting_m"] > 0:
+        lines.append(f"- Betonschutting: {stt['betonschutting_m']:.1f} m")
+    if stt["design_schutting_m"] > 0:
+        lines.append(f"- Design schutting: {stt['design_schutting_m']:.1f} m")
+    if stt["poortdeur_count"] > 0:
+        lines.append(f"- Poortdeur(en): {stt['poortdeur_count']} st")
+
+    lines.append("")
+    lines.append("Wat wilt u verwijderen? (u kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt))")
+    lines.append("Ik toon alleen opties die goedkoper uitpakken:")
+
+    allowed: list[str] = []
+
+    def add_option(opt_digit: str, label: str, preview_ans: dict):
+        nonlocal allowed, lines
+        preview_costs = estimate_tuinaanleg_costs(preview_ans)
+        savings = _saving_text_from_delta(base_costs, preview_costs, keys=ERF_KEYS)
+        if not savings:
+            return
+        lines.append(f"{opt_digit}) {label} {savings}")
+        allowed.append(opt_digit)
+
+    # 1 haag weg
+    if stt["haag_m"] > 0:
+        p = dict(a)
+        p["erfafscheiding_items"] = [it for it in items if (it.get("type") or "").strip().lower() != "haag"]
+        if not p["erfafscheiding_items"]:
+            ov = _overige_clean(p)
+            p["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
+        add_option("1", "Haag verwijderen", p)
+
+    # 2 betonschutting weg
+    if stt["betonschutting_m"] > 0:
+        p = dict(a)
+        p["erfafscheiding_items"] = [it for it in items if (it.get("type") or "").strip().lower() != "betonschutting"]
+        if not p["erfafscheiding_items"]:
+            ov = _overige_clean(p)
+            p["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
+        add_option("2", "Betonschutting verwijderen", p)
+
+    # 3 design schutting weg
+    if stt["design_schutting_m"] > 0:
+        p = dict(a)
+        p["erfafscheiding_items"] = [it for it in items if (it.get("type") or "").strip().lower() != "design_schutting"]
+        if not p["erfafscheiding_items"]:
+            ov = _overige_clean(p)
+            p["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
+        add_option("3", "Design schutting verwijderen", p)
+
+    # 4 poortdeuren vervallen
+    if stt["poortdeur_count"] > 0:
+        p = dict(a)
+        new_items = []
+        for it in items:
+            t = (it.get("type") or "").strip().lower()
+            it2 = dict(it)
+            if t in ("betonschutting", "design_schutting") and it2.get("poortdeur") is True:
+                it2["poortdeur"] = False
+            new_items.append(it2)
+        p["erfafscheiding_items"] = new_items
+        add_option("4", "Poortdeur(en) laten vervallen", p)
+
+    if not allowed:
+        return (
+            "Ik zie geen erfafscheiding-aanpassing die op basis van uw invoer duidelijk goedkoper uitpakt.\n"
+            "Kies gerust een andere bespaaroptie.",
+            tuple()
+        )
+
+    lines.append("")
+    lines.append("Typ 'nee' als u niets wilt verwijderen.")
+    return "\n".join(lines), tuple(allowed)
+
+
+# =====================
+# Apply changes (keuzes uitvoeren)
+# =====================
+def apply_set_ratio(answers: dict, ratio_code: str) -> tuple[dict, str]:
+    a = dict(answers or {})
+    a["verhouding_bestrating_groen"] = ratio_code
+    pretty = {"50_50": "50/50", "30_70": "30/70", "70_30": "70/30"}.get(ratio_code, ratio_code)
+    return a, f"Ik heb de verhouding bestrating/groen aangepast naar {pretty}."
+
+
+def apply_remove_selected_extras(answers: dict, selected: tuple[str, ...]) -> tuple[dict, str]:
+    """
+    Extra’s aanpassen (geen vlonder/erf):
+    1 voegen
+    2 overkapping
+    3 verlichting
+    4 beregening
+    """
+    a = dict(answers or {})
+    overige = _overige_clean(a)
+
+    chosen_labels = []
+
+    if "1" in selected:
+        a["onkruidwerend_gevoegd"] = False
+        chosen_labels.append("Voegen")
+
+    if "2" in selected:
+        a["overkapping"] = False
+        chosen_labels.append("Overkapping")
+
+    if "3" in selected:
+        a["verlichting"] = False
+        chosen_labels.append("Verlichting")
+
+    if "4" in selected:
+        a["beregening_scope"] = None
+        overige = [x for x in overige if x != "beregening"]
+        chosen_labels.append("Beregening")
+
+    a["overige_wensen"] = overige
+
+    if not chosen_labels:
+        return a, "Er is geen extra aangepast."
+    return a, "Ik heb aangepast: " + ", ".join(chosen_labels) + "."
+
+
+def apply_material_change(answers: dict, part: str, choice_digit: str) -> tuple[dict, str]:
+    a = dict(answers or {})
+    mat = _MAT_BY_CHOICE.get(choice_digit)
+    if not mat:
+        return a, "Onbekende materiaalkeuze."
+
+    if part == "1":
+        targets = ["materiaal_oprit"]
+    elif part == "2":
+        targets = ["materiaal_paden"]
+    elif part == "3":
+        targets = ["materiaal_terras"]
+    else:
+        targets = ["materiaal_oprit", "materiaal_paden", "materiaal_terras"]
+
+    changed_targets = []
+    for k in targets:
+        if k == "materiaal_oprit" and int(a.get("oprit_pct") or 0) == 0:
+            continue
+        if k == "materiaal_paden" and int(a.get("paden_pct") or 0) == 0:
+            continue
+        if k == "materiaal_terras" and int(a.get("terras_pct") or 0) == 0:
+            continue
+
+        cur = (a.get(k) or "beton").strip().lower()
+        if _material_rank(mat) <= _material_rank(cur):
+            continue
+
+        a[k] = mat
+        changed_targets.append(k.replace("materiaal_", ""))
+
+    if not changed_targets:
+        return a, "Dit is niet goedkoper dan uw huidige keuze (geen wijziging)."
+
+    return a, f"Ik heb het materiaal aangepast naar {mat} voor: {', '.join(changed_targets)}."
+
+
+def apply_vlonder_change(answers: dict, choice: str) -> tuple[dict, str]:
+    a = dict(answers or {})
+    overige = _overige_clean(a)
+
+    if "vlonder" not in overige:
+        return a, "Vlonder stond niet in uw keuzes."
+
+    if choice == "remove":
+        a["vlonder_type"] = None
+        a["overige_wensen"] = [x for x in overige if x != "vlonder"]
+        return a, "Ik heb de vlonder verwijderd uit de keuzes."
+
+    cur = (a.get("vlonder_type") or "composiet").strip().lower()
+    if _vlonder_rank(choice) <= _vlonder_rank(cur):
+        return a, "Dit is niet goedkoper dan uw huidige vlonderkeuze (geen wijziging)."
+
+    a["vlonder_type"] = choice
+    return a, f"Ik heb de vlonder aangepast naar {choice} (goedkoper)."
+
+
+def apply_erf_changes(answers: dict, selected: tuple[str, ...]) -> tuple[dict, str]:
+    """
+    1 haag verwijderen
+    2 betonschutting verwijderen
+    3 design_schutting verwijderen
+    4 poortdeur(en) laten vervallen
+    """
+    a = dict(answers or {})
+    items = list(a.get("erfafscheiding_items") or [])
+    if not items:
+        ov = _overige_clean(a)
+        a["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
+        return a, "Erfafscheiding stond niet (meer) ingesteld."
+
+    mapping = {"1": "haag", "2": "betonschutting", "3": "design_schutting"}
+    remove_types = {mapping[d] for d in selected if d in mapping}
+    remove_poort = "4" in selected
+
+    if remove_poort:
+        for it in items:
+            t = (it.get("type") or "").strip().lower()
+            if t in ("betonschutting", "design_schutting") and it.get("poortdeur") is True:
+                it["poortdeur"] = False
+
+    if remove_types:
+        items = [it for it in items if (it.get("type") or "").strip().lower() not in remove_types]
+
+    a["erfafscheiding_items"] = items
+
+    if not items:
+        ov = _overige_clean(a)
+        a["overige_wensen"] = [x for x in ov if x != "erfafscheiding"]
+
+    msgs = []
+    pretty = {"haag": "haag", "betonschutting": "betonschutting", "design_schutting": "design schutting"}
+    if remove_types:
+        msgs.append("verwijderd: " + ", ".join(pretty.get(t, t) for t in remove_types))
+    if remove_poort:
+        msgs.append("poortdeur(en) laten vervallen")
+
+    if not msgs:
+        return a, "Geen geldige keuze (geen wijziging)."
+
+    return a, "Ik heb aangepast: " + " • ".join(msgs) + "."
+
+
+# =====================
+# Intake summary (ongewijzigd)
 # =====================
 def ratio_label_bestrating_groen(v: str | None) -> str:
     mapping = {
@@ -237,17 +925,6 @@ def bestrating_label(v: str | None) -> str:
         "gebakken": "gebakken klinkers",
         "keramiek": "keramiek",
         "grind": "grind",
-        None: "—",
-        "": "—",
-    }
-    return mapping.get(v, str(v))
-
-
-def vlonder_type_label(v: str | None) -> str:
-    mapping = {
-        "zachthout": "zachthout (bijv. Douglas)",
-        "hardhout": "hardhout",
-        "composiet": "composiet",
         None: "—",
         "": "—",
     }
@@ -355,7 +1032,9 @@ while True:
                 print("Chatbot:", limit_followup_text(), "\n")
                 continue
 
-            # menu
+            # -------------------------
+            # hoofdmenu na indicatie
+            # -------------------------
             if post_offer_stage == "menu":
                 if t_raw == "1":
                     if remaining_recalcs() <= 0:
@@ -364,8 +1043,8 @@ while True:
                         print("Chatbot:", limit_followup_text(), "\n")
                         continue
 
-                    post_offer_stage = "lower_costs"
-                    print("Chatbot:", lower_costs_menu_text(), "\n")
+                    post_offer_stage = "lower_costs_menu"
+                    print("Chatbot:", lower_costs_menu_text(last_answers), "\n")
                     continue
 
                 if t_raw == "2":
@@ -382,66 +1061,290 @@ while True:
                 print("Chatbot:", post_offer_choices_text(), "\n")
                 continue
 
-            # lower_costs wizard
-            if post_offer_stage == "lower_costs":
-                if t_raw not in {"1", "2", "3"}:
-                    print("Chatbot:", lower_costs_menu_text(), "\n")
+            # -------------------------
+            # kostenbesparing: categorie keuze
+            # -------------------------
+            if post_offer_stage == "lower_costs_menu":
+                allowed = {"1", "2", "3"}
+                if has_vlonder(last_answers):
+                    allowed.add("4")
+                if has_erfafscheiding(last_answers):
+                    allowed.add("5")
+
+                if t_raw not in allowed:
+                    print("Chatbot:", lower_costs_menu_text(last_answers), "\n")
                     continue
 
-                # ✅ al toegepast => NIET meetellen in recalc_count
-                # ✅ en direct terug naar hoofdmenu (geen verwarring)
-                if t_raw in applied_savings:
-                    print("Chatbot: Deze kostenbesparing is al doorgevoerd in de huidige indicatie.\n")
+                if t_raw == "1":
+                    menu, mapping = more_green_choice_text(last_answers, last_costs)
+                    if not mapping:
+                        print("Chatbot:", menu, "\n")
+                        post_offer_stage = "menu"
+                        print("Chatbot:", post_offer_choices_text(), "\n")
+                        continue
+                    post_offer_stage = "lc_more_green_choice"
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+                if t_raw == "2":
+                    menu, allowed_extras = extras_select_menu_text(last_answers, last_costs)
+                    if not allowed_extras:
+                        print("Chatbot:", menu, "\n")
+                        post_offer_stage = "menu"
+                        print("Chatbot:", post_offer_choices_text(), "\n")
+                        continue
+                    post_offer_stage = "lc_extras_select"
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+                if t_raw == "3":
+                    post_offer_stage = "lc_material_part"
+                    print("Chatbot:", material_part_menu_text(last_answers), "\n")
+                    continue
+
+                if t_raw == "4" and has_vlonder(last_answers):
+                    menu, allowed_v = vlonder_choice_menu_text(last_answers, last_costs)
+                    if not allowed_v:
+                        print("Chatbot:", menu, "\n")
+                        post_offer_stage = "menu"
+                        print("Chatbot:", post_offer_choices_text(), "\n")
+                        continue
+                    post_offer_stage = "lc_vlonder_choice"
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+                if t_raw == "5" and has_erfafscheiding(last_answers):
+                    menu, allowed_e = erf_remove_select_menu_text(last_answers, last_costs)
+                    if not allowed_e:
+                        print("Chatbot:", menu, "\n")
+                        post_offer_stage = "menu"
+                        print("Chatbot:", post_offer_choices_text(), "\n")
+                        continue
+                    post_offer_stage = "lc_erf_remove_select"
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+            # -------------------------
+            # minder bestrating / meer groen: kies verhouding
+            # -------------------------
+            if post_offer_stage == "lc_more_green_choice":
+                menu, mapping = more_green_choice_text(last_answers, last_costs)
+                if not mapping:
+                    print("Chatbot:", menu, "\n")
                     post_offer_stage = "menu"
                     print("Chatbot:", post_offer_choices_text(), "\n")
                     continue
 
-                # ✅ pas nu checken of er nog 'tegoed' is
+                if t_raw not in mapping:
+                    print("Chatbot:", menu, "\n")
+                    continue
+
                 if remaining_recalcs() <= 0:
                     print("Chatbot:", soft_limit_message(), "\n")
                     post_offer_stage = "limit_followup"
                     print("Chatbot:", limit_followup_text(), "\n")
                     continue
 
-                # ✅ nu pas telt het als een echte herberekening
+                before_a = dict(last_answers or {})
+                before_c = dict(last_costs or {})
+                new_a, expl = apply_set_ratio(before_a, mapping[t_raw])
+
                 recalc_count += 1
-                applied_savings.add(t_raw)
+                new_c = estimate_tuinaanleg_costs(new_a)
+                _show_recalc_result(before_a, before_c, new_a, new_c, expl)
 
-                new_answers, explanation = apply_savings_option(last_answers or {}, t_raw)
-                new_costs = estimate_tuinaanleg_costs(new_answers)
+                last_answers = dict(new_a)
+                last_costs = dict(new_c)
 
-                old_tr = _total_range(last_costs or {}) or (0, 0)
-                new_tr = _total_range(new_costs or {}) or (0, 0)
+                post_offer_stage = "menu"
+                print("Chatbot:", post_offer_choices_text(), "\n")
+                continue
 
-                print("Chatbot:", explanation)
-                print("Chatbot: Hieronder ziet u een aangepaste indicatie op basis van uw keuze.\n")
+            # -------------------------
+            # extra's: multi-select verwijderen
+            # -------------------------
+            if post_offer_stage == "lc_extras_select":
+                menu, allowed_extras = extras_select_menu_text(last_answers, last_costs)
+                if not allowed_extras:
+                    print("Chatbot:", menu, "\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
 
-                print(
-                    f"Chatbot: Oude indicatie: {_eur(old_tr[0])} – {_eur(old_tr[1])}\n"
-                    f"Chatbot: Nieuwe indicatie: {_eur(new_tr[0])} – {_eur(new_tr[1])}\n"
-                )
+                if t_low in ("nee", "n", "no"):
+                    print("Chatbot: Helemaal goed — we laten de extra’s zoals ze zijn.\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
 
-                if DEBUG_COSTS_JSON:
-                    print("📌 Debug kostenindicatie — JSON:")
-                    print(json.dumps(new_costs, ensure_ascii=False, indent=2))
-                    print()
+                parsed = parse_multi_digits(t_raw, allowed=allowed_extras)
+                if parsed is None or parsed == ("nee",):
+                    print("Chatbot:", menu, "\n")
+                    continue
 
-                customer_text = format_tuinaanleg_costs_for_customer(new_costs)
-                print(customer_text)
-                print()
+                if remaining_recalcs() <= 0:
+                    print("Chatbot:", soft_limit_message(), "\n")
+                    post_offer_stage = "limit_followup"
+                    print("Chatbot:", limit_followup_text(), "\n")
+                    continue
 
-                # update last_* zodat je verder kunt itereren
-                last_answers = dict(new_answers)
-                last_costs = dict(new_costs)
+                before_a = dict(last_answers or {})
+                before_c = dict(last_costs or {})
+                new_a, expl = apply_remove_selected_extras(before_a, parsed)
 
-                # terug naar hoofdmenu
+                recalc_count += 1
+                new_c = estimate_tuinaanleg_costs(new_a)
+                _show_recalc_result(before_a, before_c, new_a, new_c, expl)
+
+                last_answers = dict(new_a)
+                last_costs = dict(new_c)
+
+                post_offer_stage = "menu"
+                print("Chatbot:", post_offer_choices_text(), "\n")
+                continue
+
+            # -------------------------
+            # materiaal aanpassen: onderdeel
+            # -------------------------
+            if post_offer_stage == "lc_material_part":
+                if t_raw not in {"1", "2", "3", "4"}:
+                    print("Chatbot:", material_part_menu_text(last_answers), "\n")
+                    continue
+
+                _pending_material_part = t_raw
+                menu, allowed_choices = material_choice_menu_text_cheaper(last_answers, last_costs, _pending_material_part)
+                if not allowed_choices:
+                    print("Chatbot:", menu, "\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
+
+                post_offer_stage = "lc_material_choice"
+                print("Chatbot:", menu, "\n")
+                continue
+
+            # -------------------------
+            # materiaal aanpassen: kies optie
+            # -------------------------
+            if post_offer_stage == "lc_material_choice":
+                menu, allowed_choices = material_choice_menu_text_cheaper(last_answers, last_costs, _pending_material_part or "4")
+                if not allowed_choices:
+                    print("Chatbot:", menu, "\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
+
+                if t_raw not in allowed_choices:
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+                if remaining_recalcs() <= 0:
+                    print("Chatbot:", soft_limit_message(), "\n")
+                    post_offer_stage = "limit_followup"
+                    print("Chatbot:", limit_followup_text(), "\n")
+                    continue
+
+                before_a = dict(last_answers or {})
+                before_c = dict(last_costs or {})
+                new_a, expl = apply_material_change(before_a, _pending_material_part or "4", t_raw)
+
+                recalc_count += 1
+                new_c = estimate_tuinaanleg_costs(new_a)
+                _show_recalc_result(before_a, before_c, new_a, new_c, expl)
+
+                last_answers = dict(new_a)
+                last_costs = dict(new_c)
+                _pending_material_part = None
+
+                post_offer_stage = "menu"
+                print("Chatbot:", post_offer_choices_text(), "\n")
+                continue
+
+            # -------------------------
+            # vlonder goedkoper / verwijderen
+            # -------------------------
+            if post_offer_stage == "lc_vlonder_choice":
+                menu, allowed_v = vlonder_choice_menu_text(last_answers, last_costs)
+                if not allowed_v:
+                    print("Chatbot:", menu, "\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
+
+                if t_raw not in allowed_v:
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+                if remaining_recalcs() <= 0:
+                    print("Chatbot:", soft_limit_message(), "\n")
+                    post_offer_stage = "limit_followup"
+                    print("Chatbot:", limit_followup_text(), "\n")
+                    continue
+
+                before_a = dict(last_answers or {})
+                before_c = dict(last_costs or {})
+
+                if t_raw == "9":
+                    new_a, expl = apply_vlonder_change(before_a, "remove")
+                else:
+                    new_a, expl = apply_vlonder_change(before_a, _VLONDER_BY_CHOICE[t_raw])
+
+                recalc_count += 1
+                new_c = estimate_tuinaanleg_costs(new_a)
+                _show_recalc_result(before_a, before_c, new_a, new_c, expl)
+
+                last_answers = dict(new_a)
+                last_costs = dict(new_c)
+
+                post_offer_stage = "menu"
+                print("Chatbot:", post_offer_choices_text(), "\n")
+                continue
+
+            # -------------------------
+            # erfafscheiding aanpassen/verwijderen + poortdeuren laten vervallen (multi-select)
+            # -------------------------
+            if post_offer_stage == "lc_erf_remove_select":
+                menu, allowed_e = erf_remove_select_menu_text(last_answers, last_costs)
+                if not allowed_e:
+                    print("Chatbot:", menu, "\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
+
+                if t_low in ("nee", "n", "no"):
+                    print("Chatbot: Helemaal goed — we laten de erfafscheiding zoals hij is.\n")
+                    post_offer_stage = "menu"
+                    print("Chatbot:", post_offer_choices_text(), "\n")
+                    continue
+
+                parsed = parse_multi_digits(t_raw, allowed=allowed_e)
+                if parsed is None or parsed == ("nee",):
+                    print("Chatbot:", menu, "\n")
+                    continue
+
+                if remaining_recalcs() <= 0:
+                    print("Chatbot:", soft_limit_message(), "\n")
+                    post_offer_stage = "limit_followup"
+                    print("Chatbot:", limit_followup_text(), "\n")
+                    continue
+
+                before_a = dict(last_answers or {})
+                before_c = dict(last_costs or {})
+                new_a, expl = apply_erf_changes(before_a, parsed)
+
+                recalc_count += 1
+                new_c = estimate_tuinaanleg_costs(new_a)
+                _show_recalc_result(before_a, before_c, new_a, new_c, expl)
+
+                last_answers = dict(new_a)
+                last_costs = dict(new_c)
+
                 post_offer_stage = "menu"
                 print("Chatbot:", post_offer_choices_text(), "\n")
                 continue
 
             # contact details
             if post_offer_stage == "contact_details":
-                # Hier later: opslaan / mailen / CRM
                 print("Chatbot: Dank u wel! We nemen zo snel mogelijk contact met u op!\n")
                 print("Chatbot: Tot ziens! 👋\n")
 
@@ -454,7 +1357,7 @@ while True:
         # -------------------------
         if flow is None and looks_like_tuinaanleg_intent(user_input):
             recalc_count = 0
-            applied_savings = set()
+            _pending_material_part = None
             flow = TuinaanlegFlow(prijzen=PRIJZEN)
             print("\nChatbot: Ik stel u een paar korte vragen over uw tuin, zodat ik u een gerichte indicatie kan geven.")
             print("Chatbot:", flow.get_question(), "\n")
@@ -490,9 +1393,8 @@ while True:
 
                 last_answers = dict(flow.answers)
                 last_costs = dict(costs)
-                applied_savings = set()
+                _pending_material_part = None
 
-                # Flow uit en post-offer menu starten
                 flow = None
                 post_offer_mode = True
                 post_offer_stage = "menu"
