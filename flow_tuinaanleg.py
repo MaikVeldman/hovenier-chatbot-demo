@@ -92,15 +92,18 @@ class TuinaanlegFlow:
             "verhouding_bestrating_groen": None,
             "bestrating_pct": None,
             "groen_pct": None,
+            "confirm_bestrating_groen": None,  # ✅ NEW
 
             "verhouding_gazon_beplanting": None,
             "gazon_pct": None,
             "beplanting_pct": None,
+            "confirm_gazon_beplanting": None,  # ✅ NEW
 
             "verhouding_oprit_paden_terras": None,
             "oprit_pct": None,
             "paden_pct": None,
             "terras_pct": None,
+            "confirm_oprit_paden_terras": None,  # ✅ NEW
 
             "materiaal_oprit": None,
             "materiaal_paden": None,
@@ -123,8 +126,8 @@ class TuinaanlegFlow:
             "erfafscheiding_items": [],  # list[{"type":..., "meter":..., "poortdeur":...}]
 
             # interne flow-state
-            "_pending_extras": [],  # queue met next steps: ["erfafscheiding_type","vlonder_type","beregening_scope"]
-            "_erfafscheiding_types_selected": [],  # ["haag","betonschutting",...]
+            "_pending_extras": [],
+            "_erfafscheiding_types_selected": [],
             "_erfafscheiding_idx": 0,
             "_erfafscheiding_current_type": None,
             "_erfafscheiding_current_meter": None,
@@ -152,11 +155,28 @@ class TuinaanlegFlow:
 
     def get_question(self) -> str:
         if self.is_done():
-            return "Bedankt voor het invullen! Ik heb genoeg info. Hieronder kunt u de prijzen terug vinden."
+            return ""
 
         step = self.steps[self.step_index]
 
-        # Dynamische vraagtekst voor erfafscheiding (zodat altijd duidelijk is waar je meters invult)
+        # ✅ Confirm-vragen (auto-berekende laatste %)
+        if step.key == "confirm_bestrating_groen":
+            b = int(self.answers.get("bestrating_pct") or 0)
+            g = int(self.answers.get("groen_pct") or 0)
+            return f"Ik kom uit op {b}% bestrating en {g}% groen. Klopt dit? (ja/nee)"
+
+        if step.key == "confirm_gazon_beplanting":
+            ga = int(self.answers.get("gazon_pct") or 0)
+            bp = int(self.answers.get("beplanting_pct") or 0)
+            return f"Ik kom uit op {ga}% gazon en {bp}% beplanting. Klopt dit? (ja/nee)"
+
+        if step.key == "confirm_oprit_paden_terras":
+            o = int(self.answers.get("oprit_pct") or 0)
+            p = int(self.answers.get("paden_pct") or 0)
+            t = int(self.answers.get("terras_pct") or 0)
+            return f"Ik kom uit op {o}% oprit, {p}% paden en {t}% terras. Klopt dit? (ja/nee)"
+
+        # erfafscheiding special-cases
         if step.key == "erfafscheiding_meter":
             t = self._erf_type_pretty(self.answers.get("_erfafscheiding_current_type"))
             return f"Hoeveel meter {t} is het ongeveer? (bijv. 10)"
@@ -182,20 +202,16 @@ class TuinaanlegFlow:
         self.answers["overige_wensen"] = arr
 
     # -------------------------
-    # Multi-select parsing (dummy proof)
-    # - accepteert: "1,3" "1 3" "13" "31" "1/3" "1-3" etc.
-    # - verwijdert duplicates, behoudt volgorde
+    # Multi-select parsing
     # -------------------------
     def _parse_multi_digits(self, user_text: str, *, allowed: Tuple[str, ...]) -> Optional[Tuple[str, ...]]:
         t = (user_text or "").strip().lower()
         if not t:
             return None
 
-        # speciale case: nee
         if t in ("nee", "n", "no"):
             return ("nee",)
 
-        # haal alle digits uit de input, bv "1, 3" => ["1","3"], "13" => ["1","3"]
         digits = re.findall(r"\d", t)
         if not digits:
             return None
@@ -221,7 +237,6 @@ class TuinaanlegFlow:
         chosen_labels: List[str] = []
         pending: List[str] = []
 
-        # volgorde: erfafscheiding -> vlonder -> beregening
         if "1" in wanted:
             self._append_overige_once("erfafscheiding")
             chosen_labels.append("Erfafscheiding")
@@ -245,7 +260,6 @@ class TuinaanlegFlow:
             self._goto_step(pending[0])
             return prefix + self.get_question(), False
 
-        # geen pending => klaar
         self.step_index = len(self.steps)
         return self.get_question(), True
 
@@ -255,7 +269,6 @@ class TuinaanlegFlow:
             self.step_index = len(self.steps)
             return self.get_question(), True
 
-        # pop current
         pending = pending[1:]
         self.answers["_pending_extras"] = pending
 
@@ -279,35 +292,64 @@ class TuinaanlegFlow:
             return (step.error_prompt or step.prompt), False
 
         # -------------------------
-        # Overige wensen (multi-select, 1x)
+        # ✅ Confirm handlers (auto %)
+        # -------------------------
+        if step.key == "confirm_bestrating_groen":
+            self.answers["confirm_bestrating_groen"] = value
+            if value is True:
+                self.step_index += 1
+                return self.get_question(), False
+
+            # reset groep en opnieuw
+            self.answers["bestrating_pct"] = None
+            self.answers["groen_pct"] = None
+            self.answers["confirm_bestrating_groen"] = None
+            self._goto_step("bestrating_pct")
+            return "Helemaal goed. Vul het opnieuw in: welk percentage wordt bestrating? (0–100%)", False
+
+        if step.key == "confirm_gazon_beplanting":
+            self.answers["confirm_gazon_beplanting"] = value
+            if value is True:
+                self.step_index += 1
+                return self.get_question(), False
+
+            self.answers["gazon_pct"] = None
+            self.answers["beplanting_pct"] = None
+            self.answers["confirm_gazon_beplanting"] = None
+            self._goto_step("gazon_pct")
+            return "Helemaal goed. Vul het opnieuw in: welk percentage van het groen wordt gazon? (0–100%)", False
+
+        if step.key == "confirm_oprit_paden_terras":
+            self.answers["confirm_oprit_paden_terras"] = value
+            if value is True:
+                self.step_index += 1
+                return self.get_question(), False
+
+            self.answers["oprit_pct"] = None
+            self.answers["paden_pct"] = None
+            self.answers["terras_pct"] = None
+            self.answers["confirm_oprit_paden_terras"] = None
+            self._goto_step("oprit_pct")
+            return "Helemaal goed. Vul het opnieuw in: welk percentage wordt oprit? (0–100%)", False
+
+        # -------------------------
+        # Overige wensen confirmed
         # -------------------------
         if step.key == "overige_wensen":
             if value == ("nee",):
                 self.step_index = len(self.steps)
                 return self.get_question(), True
-
-            # start queue + mini confirm
             return self._start_pending_extras(value)
 
-        # -------------------------
-        # Beregening
-        # -------------------------
         if step.key == "beregening_scope":
             self.answers["beregening_scope"] = value
             return self._advance_pending_extras()
 
-        # -------------------------
-        # Vlonder
-        # -------------------------
         if step.key == "vlonder_type":
             self.answers["vlonder_type"] = value
             return self._advance_pending_extras()
 
-        # -------------------------
-        # Erfafscheiding: multi type-select -> vervolgens per type meter (en evt poortdeur)
-        # -------------------------
         if step.key == "erfafscheiding_type":
-            # value: tuple keuzes ("1","2") etc.
             mapping = {"1": "haag", "2": "betonschutting", "3": "design_schutting"}
             types = [mapping[c] for c in value if c in mapping]
 
@@ -333,36 +375,28 @@ class TuinaanlegFlow:
             cur_type = (self.answers.get("_erfafscheiding_current_type") or "").strip().lower()
             self.answers["_erfafscheiding_current_meter"] = value
 
-            # schutting types => poortdeur vraag
             if cur_type in ("betonschutting", "design_schutting"):
                 self._goto_step("poortdeur")
                 return self.get_question(), False
 
-            # haag => poortdeur niet nodig, direct opslaan
-            self.answers["erfafscheiding_items"].append({
-                "type": cur_type,
-                "meter": value,
-                "poortdeur": None
-            })
+            self.answers["erfafscheiding_items"].append({"type": cur_type, "meter": value, "poortdeur": None})
             return self._next_erfafscheiding_or_advance()
 
         if step.key == "poortdeur":
             cur_type = (self.answers.get("_erfafscheiding_current_type") or "").strip().lower()
             meter = self.answers.get("_erfafscheiding_current_meter")
 
-            self.answers["erfafscheiding_items"].append({
-                "type": cur_type,
-                "meter": meter,
-                "poortdeur": value
-            })
+            self.answers["erfafscheiding_items"].append({"type": cur_type, "meter": meter, "poortdeur": value})
             return self._next_erfafscheiding_or_advance()
 
         # -------------------------
-        # normale velden
+        # Generic store
         # -------------------------
         self.answers[step.key] = value
 
-        # presets
+        # -------------------------
+        # ✅ Presets (niet-custom)
+        # -------------------------
         if step.key == "verhouding_bestrating_groen":
             presets = {"70_30": (70, 30), "50_50": (50, 50), "30_70": (30, 70)}
             if value in presets:
@@ -370,8 +404,10 @@ class TuinaanlegFlow:
                 self.answers["bestrating_pct"] = b
                 self.answers["groen_pct"] = g
             else:
+                # custom -> percentages later
                 self.answers["bestrating_pct"] = None
                 self.answers["groen_pct"] = None
+                self.answers["confirm_bestrating_groen"] = None
 
         if step.key == "verhouding_gazon_beplanting":
             presets = {"70_30": (70, 30), "50_50": (50, 50), "30_70": (30, 70)}
@@ -382,6 +418,7 @@ class TuinaanlegFlow:
             else:
                 self.answers["gazon_pct"] = None
                 self.answers["beplanting_pct"] = None
+                self.answers["confirm_gazon_beplanting"] = None
 
         if step.key == "verhouding_oprit_paden_terras":
             presets = {
@@ -399,68 +436,72 @@ class TuinaanlegFlow:
                 self.answers["oprit_pct"] = None
                 self.answers["paden_pct"] = None
                 self.answers["terras_pct"] = None
+                self.answers["confirm_oprit_paden_terras"] = None
 
-        # blokchecks 100%
-        if step.key == "groen_pct":
-            b = int(self.answers.get("bestrating_pct") or 0)
-            g = int(self.answers.get("groen_pct") or 0)
-            if b + g != 100:
-                self.answers["bestrating_pct"] = None
-                self.answers["groen_pct"] = None
-                self._goto_step("bestrating_pct")
-                return (
-                    f"De totalen moeten samen 100% zijn. Nu is het {b+g}%. "
-                    f"Welk percentage wordt bestrating? (0–100%)",
-                    False
-                )
+        # -------------------------
+        # ✅ Custom: auto-bereken laatste % + confirm
+        # -------------------------
+        if step.key == "bestrating_pct" and self.answers.get("verhouding_bestrating_groen") == "custom":
+            b = int(value)
+            self.answers["groen_pct"] = 100 - b
+            self._goto_step("confirm_bestrating_groen")
+            return self.get_question(), False
 
-        if step.key == "beplanting_pct":
-            ga = int(self.answers.get("gazon_pct") or 0)
-            bp = int(self.answers.get("beplanting_pct") or 0)
-            if ga + bp != 100:
-                self.answers["gazon_pct"] = None
-                self.answers["beplanting_pct"] = None
-                self._goto_step("gazon_pct")
-                return (
-                    f"De totalen moeten samen 100% zijn. Nu is het {ga+bp}%. "
-                    f"Welk percentage van het groen wordt gazon? (0–100%)",
-                    False
-                )
+        if step.key == "gazon_pct" and self.answers.get("verhouding_gazon_beplanting") == "custom":
+            ga = int(value)
+            self.answers["beplanting_pct"] = 100 - ga
+            self._goto_step("confirm_gazon_beplanting")
+            return self.get_question(), False
 
-        if step.key == "terras_pct":
+        # Oprit/paden/terras custom:
+        # na paden_pct berekenen we terras_pct automatisch en vragen confirm
+        if step.key == "paden_pct" and self.answers.get("verhouding_oprit_paden_terras") == "custom":
             o = int(self.answers.get("oprit_pct") or 0)
-            p = int(self.answers.get("paden_pct") or 0)
-            t = int(self.answers.get("terras_pct") or 0)
-            if o + p + t != 100:
+            p = int(value)
+            s = o + p
+
+            if s > 100:
+                # reset groep en opnieuw
                 self.answers["oprit_pct"] = None
                 self.answers["paden_pct"] = None
                 self.answers["terras_pct"] = None
+                self.answers["confirm_oprit_paden_terras"] = None
                 self._goto_step("oprit_pct")
                 return (
-                    f"De totalen moeten samen 100% zijn. Nu is het {o+p+t}%. "
-                    f"Welk percentage wordt oprit? (0–100%)",
+                    f"Dit is samen {s}%. Dat kan niet (max 100%). "
+                    f"Laten we opnieuw beginnen: welk % wordt oprit? (0–100%)",
                     False
                 )
 
-        # next step (standaard)
+            self.answers["terras_pct"] = 100 - s
+            self._goto_step("confirm_oprit_paden_terras")
+            return self.get_question(), False
+
+        # -------------------------
+        # advance
+        # -------------------------
         self.step_index += 1
 
-        # ✅ skip vragen die niet relevant zijn (incl. materiaal bij 0%)
+        # -------------------------
+        # ✅ Skip logic (niet-custom: sla custom-velden + confirms over)
+        # -------------------------
         while not self.is_done():
             k = self.steps[self.step_index].key
 
-            # skip pct vragen bij presets
-            if k in ("bestrating_pct", "groen_pct") and self.answers.get("verhouding_bestrating_groen") != "custom":
-                self.step_index += 1
-                continue
-            if k in ("gazon_pct", "beplanting_pct") and self.answers.get("verhouding_gazon_beplanting") != "custom":
-                self.step_index += 1
-                continue
-            if k in ("oprit_pct", "paden_pct", "terras_pct") and self.answers.get("verhouding_oprit_paden_terras") != "custom":
+            # custom percent/confirm steps overslaan als verhouding niet custom is
+            if k in ("bestrating_pct", "confirm_bestrating_groen") and self.answers.get("verhouding_bestrating_groen") != "custom":
                 self.step_index += 1
                 continue
 
-            # ✅ skip materiaalvraag als het onderdeel 0% is
+            if k in ("gazon_pct", "confirm_gazon_beplanting") and self.answers.get("verhouding_gazon_beplanting") != "custom":
+                self.step_index += 1
+                continue
+
+            if k in ("oprit_pct", "paden_pct", "confirm_oprit_paden_terras") and self.answers.get("verhouding_oprit_paden_terras") != "custom":
+                self.step_index += 1
+                continue
+
+            # materialen overslaan als pct=0
             if k == "materiaal_oprit" and int(self.answers.get("oprit_pct") or 0) == 0:
                 self.answers["materiaal_oprit"] = None
                 self.step_index += 1
@@ -495,7 +536,6 @@ class TuinaanlegFlow:
             self._goto_step("erfafscheiding_meter")
             return self.get_question(), False
 
-        # klaar met alle gekozen types
         self.answers["_erfafscheiding_current_type"] = None
         self.answers["_erfafscheiding_current_meter"] = None
         self.answers["_erfafscheiding_types_selected"] = []
@@ -533,21 +573,26 @@ class TuinaanlegFlow:
                 return True, {"1": "70_30", "2": "50_50", "3": "30_70", "4": "custom"}[v]
             if step.key == "verhouding_oprit_paden_terras":
                 return True, {"1": "50_30_20", "2": "40_30_30", "3": "30_30_40", "4": "20_30_50", "5": "custom"}[v]
+
+            # ✅ materiaal mapping (goedkoop -> duur): 1=grind, 2=beton, 3=gebakken, 4=keramiek
             if step.key in ("materiaal_oprit", "materiaal_paden", "materiaal_terras"):
-                return True, {"1": "beton", "2": "gebakken", "3": "keramiek", "4": "grind"}[v]
+                return True, {"1": "grind", "2": "beton", "3": "gebakken", "4": "keramiek"}[v]
+
             if step.key == "beregening_scope":
                 return True, {"1": "gazon", "2": "beplanting", "3": "allebei"}[v]
 
+            # ✅ FIX: vlonder mapping
+            if step.key == "vlonder_type":
+                return True, {"1": "zachthout", "2": "hardhout", "3": "composiet"}[v]
+
             return True, v
 
-        # multi-select: overige wensen (1-3 + nee)
         if step.key == "overige_wensen":
             parsed = self._parse_multi_digits(user_text, allowed=("1", "2", "3"))
             if parsed is None:
                 return False, None
             return True, parsed
 
-        # multi-select: erfafscheiding types (1-3)
         if step.key == "erfafscheiding_type":
             parsed = self._parse_multi_digits(user_text, allowed=("1", "2", "3"))
             if parsed is None or parsed == ("nee",):
@@ -571,36 +616,38 @@ class TuinaanlegFlow:
             ),
 
             Step("verhouding_bestrating_groen", "choice", (
-                "Hoe wilt u de verhouding tussen bestrating en groen?\n"
-                "1) Veel bestrating 70/30\n"
-                "2) Gemengd 50/50\n"
-                "3) Veel groen 30/70\n"
+                "Hoe wilt u de tuin verdelen tussen bestrating en groen?\n"
+                "1) 70% bestrating / 30% groen\n"
+                "2) 50% bestrating / 50% groen\n"
+                "3) 30% bestrating / 70% groen\n"
                 "4) Zelf invullen\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Hoe wilt u de verhouding bestrating/groen?"),
 
+            # ✅ CUSTOM: gebruiker vult alleen bestrating in; groen wordt automatisch 100-bestrating
             Step("bestrating_pct", "pct", "Welk percentage van de tuin wordt bestrating? (0–100%)",
                  error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 50."),
-            Step("groen_pct", "pct", "Welk percentage van de tuin wordt groen? (0–100%)",
-                 error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 50."),
+            Step("confirm_bestrating_groen", "yesno", "Klopt dit? (ja/nee)",
+                 error_prompt="Antwoord met ja of nee."),
 
             Step("verhouding_gazon_beplanting", "choice", (
                 "Hoe wilt u het groen verdelen tussen gazon en beplanting?\n"
-                "1) Veel gazon 70/30\n"
-                "2) Gemengd 50/50\n"
-                "3) Veel beplanting 30/70\n"
+                "1) 70% gazon / 30% beplanting\n"
+                "2) 50% gazon / 50% beplanting\n"
+                "3) 30% gazon / 70% beplanting\n"
                 "4) Zelf invullen\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1", "2", "3", "4"),
             error_prompt="Kies 1, 2, 3 of 4. Hoe wilt u het groen verdelen tussen gazon en beplanting?"),
 
+            # ✅ CUSTOM: gebruiker vult alleen gazon in; beplanting wordt automatisch 100-gazon
             Step("gazon_pct", "pct", "Welk percentage van het groen wordt gazon? (0–100%)",
                  error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 50."),
-            Step("beplanting_pct", "pct", "Welk percentage van het groen wordt beplanting? (0–100%)",
-                 error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 50."),
+            Step("confirm_gazon_beplanting", "yesno", "Klopt dit? (ja/nee)",
+                 error_prompt="Antwoord met ja of nee."),
 
             Step("verhouding_oprit_paden_terras", "choice", (
                 "Hoe wilt u de bestrating verdelen tussen oprit, paden en terras?\n"
@@ -613,19 +660,20 @@ class TuinaanlegFlow:
             ), allowed=("1", "2", "3", "4", "5"),
             error_prompt="Kies 1 t/m 5. Hoe wilt u de bestrating verdelen tussen oprit/paden/terras?"),
 
+            # ✅ CUSTOM: gebruiker vult oprit + paden in; terras wordt automatisch 100-(oprit+paden)
             Step("oprit_pct", "pct", "Welk percentage van de bestrating wordt oprit? (0–100%)",
                  error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 40."),
             Step("paden_pct", "pct", "Welk percentage van de bestrating wordt paden? (0–100%)",
                  error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 20."),
-            Step("terras_pct", "pct", "Welk percentage van de bestrating wordt terras? (0–100%)",
-                 error_prompt="Geef een percentage tussen 0 en 100, bijvoorbeeld 40."),
+            Step("confirm_oprit_paden_terras", "yesno", "Klopt dit? (ja/nee)",
+                 error_prompt="Antwoord met ja of nee."),
 
             Step("materiaal_oprit", "choice", (
                 "Welk materiaal wilt u voor de oprit?\n"
-                "1) Beton\n"
-                "2) Gebakken klinkers\n"
-                "3) Keramiek\n"
-                "4) Grind\n"
+                "1) Grind € – natuurlijke uitstraling, waterdoorlatend geschikt voor auto's\n"
+                "2) Beton klinker €€ – betaalbaar, praktisch en geschikt voor auto's\n"
+                "3) Gebakken klinker €€€ – warm, klasiek en sfeervol, geschikt voor auto's\n"
+                "4) Keramische tegels €€€€ – strak en onderhoudsarm (alleen geschikt met juiste onderbouw)\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1", "2", "3", "4"),
@@ -633,10 +681,10 @@ class TuinaanlegFlow:
 
             Step("materiaal_paden", "choice", (
                 "Welk materiaal wilt u voor de paden?\n"
-                "1) Beton\n"
-                "2) Gebakken klinkers\n"
-                "3) Keramiek\n"
-                "4) Grind\n"
+                "1) Grind € – natuurlijke uitstraling, waterdoorlatend\n"
+                "2) Beton tegel/klinker €€ – betaalbaar, praktisch en strak\n"
+                "3) Gebakken klinker €€€ – warm, klasiek en sfeervol\n"
+                "4) Keramische tegels €€€€ – luxe uitstraling, zeer onderhoudsarm\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1", "2", "3", "4"),
@@ -644,10 +692,10 @@ class TuinaanlegFlow:
 
             Step("materiaal_terras", "choice", (
                 "Welk materiaal wilt u voor het terras?\n"
-                "1) Beton\n"
-                "2) Gebakken klinkers\n"
-                "3) Keramiek\n"
-                "4) Grind\n"
+                "1) Grind € – natuurlijke uitstraling, waterdoorlatend\n"
+                "2) Beton tegel/klinker €€ – betaalbaar, praktisch en strak\n"
+                "3) Gebakken klinker €€€ – warm, klasiek en sfeervol\n"
+                "4) Keramische tegels €€€€ – luxe uitstraling, zeer onderhoudsarm\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1", "2", "3", "4"),
@@ -662,18 +710,16 @@ class TuinaanlegFlow:
             Step("verlichting", "yesno", f"Wilt u een basispakket tuinverlichting? {verlichting_txt} (ja/nee)".strip(),
                  error_prompt="Antwoord met ja of nee. Wilt u een basispakket tuinverlichting?"),
 
-            # ✅ overige wensen (multi-select, 1x)
             Step("overige_wensen", "menu", (
                 "Heeft u nog overige wensen?\n"
                 "1) Erfafscheiding\n"
                 "2) Vlonder\n"
                 "3) Beregening\n"
                 "\n"
-                "U kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt).\n"
+                "U kunt meerdere opties tegelijk kiezen, bijv. 1,3.\n"
                 "Of typ 'nee' als u geen extra wensen hebt."
             ), error_prompt="Kies 1, 2, 3 (eventueel meerdere tegelijk, bijv. 1,3 of 13) of typ 'nee'."),
 
-            # beregening
             Step("beregening_scope", "choice", (
                 "Voor welk deel wilt u beregening?\n"
                 "1) Alleen gazon\n"
@@ -684,14 +730,13 @@ class TuinaanlegFlow:
             ), allowed=("1", "2", "3"),
             error_prompt="Kies 1, 2 of 3. Voor welk deel wilt u beregening?"),
 
-            # erfafscheiding multi-select type
             Step("erfafscheiding_type", "menu", (
                 "Welk type erfafscheiding wilt u toevoegen?\n"
                 "1) Haag\n"
                 "2) Betonschutting\n"
                 "3) Design schutting\n"
                 "\n"
-                "U kunt meerdere opties tegelijk kiezen, bijv. 1,3 (ook 13 werkt).\n"
+                "U kunt meerdere opties tegelijk kiezen, bijv. 1,3.\n"
                 "Reageer met 1, 2 of 3."
             ), error_prompt="Kies 1, 2 of 3 (eventueel meerdere tegelijk, bijv. 1,3 of 13)."),
 
@@ -703,12 +748,11 @@ class TuinaanlegFlow:
                  "Wilt u bij deze erfafscheiding ook een poortdeur opnemen? (ja/nee)",
                  error_prompt="Antwoord met ja of nee."),
 
-            # vlonder
             Step("vlonder_type", "choice", (
                 "Welk type vlonder wilt u?\n"
-                "1) Zachthout (bijv. Douglas)\n"
-                "2) Hardhout\n"
-                "3) Composiet\n"
+                "1) Zachthout € ±10–15 jaar – voordeliger, kortere levensduur, natuurlijke look\n"
+                "2) Hardhout €€ ±20–25 jaar – langere levensduur, kan mooi egaal vergrijzen\n"
+                "3) Composiet €€€ ±25–30 jaar – minste onderhoud, splintert niet\n"
                 "\n"
                 "Reageer met 1, 2 of 3."
             ), allowed=("1", "2", "3"),
@@ -719,7 +763,7 @@ class TuinaanlegFlow:
         key = "overkapping_basis_per_stuk"
         if key in self.prijzen and isinstance(self.prijzen[key], tuple) and len(self.prijzen[key]) == 2:
             lo, hi = self.prijzen[key]
-            return f"Een basis overkapping 5×3 m is vaak vanaf {format_eur_range(int(lo), int(hi))} (indicatief, excl. luxe opties)."
+            return f"Wilt u een basis overkapping (bijvoorbeeld 5×3 m)? Uiteraard zijn andere afmetingen ook mogelijk"
         return "Een basis overkapping 5×3 m is vaak mogelijk in verschillende prijsklassen (indicatief)."
 
     def _verlichting_price_text(self) -> str:
