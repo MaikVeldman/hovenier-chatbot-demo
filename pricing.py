@@ -33,11 +33,9 @@ PRIJZEN: Dict[str, Tuple[int, int]] = {
     "graszoden_per_m2": (15, 25),                                       # €/m²
     "beplanting_border_per_m2": (30, 40),                               # €/m²
     "beplanting_haag_per_m1": (45, 200),                                # €/m¹
-    "beplanting_boom_per_stuk": (220, 600),                             # €/stuk
+    "beplanting_boom_per_stuk": (220, 600),
 
     "overkapping_basis_per_stuk": (10000, 15000),                       # €/stuk
-
-    # ✅ FIX: key consistent maken (anders werkt PRICE_META + flow/verlichting niet goed)
     "verlichting_basis_per_stuk": (1000, 1500),                         # €/stuk
 
     "beregening_basis_per_m2": (20, 40),                                # €/m²
@@ -145,6 +143,185 @@ def _to_float(v) -> float:
         return float(str(v).replace(",", ".").strip())
     except Exception:
         return 0.0
+
+
+# ============================================================
+# ✅ NIEUW: Overzicht van gekozen opties (klantvriendelijk)
+#    - gebruikt costs["inputs"] (die jij al teruggeeft)
+# ============================================================
+def format_tuinaanleg_choices_for_customer(costs: Dict[str, Any]) -> str:
+    """
+    Maakt een compacte opsomming van alle relevante gekozen opties uit costs['inputs'].
+    Bedoeld om BOVEN de prijsindicatie te tonen.
+    """
+    inputs = (costs or {}).get("inputs") or {}
+    if not inputs:
+        return ""
+
+    def _pct(v: Any) -> str:
+        try:
+            return f"{int(v)}%"
+        except Exception:
+            return ""
+
+    def _ratio_label(code: str | None) -> str:
+        return {
+            "70_30": "70% / 30%",
+            "50_50": "50% / 50%",
+            "30_70": "30% / 70%",
+            "custom": "zelf ingevuld",
+        }.get((code or "").strip(), "onbekend")
+
+    def _mat_label(m: str | None) -> str:
+        return {
+            "grind": "Grind",
+            "beton": "Beton",
+            "gebakken": "Gebakken klinkers",
+            "keramiek": "Keramiek",
+            "": "Beton",
+            None: "Beton",
+        }.get((m or "").strip().lower(), "Beton")
+
+    def _yesno(v: Any) -> str:
+        return "Ja" if v is True else "Nee"
+
+    # basis
+    tuin_m2 = inputs.get("tuin_m2")
+    ratio_bg = inputs.get("verhouding_bestrating_groen")
+    ratio_gb = inputs.get("verhouding_gazon_beplanting")
+
+    # custom percentages (als aanwezig)
+    b_pct = inputs.get("bestrating_pct")
+    g_pct = inputs.get("groen_pct")
+    ga_pct = inputs.get("gazon_pct")
+    bp_pct = inputs.get("beplanting_pct")
+
+    # verharding verdeling
+    oprit_pct = inputs.get("oprit_pct")
+    paden_pct = inputs.get("paden_pct")
+    terras_pct = inputs.get("terras_pct")
+
+    # materialen
+    mat_oprit = inputs.get("materiaal_oprit")
+    mat_paden = inputs.get("materiaal_paden")
+    mat_terras = inputs.get("materiaal_terras")
+
+    # extra's
+    voegen = inputs.get("onkruidwerend_gevoegd") is True
+    overkapping = inputs.get("overkapping") is True
+    verlichting = inputs.get("verlichting") is True
+
+    overige = inputs.get("overige_wensen") or []
+    overige_clean = [str(x).strip().lower() for x in (overige if isinstance(overige, list) else [overige]) if str(x).strip()]
+
+    vlonder_type = (inputs.get("vlonder_type") or "").strip().lower()
+    beregening_scope = (inputs.get("beregening_scope") or "").strip().lower()
+
+    erf_count = inputs.get("erfafscheiding_items_count") or 0
+
+    lines: List[str] = []
+    lines.append("🧾 **Uw gekozen uitgangspunten**")
+
+    if tuin_m2:
+        try:
+            lines.append(f"- Tuinoppervlak: ca. {int(round(float(tuin_m2)))} m²")
+        except Exception:
+            pass
+
+    # bestrating/groen
+    if ratio_bg == "custom" and (b_pct is not None or g_pct is not None):
+        bp = _pct(b_pct)
+        gp = _pct(g_pct)
+        if bp and gp:
+            lines.append(f"- Verdeling bestrating / groen: {bp} bestrating – {gp} groen")
+        else:
+            lines.append(f"- Verdeling bestrating / groen: {_ratio_label(ratio_bg)}")
+    else:
+        # preset (30/70 etc.)
+        if ratio_bg:
+            # bijv. "30_70" => 30 bestrating / 70 groen
+            if ratio_bg in {"70_30", "50_50", "30_70"}:
+                a, b = ratio_bg.split("_", 1)
+                lines.append(f"- Verdeling bestrating / groen: {a}% bestrating – {b}% groen")
+            else:
+                lines.append(f"- Verdeling bestrating / groen: {_ratio_label(ratio_bg)}")
+
+    # gazon/beplanting
+    if ratio_gb == "custom" and (ga_pct is not None or bp_pct is not None):
+        gap = _pct(ga_pct)
+        bpp = _pct(bp_pct)
+        if gap and bpp:
+            lines.append(f"- Groen: {gap} gazon – {bpp} beplanting")
+        else:
+            lines.append(f"- Groen: {_ratio_label(ratio_gb)} (gazon / beplanting)")
+    else:
+        if ratio_gb:
+            if ratio_gb in {"70_30", "50_50", "30_70"}:
+                a, b = ratio_gb.split("_", 1)
+                lines.append(f"- Groen: {a}% gazon – {b}% beplanting")
+            else:
+                lines.append(f"- Groen: {_ratio_label(ratio_gb)} (gazon / beplanting)")
+
+    # bestrating: oprit/paden/terras + materiaal
+    parts: List[str] = []
+    try:
+        o = int(oprit_pct) if oprit_pct is not None else 0
+        p = int(paden_pct) if paden_pct is not None else 0
+        t = int(terras_pct) if terras_pct is not None else 0
+    except Exception:
+        o, p, t = 0, 0, 100
+
+    if o > 0:
+        parts.append(f"Oprit: {o}% ({_mat_label(mat_oprit)})")
+    if p > 0:
+        parts.append(f"Paden: {p}% ({_mat_label(mat_paden)})")
+    if t > 0:
+        parts.append(f"Terras: {t}% ({_mat_label(mat_terras)})")
+
+    if parts:
+        lines.append("- Bestrating:")
+        for it in parts:
+            lines.append(f"  - {it}")
+
+    # extra's (compact)
+    extras: List[str] = []
+    if voegen:
+        extras.append("Bestrating gevoegd (onkruidwerend)")
+    if overkapping:
+        extras.append("Overkapping")
+    if verlichting:
+        extras.append("Tuinverlichting (basis)")
+
+    if "beregening" in overige_clean:
+        if beregening_scope == "gazon":
+            extras.append("Beregening (alleen gazon)")
+        elif beregening_scope == "beplanting":
+            extras.append("Beregening (alleen beplanting)")
+        else:
+            extras.append("Beregening (gazon én beplanting)")
+
+    if "vlonder" in overige_clean:
+        if vlonder_type:
+            extras.append(f"Vlonder ({vlonder_type})")
+        else:
+            extras.append("Vlonder")
+
+    if erf_count and int(erf_count) > 0:
+        extras.append("Erfafscheiding")
+
+    # overige wensen die niet in bovenstaande vallen
+    known = {"beregening", "vlonder", "erfafscheiding"}
+    overige_over = [x for x in overige_clean if x not in known]
+    if overige_over:
+        # laat ze als losse wens zien
+        extras.extend([f"Overige wens: {x}" for x in overige_over])
+
+    if extras:
+        lines.append("- Extra’s:")
+        for ex in extras:
+            lines.append(f"  - {ex}")
+
+    return "\n".join(lines)
 
 
 # ============================================================
@@ -523,7 +700,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 "unit": _unit(key, "€/m²"),
                 "qty": int(round(b_m2)),
                 "range_eur": [_eur(rng[0]), _eur(rng[1])],
-                "notes": f"Indicatief; berekend over {scope_txt}. Afhankelijk van zones, waterpunt en besturing."
+                "notes": f"Indicatief; berekend over {scope_txt}. Afhankelijk van pomp, zones, waterpunt en besturing."
             })
 
         overige_clean = [x for x in overige_clean if x != "beregening"]
@@ -744,11 +921,16 @@ def format_tuinaanleg_costs_for_customer(costs: Dict[str, Any]) -> str:
 
     lines: List[str] = []
 
+    # ✅ NIEUW: eerst keuze-overzicht
+    choices = format_tuinaanleg_choices_for_customer(costs)
+    if choices:
+        lines.append(choices)
+        lines.append("")
+
     # ✅ 1) “prijs” herpositioneren
     lines.append("✅ **Globale inschatting**")
     lines.append(
-        "Om u te helpen inschatten of dit past bij uw wensen en verwachtingen, "
-        "kan ik op basis van uw keuzes een globale indicatie geven."
+        "Bedankt voor het invullen, op basis van uw ingevulde keuzes geef ik u hieronder een globale indicatie."
     )
     lines.append("")
 
