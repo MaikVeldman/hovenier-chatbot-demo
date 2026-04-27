@@ -670,10 +670,10 @@ class TuinaanlegFlow:
 
             Step("materiaal_oprit", "choice", (
                 "Welk materiaal wilt u voor de oprit?\n"
-                "1) Grind € – natuurlijke uitstraling, waterdoorlatend geschikt voor auto's\n"
-                "2) Beton klinker €€ – betaalbaar, praktisch en geschikt voor auto's\n"
-                "3) Gebakken klinker €€€ – warm, klasiek en sfeervol, geschikt voor auto's\n"
-                "4) Keramische tegels €€€€ – strak en onderhoudsarm (alleen geschikt met juiste onderbouw)\n"
+                "1) Grind € – natuurlijke uitstraling, waterdoorlatend en geschikt voor auto's\n"
+                "2) Beton klinkers €€ – betaalbaar, praktisch en geschikt voor auto's\n"
+                "3) Gebakken klinkers €€€ – klasiek en sfeervol, geschikt voor auto's\n"
+                "4) Keramische tegels €€€€ – luxe uitstraling, zeer onderhoudsarm (alleen geschikt met juiste onderbouw)\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
             ), allowed=("1", "2", "3", "4"),
@@ -683,7 +683,7 @@ class TuinaanlegFlow:
                 "Welk materiaal wilt u voor de paden?\n"
                 "1) Grind € – natuurlijke uitstraling, waterdoorlatend\n"
                 "2) Beton tegel/klinker €€ – betaalbaar, praktisch en strak\n"
-                "3) Gebakken klinker €€€ – warm, klasiek en sfeervol\n"
+                "3) Gebakken klinker €€€ – klasiek en sfeervol\n"
                 "4) Keramische tegels €€€€ – luxe uitstraling, zeer onderhoudsarm\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
@@ -693,8 +693,8 @@ class TuinaanlegFlow:
             Step("materiaal_terras", "choice", (
                 "Welk materiaal wilt u voor het terras?\n"
                 "1) Grind € – natuurlijke uitstraling, waterdoorlatend\n"
-                "2) Beton tegel/klinker €€ – betaalbaar, praktisch en strak\n"
-                "3) Gebakken klinker €€€ – warm, klasiek en sfeervol\n"
+                "2) Beton tegel/klinkers €€ – betaalbaar, praktisch en strak\n"
+                "3) Gebakken klinkers €€€ – klasiek en sfeervol\n"
                 "4) Keramische tegels €€€€ – luxe uitstraling, zeer onderhoudsarm\n"
                 "\n"
                 "Reageer met 1, 2, 3 of 4."
