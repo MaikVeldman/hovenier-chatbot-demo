@@ -111,6 +111,7 @@ class TuinaanlegFlow:
 
             "onkruidwerend_gevoegd": None,
             "overkapping": None,
+            "overkapping_m2": None,
             "verlichting": None,
 
             # wensen
@@ -298,7 +299,8 @@ class TuinaanlegFlow:
             self.answers["confirm_bestrating_groen"] = value
             if value is True:
                 self.step_index += 1
-                return self.get_question(), False
+                self._apply_skip()
+                return self.get_question(), self.is_done()
 
             # reset groep en opnieuw
             self.answers["bestrating_pct"] = None
@@ -311,7 +313,8 @@ class TuinaanlegFlow:
             self.answers["confirm_gazon_beplanting"] = value
             if value is True:
                 self.step_index += 1
-                return self.get_question(), False
+                self._apply_skip()
+                return self.get_question(), self.is_done()
 
             self.answers["gazon_pct"] = None
             self.answers["beplanting_pct"] = None
@@ -323,7 +326,8 @@ class TuinaanlegFlow:
             self.answers["confirm_oprit_paden_terras"] = value
             if value is True:
                 self.step_index += 1
-                return self.get_question(), False
+                self._apply_skip()
+                return self.get_question(), self.is_done()
 
             self.answers["oprit_pct"] = None
             self.answers["paden_pct"] = None
@@ -481,14 +485,18 @@ class TuinaanlegFlow:
         # advance
         # -------------------------
         self.step_index += 1
+        self._apply_skip()
 
-        # -------------------------
-        # ✅ Skip logic (niet-custom: sla custom-velden + confirms over)
-        # -------------------------
+        if self.is_done():
+            return (self.get_question(), True)
+
+        return self.get_question(), False
+
+    def _apply_skip(self) -> None:
+        """Sla conditionele stappen over die niet van toepassing zijn."""
         while not self.is_done():
             k = self.steps[self.step_index].key
 
-            # custom percent/confirm steps overslaan als verhouding niet custom is
             if k in ("bestrating_pct", "confirm_bestrating_groen") and self.answers.get("verhouding_bestrating_groen") != "custom":
                 self.step_index += 1
                 continue
@@ -501,7 +509,11 @@ class TuinaanlegFlow:
                 self.step_index += 1
                 continue
 
-            # materialen overslaan als pct=0
+            if k == "overkapping_m2" and self.answers.get("overkapping") is not True:
+                self.answers["overkapping_m2"] = None
+                self.step_index += 1
+                continue
+
             if k == "materiaal_oprit" and int(self.answers.get("oprit_pct") or 0) == 0:
                 self.answers["materiaal_oprit"] = None
                 self.step_index += 1
@@ -518,11 +530,6 @@ class TuinaanlegFlow:
                 continue
 
             break
-
-        if self.is_done():
-            return (self.get_question(), True)
-
-        return self.get_question(), False
 
     def _next_erfafscheiding_or_advance(self) -> Tuple[str, bool]:
         types: List[str] = list(self.answers.get("_erfafscheiding_types_selected") or [])
@@ -561,6 +568,19 @@ class TuinaanlegFlow:
         if step.kind == "yesno":
             v = parse_yesno(user_text)
             return (v is not None), v
+
+        if step.kind == "overkapping_m2":
+            t = (user_text or "").strip()
+            preset = {"1": 9.0, "2": 15.0, "3": 20.0}
+            if t in preset:
+                return True, preset[t]
+            try:
+                v = float(t.replace(",", "."))
+                if 4.0 <= v <= 500.0:
+                    return True, v
+            except Exception:
+                pass
+            return False, None
 
         if step.kind == "choice":
             v = parse_choice(user_text, step.allowed)
@@ -707,6 +727,14 @@ class TuinaanlegFlow:
             Step("overkapping", "yesno", f"Wilt u een overkapping in de tuin? {overkapping_txt} (ja/nee)".strip(),
                  error_prompt="Antwoord met ja of nee. Wilt u een overkapping in de tuin?"),
 
+            Step("overkapping_m2", "overkapping_m2", (
+                "Welke afmeting heeft u in gedachten?\n"
+                "1) Knus – ca. 3×3 m (9 m²)\n"
+                "2) Standaard – ca. 5×3 m (15 m²)\n"
+                "3) Ruim – ca. 5×4 m (20 m²)\n"
+                "Of typ een oppervlakte in m² (bijv. 12)"
+            ), error_prompt="Kies 1, 2 of 3, of typ een oppervlakte in m² (bijv. 12)."),
+
             Step("verlichting", "yesno", f"Wilt u een basispakket tuinverlichting? {verlichting_txt} (ja/nee)".strip(),
                  error_prompt="Antwoord met ja of nee. Wilt u een basispakket tuinverlichting?"),
 
@@ -760,11 +788,11 @@ class TuinaanlegFlow:
         )
 
     def _overkapping_price_text(self) -> str:
-        key = "overkapping_basis_per_stuk"
+        key = "overkapping_per_m2"
         if key in self.prijzen and isinstance(self.prijzen[key], tuple) and len(self.prijzen[key]) == 2:
             lo, hi = self.prijzen[key]
-            return f"Wilt u een basis overkapping (bijvoorbeeld 5×3 m)? Uiteraard zijn andere afmetingen ook mogelijk"
-        return "Een basis overkapping 5×3 m is vaak mogelijk in verschillende prijsklassen (indicatief)."
+            return f"(indicatief {format_eur_range(int(lo), int(hi))} per m²)"
+        return "(indicatief €650–€1.000 per m²)"
 
     def _verlichting_price_text(self) -> str:
         key = "verlichting_basis_per_stuk"

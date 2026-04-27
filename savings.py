@@ -182,7 +182,7 @@ MATERIAL_LINKED_KEYS = (
 
 EXTRA_KEYS = {
     "voegen": ("voegen_straatwerk_per_m2",),
-    "overkapping": ("overkapping_basis_per_stuk",),
+    "overkapping": ("overkapping_per_m2",),
     "verlichting": ("verlichting_basis_per_stuk",),
     "beregening": ("beregening_basis_per_m2",),
 }

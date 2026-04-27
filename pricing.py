@@ -35,7 +35,7 @@ PRIJZEN: Dict[str, Tuple[int, int]] = {
     "beplanting_haag_per_m1": (45, 200),                                # €/m¹
     "beplanting_boom_per_stuk": (220, 600),
 
-    "overkapping_basis_per_stuk": (10000, 15000),                       # €/stuk
+    "overkapping_per_m2": (650, 1000),                                   # €/m²
     "verlichting_basis_per_stuk": (1000, 1500),                         # €/stuk
 
     "beregening_basis_per_m2": (20, 40),                                # €/m²
@@ -83,7 +83,7 @@ PRICE_META: Dict[str, Dict[str, str]] = {
     "beplanting_haag_per_m1": {"unit": "€/m¹", "label": "Haagbeplanting"},
     "beplanting_boom_per_stuk": {"unit": "€/stuk", "label": "Boom (incl. aanplant)"},
 
-    "overkapping_basis_per_stuk": {"unit": "€/stuk", "label": "Overkapping (basis)"},
+    "overkapping_per_m2": {"unit": "€/m²", "label": "Overkapping"},
     "verlichting_basis_per_stuk": {"unit": "€/stuk", "label": "Verlichting (basis 3 armaturen)"},
     "beregening_basis_per_m2": {"unit": "€/m²", "label": "Beregening (basis)"},
 
@@ -288,7 +288,14 @@ def format_tuinaanleg_choices_for_customer(costs: Dict[str, Any]) -> str:
     if voegen:
         extras.append("Bestrating gevoegd (onkruidwerend)")
     if overkapping:
-        extras.append("Overkapping")
+        ov_m2 = inputs.get("overkapping_m2")
+        if ov_m2:
+            try:
+                extras.append(f"Overkapping (ca. {int(round(float(ov_m2)))} m²)")
+            except Exception:
+                extras.append("Overkapping")
+        else:
+            extras.append("Overkapping")
     if verlichting:
         extras.append("Tuinverlichting (basis)")
 
@@ -725,21 +732,22 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
         })
 
     # ------------------------------------------------------------
-    # 7) Overkapping (stuk)
+    # 7) Overkapping (per m²)
     # ------------------------------------------------------------
     if overkapping:
-        ov_key = "overkapping_basis_per_stuk"
-        ov = PRIJZEN.get(ov_key, (10000, 15000))
-        ov_range = (float(ov[0]), float(ov[1]))
+        ov_key = "overkapping_per_m2"
+        ov_m2 = float(answers.get("overkapping_m2") or 15.0)
+        ov_unit = PRIJZEN.get(ov_key, (650, 1000))
+        ov_range = _range_mul((float(ov_unit[0]), float(ov_unit[1])), ov_m2)
         total = _range_add(total, ov_range)
 
         breakdown.append({
             "key": ov_key,
-            "label": _label(ov_key, "Overkapping (basis)"),
-            "unit": _unit(ov_key, "€/stuk"),
-            "qty": 1,
+            "label": f"Overkapping (ca. {int(round(ov_m2))} m²)",
+            "unit": "€/m²",
+            "qty": int(round(ov_m2)),
             "range_eur": [_eur(ov_range[0]), _eur(ov_range[1])],
-            "notes": "Basis; luxe opties/maatwerk/fundering en afwerking kunnen extra zijn."
+            "notes": f"Indicatief {int(round(ov_m2))} m²; fundering, maatwerk en afwerkingsgraad beïnvloeden de prijs."
         })
 
     # ------------------------------------------------------------
@@ -892,6 +900,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
             "beplanting_m2_estimate": int(round(border_m2)),
             "onkruidwerend_gevoegd": voegen,
             "overkapping": overkapping,
+            "overkapping_m2": float(answers.get("overkapping_m2") or 15.0) if overkapping else None,
             "verlichting": verlichting,
             "overige_wensen": overige,
             "vlonder_type": vlonder_type,
