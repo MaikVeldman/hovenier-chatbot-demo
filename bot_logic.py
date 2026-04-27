@@ -34,9 +34,9 @@ from savings import (
 MAX_RECALC = MAX_RECALC_DEFAULT
 
 INITIAL_GREETING = (
-    "Hallo! Ik stel u een paar korte vragen over uw tuin, "
-    "zodat ik u een gerichte indicatie kan geven.\n\n"
-    "Hoe groot is uw tuin in m²? (geef een getal)"
+    "Hallo! 👋 Ik help u graag met een vrijblijvende prijsindicatie voor uw tuinaanleg. "
+    "In een paar korte vragen kom ik tot een inschatting op maat.\n\n"
+    "Hoe groot is uw tuin in m²? (bijv. 80)"
 )
 
 
