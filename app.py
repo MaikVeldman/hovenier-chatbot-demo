@@ -32,8 +32,8 @@ if "chat_state" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = _initial_messages()
 
-if "scroll_to_top" not in st.session_state:
-    st.session_state.scroll_to_top = False
+if "scroll_to_msg_idx" not in st.session_state:
+    st.session_state.scroll_to_msg_idx = None
 
 
 # =====================
@@ -44,7 +44,7 @@ with st.sidebar:
     if st.button("🔄 Reset gesprek", use_container_width=True):
         st.session_state.chat_state = make_initial_state()
         st.session_state.messages = _initial_messages()
-        st.session_state.scroll_to_top = False
+        st.session_state.scroll_to_msg_idx = None
         st.rerun()
 
     st.divider()
@@ -61,13 +61,22 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         render_text(msg["content"])
 
-# Scroll naar boven zodra de prijsindicatie voor het eerst verschijnt
-if st.session_state.scroll_to_top:
-    st.session_state.scroll_to_top = False
+# Scroll naar het begin van het eerste nieuwe bericht
+if st.session_state.scroll_to_msg_idx is not None:
+    idx = st.session_state.scroll_to_msg_idx
+    st.session_state.scroll_to_msg_idx = None
     components.html(
-        "<script>"
-        "window.parent.document.querySelector('section.main').scrollTo({top: 0, behavior: 'smooth'});"
-        "</script>",
+        f"<script>"
+        f"(function() {{"
+        f"  function scrollToMsg() {{"
+        f"    var msgs = window.parent.document.querySelectorAll('[data-testid=\"stChatMessage\"]');"
+        f"    if (msgs.length > {idx}) {{"
+        f"      msgs[{idx}].scrollIntoView({{behavior: 'smooth', block: 'start'}});"
+        f"    }}"
+        f"  }}"
+        f"  setTimeout(scrollToMsg, 100);"
+        f"}})();"
+        f"</script>",
         height=0,
     )
 
@@ -79,19 +88,15 @@ user_text = st.chat_input("Typ je antwoord…")
 if not user_text:
     st.stop()
 
+first_new_idx = len(st.session_state.messages)
 st.session_state.messages.append({"role": "user", "content": user_text})
 
 state = st.session_state.chat_state
-was_post_offer = state.post_offer_mode
-
 state, new_messages = handle_message(state, user_text)
 st.session_state.chat_state = state
-
-# Zet scroll-vlag als we net naar de prijsindicatie overstappen
-if not was_post_offer and state.post_offer_mode:
-    st.session_state.scroll_to_top = True
 
 for msg in new_messages:
     st.session_state.messages.append({"role": "assistant", "content": msg})
 
+st.session_state.scroll_to_msg_idx = first_new_idx
 st.rerun()
