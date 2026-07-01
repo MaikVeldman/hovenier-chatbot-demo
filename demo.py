@@ -333,15 +333,15 @@ _c1, _c2, _c3 = st.columns(3)
 with _c1:
     st.markdown("**🤖 Wat doet de bot?**")
     st.markdown(
+        "- Inzetbaar op de website én aan tafel bij de klant\n"
         "- Begeleidt klanten stap voor stap\n"
-        "- Rekent automatisch een prijsschatting op maat\n"
-        "- Stuurt offerte-aanvraag direct naar uw e-mail\n"
-        "- Legt naam, telefoon en wensen vast"
+        "- Stuurt direct op budget en materiaalkeuze\n"
+        "- Aanvraag automatisch naar uw e-mail"
     )
 with _c2:
     st.markdown("**⚙️ Wat is aanpasbaar?**")
     st.markdown(
-        "- Alle tarieven per m² / m³ / stuk\n"
+        "- Tarieven en berekeningen volledig aanpasbaar\n"
         "- Grondwerk dieptes en zaagwerk\n"
         "- Volume kortingen per categorie\n"
         "- Bedrijfsnaam, regio en huisstijlkleur"
@@ -349,10 +349,10 @@ with _c2:
 with _c3:
     st.markdown("**📈 Wat levert het op?**")
     st.markdown(
-        "- 24/7 offertes voor uw klanten\n"
-        "- Professionele uitstraling bij uw klanten\n"
-        "- Uw eigen tarieven, uw eigen identiteit\n"
-        "- Direct een prijsindicatie bij de klant aan tafel"
+        "- Maakt kostenbesparende opties direct inzichtelijk\n"
+        "- Eigen portaal: inzicht in klantgedrag en afhakers\n"
+        "- Volledig in uw huisstijl en tarieven\n"
+        "- Privacyvriendelijk — alleen contactgegevens en tuinwensen"
     )
 
 st.divider()
