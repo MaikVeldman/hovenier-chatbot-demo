@@ -9,7 +9,9 @@ De chatbot rechts rekent direct met de ingestelde tarieven.
 from __future__ import annotations
 
 import contextlib
+import html as _html
 import os
+import re
 import sys
 
 import streamlit as st
@@ -94,6 +96,121 @@ def _patched(config: dict):
 def _handle(state, text: str, config: dict):
     with _patched(config):
         return handle_message(state, text)
+
+
+def _render_markdown(text: str) -> str:
+    """Convert bot markdown to HTML matching the chatbot's JS renderMarkdown."""
+    s = _html.escape(text)
+    lines = s.split('\n')
+    out: list[str] = []
+    in_list = False
+    list_type = ''
+    for line in lines:
+        line = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', line)
+        line = re.sub(r'(?<![a-zA-Z0-9])_([^_\n]+?)_(?![a-zA-Z0-9])', r'<em>\1</em>', line)
+        line = re.sub(r'\[([^\]]+)\]\((https?://[^)]+)\)',
+                      r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', line)
+        is_bullet = bool(re.match(r'^[-*]\s', line))
+        is_num    = bool(re.match(r'^\d+[).]\s', line))
+        cur_type  = 'ul' if is_bullet else ('ol' if is_num else '')
+        if cur_type:
+            if in_list and list_type != cur_type:
+                out.append(f'</{list_type}>')
+                in_list = False
+            if not in_list:
+                out.append(f'<{cur_type} class="md-list">')
+                in_list = True
+                list_type = cur_type
+            content = line[2:] if is_bullet else line
+            out.append(f'<li>{content}</li>')
+        elif line.strip() == '':
+            if in_list:
+                out.append(f'</{list_type}>')
+                in_list = False
+                list_type = ''
+            out.append('<br>')
+        else:
+            if in_list:
+                out.append(f'</{list_type}>')
+                in_list = False
+                list_type = ''
+            out.append(line + '<br>')
+    if in_list:
+        out.append(f'</{list_type}>')
+    result = ''.join(out)
+    result = re.sub(r'(<br>){3,}', '<br><br>', result)
+    result = re.sub(r'<br>$', '', result)
+    return result
+
+
+def _chat_css(primary: str) -> str:
+    return f"""<style>
+:root {{
+  --dp: {primary};
+  --da: #b84d1a;
+  --dbg: #f4f1ec;
+  --dbb: #f5f2ed;
+  --dbt: #1a1a14;
+  --dub: #b84d1a;
+  --dut: #ffffff;
+  --dsub: #6b6b50;
+  --dbrd: #d4cfc0;
+}}
+.demo-msgs {{ display:flex; flex-direction:column; gap:14px; padding:8px 0;
+              font-family:'Segoe UI',system-ui,sans-serif; font-size:15px; line-height:1.6; }}
+.demo-row  {{ display:flex; gap:10px; align-items:flex-start; }}
+.demo-row.user {{ flex-direction:row-reverse; }}
+.demo-av {{ width:38px; height:38px; border-radius:50%; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.2em; background:#e8e4d8; box-shadow:0 1px 4px rgba(0,0,0,.12); }}
+.demo-row.user .demo-av {{ background:#d4cfc0; }}
+.demo-bbl {{ max-width:80%; padding:10px 14px; word-break:break-word;
+             border-radius:4px 14px 14px 14px;
+             background:var(--dbb); color:var(--dbt);
+             box-shadow:0 1px 4px rgba(0,0,0,.07); font-size:14px; line-height:1.6; }}
+.demo-row.user .demo-bbl {{ background:var(--dub); color:var(--dut);
+                            border-radius:14px 4px 14px 14px; }}
+.demo-bbl.wide {{ max-width:96%; }}
+.demo-bbl strong {{ font-weight:700; }}
+.demo-bbl em     {{ font-style:italic; color:#555; }}
+.demo-bbl ol.md-list {{ list-style:none; margin:6px 0 4px 4px; padding:0; }}
+.demo-bbl ul.md-list {{ list-style:disc;  margin:6px 0 4px 20px; padding:0; }}
+.demo-bbl .md-list li {{ margin:3px 0; }}
+.demo-bbl a {{ color:var(--dp); text-decoration:underline; }}
+/* Prijskaart */
+.cp {{ font-size:14px; line-height:1.5; }}
+.cp-choices {{ background:var(--dbg); border-radius:8px; padding:12px 14px; margin-bottom:14px; }}
+.cp-chd {{ font-weight:700; font-size:13px; color:var(--dbt); margin-bottom:6px; }}
+.cp-ci  {{ font-size:13px; color:var(--dbt); padding:2px 0; }}
+.cp-ci-sub {{ padding-left:14px; color:var(--dsub); }}
+.cp-est-hd   {{ font-size:16px; font-weight:700; color:var(--dbt); margin-bottom:4px; }}
+.cp-est-sub  {{ font-size:13px; color:var(--dbt); margin-bottom:4px; }}
+.cp-est-note {{ font-size:12px; font-style:italic; color:var(--dsub); margin-bottom:12px; }}
+.cp-total     {{ background:var(--dbg); border-radius:8px; padding:14px 16px; margin-bottom:12px; }}
+.cp-total-lbl {{ font-size:12px; color:var(--dsub); margin-bottom:2px; }}
+.cp-btw       {{ font-size:11px; font-style:italic; }}
+.cp-total-val {{ font-size:22px; font-weight:700; color:var(--dp); }}
+.cp-min       {{ font-size:12px; color:var(--dsub); font-style:italic; margin-bottom:10px; }}
+.cp-toel {{ background:var(--dbg); border-radius:8px; padding:12px 14px;
+            border-left:3px solid var(--dp); font-size:13px; color:var(--dsub);
+            font-style:italic; line-height:1.6; margin-bottom:16px; }}
+.cp-section  {{ margin-bottom:16px; }}
+.cp-sec-hd   {{ font-size:14px; font-weight:700; color:var(--dbt); margin-bottom:4px; }}
+.cp-sec-note {{ font-size:12px; font-style:italic; color:var(--dsub); margin-bottom:6px; }}
+.cp-row      {{ display:flex; justify-content:space-between; align-items:baseline;
+                padding:5px 0; border-bottom:1px solid var(--dbrd); gap:8px; }}
+.cp-row-lbl  {{ font-size:13px; color:var(--dbt); flex:1; }}
+.cp-qty      {{ font-size:12px; color:var(--dsub); }}
+.cp-row-val  {{ font-size:13px; font-weight:600; color:var(--dp); white-space:nowrap; }}
+.cp-row-offerte {{ color:var(--dsub); font-weight:normal; }}
+.cp-sloop    {{ background:var(--dbg); border-radius:8px; padding:12px 14px;
+                border-left:3px solid var(--dbrd); margin:16px 0 12px; }}
+.cp-sloop-hd   {{ font-size:13px; font-weight:700; color:var(--dbt); margin-bottom:4px; }}
+.cp-sloop-note {{ font-size:12px; color:var(--dsub); font-style:italic; }}
+.cp-footer   {{ font-size:12px; color:var(--dsub); font-style:italic; margin-top:8px; }}
+.bot-header  {{ background:{primary}; color:#fff; padding:14px 18px;
+                font-size:1.05em; font-weight:700; border-radius:8px 8px 0 0; margin-bottom:8px; }}
+</style>"""
 
 
 def _default_config() -> dict:
@@ -397,24 +514,49 @@ with col_cfg:
 # RECHTER KOLOM — Live chatbot
 # ════════════════════════════════════════
 with col_chat:
-    naam  = _ac["bedrijf"]["naam"]
-    regio = _ac["bedrijf"]["regio"]
+    naam    = _ac["bedrijf"]["naam"]
+    regio   = _ac["bedrijf"]["regio"]
+    primary = _ac["bedrijf"].get("kleur", "#5c6b1e")
 
+    # CSS injecteren
+    st.markdown(_chat_css(primary), unsafe_allow_html=True)
+
+    # Header
     st.markdown(
-        f'<div class="bot-header">🌿 {naam}'
-        + (f" &nbsp;·&nbsp; {regio}" if regio else "")
+        f'<div class="bot-header">🌿 {_html.escape(naam)}'
+        + (f" &nbsp;·&nbsp; {_html.escape(regio)}" if regio else "")
         + "</div>",
         unsafe_allow_html=True,
     )
 
-    # Chat berichten
+    # Chat berichten als gestyled HTML (identiek aan de echte chatbot)
+    rows = []
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            content = msg["content"] or ""
+        content = msg["content"] or ""
+        if msg["role"] == "assistant":
             if content.startswith("CHATHTML:"):
-                st.markdown(content[len("CHATHTML:"):], unsafe_allow_html=True)
+                inner = content[len("CHATHTML:"):]
+                cls   = "demo-bbl wide"
             else:
-                st.markdown(content.replace("\n", "  \n"))
+                inner = _render_markdown(content)
+                cls   = "demo-bbl"
+            rows.append(
+                f'<div class="demo-row bot">'
+                f'<div class="demo-av">🌿</div>'
+                f'<div class="{cls}">{inner}</div>'
+                f'</div>'
+            )
+        else:
+            rows.append(
+                f'<div class="demo-row user">'
+                f'<div class="demo-bbl">{_html.escape(content)}</div>'
+                f'<div class="demo-av">👤</div>'
+                f'</div>'
+            )
+    st.markdown(
+        '<div class="demo-msgs">' + ''.join(rows) + '</div>',
+        unsafe_allow_html=True,
+    )
 
     # Invoer (form zodat enter werkt en het binnen de kolom blijft)
     with st.form("chat_form", clear_on_submit=True):
