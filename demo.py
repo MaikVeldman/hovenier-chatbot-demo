@@ -333,9 +333,9 @@ _c1, _c2, _c3 = st.columns(3)
 with _c1:
     st.markdown("**🤖 Wat doet de bot?**")
     st.markdown(
-        "- Inzetbaar op de website én aan tafel bij de klant\n"
         "- Begeleidt klanten stap voor stap\n"
         "- Stuurt direct op budget en materiaalkeuze\n"
+        "- Maakt kostenbesparende opties inzichtelijk\n"
         "- Aanvraag automatisch naar uw e-mail"
     )
 with _c2:
@@ -347,10 +347,10 @@ with _c2:
         "- Bedrijfsnaam, regio en huisstijlkleur"
     )
 with _c3:
-    st.markdown("**📈 Wat levert het op?**")
+    st.markdown("**🗺️ Hoe en waar inzetbaar?**")
     st.markdown(
-        "- Maakt kostenbesparende opties direct inzichtelijk\n"
-        "- Eigen portaal: inzicht in klantgedrag en afhakers\n"
+        "- Inzetbaar op de website én aan tafel bij de klant\n"
+        "- Eigen portaal: inzicht in klantgedrag\n"
         "- Volledig in uw huisstijl en tarieven\n"
         "- Privacyvriendelijk — alleen contactgegevens en tuinwensen"
     )
