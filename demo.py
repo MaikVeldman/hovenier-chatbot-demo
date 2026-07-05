@@ -279,19 +279,29 @@ if "active_config" not in st.session_state:
 _ac = st.session_state.active_config
 
 # ─── CSS ─────────────────────────────────────────────────────────────────────
-_kleur = _ac["bedrijf"].get("kleur", "#5c6b1e")
-st.markdown(f"""
+_kleur = _ac["bedrijf"].get("kleur", "#3E7C4F")
+st.markdown("""
 <style>
-.bot-header {{
-    background: {_kleur};
-    color: white;
-    padding: 10px 18px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    font-weight: 600;
-    font-size: 1.05rem;
-    letter-spacing: 0.01em;
-}}
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
+:root{--ink:#1C2B23;--leaf:#3E7C4F;--mist:#EEF2EC;--paper:#FBFCFA;--line:#DCE4DA;}
+html,body,[class*="css"]{font-family:'Inter',sans-serif!important;color:var(--ink);}
+[data-testid="stAppViewContainer"]{background:var(--paper)!important;}
+[data-testid="stHeader"]{background:transparent!important;}
+.block-container{padding-top:1.2rem!important;}
+/* Indiqa intro */
+.iq-eyebrow{color:var(--leaf);font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
+.iq-title{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.5px;color:var(--ink);margin-bottom:8px;}
+.iq-sub{font-size:15px;color:#44534A;margin-bottom:16px;}
+.iq-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:4px 0 20px;}
+.iq-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 16px;}
+.iq-tag{display:inline-block;background:var(--mist);color:var(--leaf);font-weight:600;font-size:12px;padding:4px 10px;border-radius:99px;margin-bottom:10px;}
+.iq-card h3{font-family:'Sora',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px;color:var(--ink);}
+.iq-card p{font-size:13.5px;color:#44534A;line-height:1.55;}
+/* Bot header */
+.bot-header{color:#fff;padding:14px 18px;font-family:'Sora',sans-serif;
+            font-size:1.05em;font-weight:700;border-radius:8px 8px 0 0;margin-bottom:8px;}
+/* Streamlit expanders */
+[data-testid="stExpander"]{border:1px solid var(--line)!important;border-radius:10px!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -320,42 +330,28 @@ def _prow(label: str, key: str, unit: str, step: int = 1) -> None:
 
 
 # ─── Intro ───────────────────────────────────────────────────────────────────
-st.markdown(f"""
-<div style="background:#f8fdf0;border-left:4px solid {_kleur};padding:14px 20px;
-            border-radius:6px;margin-bottom:1.2rem;font-size:.95rem;">
-    <strong>🌿 Hovenier Chatbot – Live Demo</strong>&nbsp;&nbsp;
-    <span style="color:#555;">Stel links uw tarieven en bedrijfsgegevens in en zie rechts direct
-    hoe de bot eruitziet voor uw klanten.</span>
+st.markdown("""
+<div class="iq-eyebrow">Uit de praktijk: ontwikkeld door een hovenier met ruim 20 jaar tuinervaring</div>
+<div class="iq-title">Sneller van aanvraag naar offerte</div>
+<div class="iq-sub">Stel hieronder de bedrijfsgegevens en tarieven in — zie rechts direct hoe de bot eruitziet voor uw klanten.</div>
+<div class="iq-cards">
+  <div class="iq-card">
+    <div class="iq-tag">Wat doet de bot?</div>
+    <h3>Serieuze aanvragen</h3>
+    <p>Begeleidt klanten stap voor stap. Stuurt direct op budget en materiaalkeuze. Maakt kostenbesparende opties inzichtelijk. Aanvraag automatisch naar uw e-mail.</p>
+  </div>
+  <div class="iq-card">
+    <div class="iq-tag">Wat is aanpasbaar?</div>
+    <h3>Volledig uw bedrijf</h3>
+    <p>Tarieven en berekeningen volledig aanpasbaar. Grondwerk dieptes en zaagwerk. Volume kortingen per categorie. Bedrijfsnaam, regio en huisstijlkleur.</p>
+  </div>
+  <div class="iq-card">
+    <div class="iq-tag">Hoe en waar?</div>
+    <h3>Op elke locatie</h3>
+    <p>Op de website, aan tafel bij de klant én in het ontwerptraject. Eigen portaal met klantinzicht. Privacyvriendelijk.</p>
+  </div>
 </div>
 """, unsafe_allow_html=True)
-
-_c1, _c2, _c3 = st.columns(3)
-with _c1:
-    st.markdown("**🤖 Wat doet de bot?**")
-    st.markdown(
-        "- Begeleidt klanten stap voor stap\n"
-        "- Stuurt direct op budget en materiaalkeuze\n"
-        "- Maakt kostenbesparende opties inzichtelijk\n"
-        "- Aanvraag automatisch naar uw e-mail"
-    )
-with _c2:
-    st.markdown("**⚙️ Wat is aanpasbaar?**")
-    st.markdown(
-        "- Tarieven en berekeningen volledig aanpasbaar\n"
-        "- Grondwerk dieptes en zaagwerk\n"
-        "- Volume kortingen per categorie\n"
-        "- Bedrijfsnaam, regio en huisstijlkleur"
-    )
-with _c3:
-    st.markdown("**🗺️ Hoe en waar inzetbaar?**")
-    st.markdown(
-        "- Inzetbaar op de website én aan tafel bij de klant\n"
-        "- Eigen portaal: inzicht in klantgedrag\n"
-        "- Volledig in uw huisstijl en tarieven\n"
-        "- Privacyvriendelijk — alleen contactgegevens en tuinwensen"
-    )
-
-st.divider()
 
 # ─── Twee-kolom layout ───────────────────────────────────────────────────────
 col_cfg, col_chat = st.columns([1, 1.1], gap="large")
