@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indiqa — Sneller van aanvraag naar offerte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1C2B23;
+  --leaf:#3E7C4F;
+  --leaf-bright:#5BA36B;
+  --mist:#EEF2EC;
+  --paper:#FBFCFA;
+  --line:#DCE4DA;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;color:var(--ink);background:var(--paper);line-height:1.6;}
+h1,h2,h3{font-family:'Sora',sans-serif;line-height:1.15;}
+a{color:inherit;}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px;}
+
+/* nav */
+nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0;}
+.logo{font-family:'Sora',sans-serif;font-weight:800;font-size:26px;letter-spacing:-0.5px;}
+.logo .q{position:relative;}
+.logo .q::after{
+  content:"";position:absolute;left:60%;bottom:-6px;width:26px;height:10px;
+  background:var(--leaf);border-radius:0 100% 60% 100%/0 100% 100% 60%;
+  transform:rotate(8deg);
+}
+.nav-cta{background:var(--ink);color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:600;font-size:15px;}
+
+/* hero */
+.hero{padding:72px 0 64px;display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;}
+.eyebrow{color:var(--leaf);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:16px;}
+.hero h1{font-size:clamp(34px,4.6vw,52px);font-weight:800;letter-spacing:-1px;}
+.hero h1 em{font-style:normal;position:relative;white-space:nowrap;}
+.hero h1 em::after{
+  content:"";position:absolute;left:0;bottom:4px;width:100%;height:12px;
+  background:var(--leaf-bright);opacity:.35;border-radius:2px;z-index:-1;
+}
+.hero p.sub{font-size:19px;color:#44534A;margin:20px 0 32px;max-width:46ch;}
+.btn-row{display:flex;gap:14px;flex-wrap:wrap;}
+.btn{padding:15px 28px;border-radius:10px;font-weight:600;text-decoration:none;font-size:16px;}
+.btn.primary{background:var(--leaf);color:#fff;}
+.btn.ghost{border:1.5px solid var(--line);background:#fff;}
+
+/* mock calculator */
+.mock{
+  background:#fff;border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 24px 60px -30px rgba(28,43,35,.35);
+  padding:26px;font-size:14px;
+}
+.mock .bar{display:flex;gap:6px;margin-bottom:18px;}
+.mock .bar span{width:10px;height:10px;border-radius:50%;background:var(--line);}
+.mock .msg{background:var(--mist);border-radius:12px 12px 12px 2px;padding:12px 14px;margin-bottom:12px;max-width:85%;}
+.mock .msg.user{background:var(--ink);color:#fff;border-radius:12px 12px 2px 12px;margin-left:auto;}
+.mock .price{
+  border:1.5px solid var(--leaf);border-radius:12px;padding:16px;margin-top:6px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.mock .price b{font-family:'Sora',sans-serif;font-size:22px;color:var(--leaf);}
+.mock .price small{color:#66756C;}
+
+/* fases */
+.section{padding:72px 0;}
+.section.alt{background:var(--mist);}
+.section h2{font-size:clamp(26px,3.4vw,36px);font-weight:700;letter-spacing:-.5px;max-width:24ch;}
+.section .lead{color:#44534A;margin-top:12px;max-width:60ch;}
+.fases{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:44px;}
+.fase{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px 24px;}
+.fase .tag{
+  display:inline-block;background:var(--mist);color:var(--leaf);font-weight:600;
+  font-size:13px;padding:5px 12px;border-radius:99px;margin-bottom:14px;
+}
+.fase h3{font-size:19px;margin-bottom:8px;}
+.fase p{font-size:15px;color:#44534A;}
+
+/* features */
+.feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 40px;margin-top:40px;}
+.feat{display:flex;gap:14px;align-items:flex-start;}
+.feat .check{
+  flex:none;width:26px;height:26px;border-radius:50%;background:var(--leaf);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;margin-top:2px;
+}
+.feat b{display:block;font-size:16px;}
+.feat span{font-size:14.5px;color:#44534A;}
+
+/* quote strip */
+.strip{background:var(--ink);color:#fff;padding:64px 0;}
+.strip blockquote{font-family:'Sora',sans-serif;font-size:clamp(20px,2.6vw,27px);font-weight:600;max-width:32ch;letter-spacing:-.3px;}
+.strip .who{margin-top:18px;color:#9DB5A5;font-size:15px;}
+
+/* cta */
+.cta{padding:88px 0;text-align:center;}
+.cta h2{font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-.6px;}
+.cta p{color:#44534A;margin:14px auto 30px;max-width:48ch;}
+footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#66756C;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+
+@media(max-width:860px){
+  .hero{grid-template-columns:1fr;gap:40px;padding-top:48px;}
+  .fases{grid-template-columns:1fr;}
+  .feat-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <div class="logo">indi<span class="q">q</span>a</div>
+    <a class="nav-cta" href="#demo">Probeer de demo</a>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Uit de praktijk: ontwikkeld door een hovenier met ruim 20 jaar tuinervaring</div>
+      <h1>Sneller van aanvraag naar <em>offerte</em>, voor elke fase van het project</h1>
+      <p class="sub">Indiqa begeleidt jouw klant stap voor stap naar een realistische prijsindicatie — op je website, aan tafel en tijdens het ontwerptraject. Jij krijgt serieuze aanvragen, geen loze offertes.</p>
+      <div class="btn-row">
+        <a class="btn primary" href="#demo">Bekijk de demo</a>
+        <a class="btn ghost" href="#fases">Hoe het werkt</a>
+      </div>
+    </div>
+    <div class="mock" aria-hidden="true">
+      <div class="bar"><span></span><span></span><span></span></div>
+      <div class="msg">Wat voor bestrating heeft je voorkeur?</div>
+      <div class="msg user">Keramische tegels, ± 60 m²</div>
+      <div class="msg">Inclusief grondwerk en zaagwerk kom ik op:</div>
+      <div class="price">
+        <div><b>€ 9.450 – € 11.200</b><br><small>indicatie incl. materiaal &amp; arbeid</small></div>
+        <small>direct in je mailbox&nbsp;→</small>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="section alt" id="fases">
+  <div class="wrap">
+    <h2>Eén tool, drie momenten waarop je wint</h2>
+    <p class="lead">Indiqa is geen chatbot die vragen beantwoordt. Het is een rekenmodel met jouw tarieven, dat werkt waar jij werkt.</p>
+    <div class="fases">
+      <div class="fase">
+        <div class="tag">Op je website</div>
+        <h3>Serieuze aanvragen</h3>
+        <p>Bezoekers stellen hun tuin samen en zien direct een richtprijs. Dromers haken af, serieuze klanten landen mét tuinwensen in je mailbox.</p>
+      </div>
+      <div class="fase">
+        <div class="tag">Aan tafel</div>
+        <h3>Direct sturen op budget</h3>
+        <p>Reken keuzes live door tijdens het klantgesprek. Andere tegel, groter terras? De klant ziet meteen wat het doet met de prijs.</p>
+      </div>
+      <div class="fase">
+        <div class="tag">In het ontwerptraject</div>
+        <h3>Grip op grote projecten</h3>
+        <p>Stuur tijdens het ontwerpen op kosten, zodat het definitieve ontwerp binnen budget blijft. Geen verrassingen bij de eindofferte.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Volledig jouw bedrijf, niet het onze</h2>
+    <div class="feat-grid">
+      <div class="feat"><div class="check">✓</div><div><b>Jouw tarieven en berekeningen</b><span>Grondwerk, dieptes, zaagwerk, volumekortingen — alles volledig aanpasbaar.</span></div></div>
+      <div class="feat"><div class="check">✓</div><div><b>Jouw huisstijl</b><span>Bedrijfsnaam, regio en kleuren. Jouw klant ziet jouw merk, niet het onze.</span></div></div>
+      <div class="feat"><div class="check">✓</div><div><b>Eigen portaal</b><span>Inzicht in wat klanten kiezen en waar ze afhaken. Zo leer je je markt kennen.</span></div></div>
+      <div class="feat"><div class="check">✓</div><div><b>Privacyvriendelijk</b><span>Alleen contactgegevens en tuinwensen. Geen tracking, geen gedoe.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="strip">
+  <div class="wrap">
+    <blockquote>"Mooi overzichtelijk — mensen kunnen hiermee al een goede selectie maken. En de kosten zijn goed marktconform."</blockquote>
+    <div class="who">— Steenleverancier, na review van de tool</div>
+  </div>
+</section>
+
+<section class="cta" id="demo">
+  <div class="wrap">
+    <h2>Zien wat Indiqa voor jouw bedrijf doet?</h2>
+    <p>Gebouwd door een hovenier, dagelijks in gebruik in de praktijk. Plan een demo en reken een echt project door met je eigen tarieven.</p>
+    <a class="btn primary" href="mailto:info@veldmanhoveniers.nl">Plan een demo</a>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>© 2026 Indiqa</span>
+    <span>Sneller van aanvraag naar offerte</span>
+  </footer>
+</div>
+
+</body>
+</html>
