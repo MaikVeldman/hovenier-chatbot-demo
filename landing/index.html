@@ -48,24 +48,35 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0
 .btn.primary{background:var(--leaf);color:#fff;}
 .btn.ghost{border:1.5px solid var(--line);background:#fff;}
 
-/* mock calculator */
+/* mock calculator — styled as real chatbot */
 .mock{
-  background:#fff;border:1px solid var(--line);border-radius:18px;
-  box-shadow:0 24px 60px -30px rgba(28,43,35,.35);
-  padding:26px;font-size:14px;
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 60px -20px rgba(28,43,35,.4);
+  font-size:14px;font-family:'Segoe UI',system-ui,sans-serif;
 }
-.mock .bar{display:flex;gap:6px;margin-bottom:18px;}
-.mock .bar span{width:10px;height:10px;border-radius:50%;background:var(--line);}
-.mock .msg{background:var(--mist);border-radius:12px 12px 12px 2px;padding:12px 14px;margin-bottom:12px;max-width:85%;}
-.mock .msg.user{background:var(--ink);color:#fff;border-radius:12px 12px 2px 12px;margin-left:auto;}
-.mock .price{
-  border:1.5px solid var(--leaf);border-radius:12px;padding:16px;margin-top:6px;
-  display:flex;justify-content:space-between;align-items:center;
+.mock-header{
+  background:#5c6b1e;padding:16px 18px 14px;
 }
-.mock .price b{font-family:'Sora',sans-serif;font-size:22px;color:var(--leaf);}
-.mock .price small{color:#66756C;}
-.mock .speed{margin-top:14px;display:flex;align-items:center;gap:7px;font-size:13px;color:var(--leaf);font-weight:600;}
-.mock .speed::before{content:"⏱";}
+.mock-header .title{font-size:15px;font-weight:700;color:#fff;line-height:1.2;}
+.mock-header .sub{font-size:12px;color:rgba(255,255,255,.72);margin-top:3px;}
+.mock-header .chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.mock-header .chip{background:rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:2px 9px;font-size:11px;}
+.mock-body{background:#f4f1ec;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.mock-row{display:flex;gap:8px;align-items:flex-start;}
+.mock-row.user{flex-direction:row-reverse;}
+.mock-av{width:32px;height:32px;border-radius:50%;background:#e8e4d8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.mock-bbl{max-width:80%;padding:9px 13px;font-size:13.5px;line-height:1.55;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.mock-row.bot  .mock-bbl{background:#f5f2ed;color:#1a1a14;border-radius:4px 14px 14px 14px;}
+.mock-row.user .mock-bbl{background:#b84d1a;color:#fff;border-radius:14px 4px 14px 14px;}
+.mock-card{background:#fff;border-radius:10px;padding:13px 14px;box-shadow:0 1px 6px rgba(0,0,0,.08);}
+.mock-card .lbl{font-size:11px;color:#6b6b50;margin-bottom:2px;}
+.mock-card .val{font-size:20px;font-weight:700;color:#5c6b1e;}
+.mock-card .note{font-size:11px;color:#6b6b50;margin-top:2px;}
+.mock-card .breakdown{margin-top:10px;border-top:1px solid #e8e4d8;padding-top:8px;display:flex;flex-direction:column;gap:4px;}
+.mock-card .br-row{display:flex;justify-content:space-between;font-size:12px;color:#444;}
+.mock-card .br-row span:last-child{font-weight:600;color:#5c6b1e;}
+.mock-speed{background:#f4f1ec;padding:8px 16px;font-size:12px;color:#5c6b1e;font-weight:600;text-align:center;border-top:1px solid #e0ddd6;}
+.mock-speed::before{content:"⏱  ";}
 
 /* fases */
 .section{padding:72px 0;}
@@ -137,15 +148,38 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
       </div>
     </div>
     <div class="mock" aria-hidden="true">
-      <div class="bar"><span></span><span></span><span></span></div>
-      <div class="msg">Wat voor bestrating heeft je voorkeur?</div>
-      <div class="msg user">Keramische tegels, ± 60 m²</div>
-      <div class="msg">Inclusief grondwerk en zaagwerk kom ik op:</div>
-      <div class="price">
-        <div><b>€ 9.450 – € 11.200</b><br><small>indicatie incl. materiaal &amp; arbeid</small></div>
-        <small>direct in je mailbox&nbsp;→</small>
+      <div class="mock-header">
+        <div class="title">Tuinaanleg prijsindicatie</div>
+        <div class="sub">Veldman Hoveniers</div>
+        <div class="chips"><span class="chip">Gratis indicatie</span><span class="chip">Binnen 3 min klaar</span></div>
       </div>
-      <div class="speed">Binnen 3 minuten een volledige prijsindicatie</div>
+      <div class="mock-body">
+        <div class="mock-row bot">
+          <div class="mock-av">🌿</div>
+          <div class="mock-bbl">Wat voor bestrating heeft u voorkeur?</div>
+        </div>
+        <div class="mock-row user">
+          <div class="mock-av">👤</div>
+          <div class="mock-bbl">Keramische tegels, ± 60 m²</div>
+        </div>
+        <div class="mock-row bot">
+          <div class="mock-av">🌿</div>
+          <div class="mock-bbl">
+            Inclusief grondwerk en zaagwerk kom ik op:
+            <div class="mock-card" style="margin-top:10px;">
+              <div class="lbl">Geschatte totaalprijs</div>
+              <div class="val">€ 9.450 – € 11.200</div>
+              <div class="note">indicatie incl. materiaal &amp; arbeid</div>
+              <div class="breakdown">
+                <div class="br-row"><span>Keramische tegels 60m²</span><span>€ 6.300</span></div>
+                <div class="br-row"><span>Grondwerk &amp; zandbed</span><span>€ 1.800</span></div>
+                <div class="br-row"><span>Zaagwerk &amp; afwerking</span><span>€ 1.350</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-speed">Binnen 3 minuten een volledige prijsindicatie</div>
     </div>
   </section>
 </div>
