@@ -94,6 +94,15 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0
 .strip blockquote{font-family:'Sora',sans-serif;font-size:clamp(20px,2.6vw,27px);font-weight:600;max-width:32ch;letter-spacing:-.3px;}
 .strip .who{margin-top:18px;color:#9DB5A5;font-size:15px;}
 
+/* over */
+.over{padding:72px 0;}
+.over-inner{display:grid;grid-template-columns:200px 1fr;gap:48px;align-items:center;}
+.over-foto{width:200px;height:200px;border-radius:50%;object-fit:cover;border:3px solid var(--line);}
+.over-foto-placeholder{width:200px;height:200px;border-radius:50%;background:var(--mist);border:3px solid var(--line);display:flex;align-items:center;justify-content:center;color:#9DB5A5;font-size:13px;text-align:center;}
+.over h3{font-size:22px;font-weight:700;margin-bottom:12px;}
+.over p{font-size:16px;color:#44534A;max-width:52ch;}
+@media(max-width:600px){.over-inner{grid-template-columns:1fr;}.over-foto,.over-foto-placeholder{margin:0 auto;}}
+
 /* cta */
 .cta{padding:88px 0;text-align:center;}
 .cta h2{font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-.6px;}
@@ -178,6 +187,19 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
   <div class="wrap">
     <blockquote>"Mooi overzichtelijk — mensen kunnen hiermee al een goede selectie maken. En de kosten zijn goed marktconform."</blockquote>
     <div class="who">— Steenleverancier, na review van de tool</div>
+  </div>
+</section>
+
+<section class="over">
+  <div class="wrap">
+    <div class="over-inner">
+      <img src="maik.jpg" alt="Maik Veldman" class="over-foto" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="over-foto-placeholder" style="display:none;">foto<br>volgt</div>
+      <div>
+        <h3>Gebouwd in de praktijk</h3>
+        <p>"Ik ben Maik, hovenier met ruim 20 jaar ervaring. Indiqa is ontstaan uit mijn eigen frustratie: avonden rekenen aan offertes voor mensen die alleen een richtprijs wilden. Nu doet mijn website dat voor me — en die van jou kan dat ook."</p>
+      </div>
+    </div>
   </div>
 </section>
 
