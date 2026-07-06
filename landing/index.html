@@ -67,15 +67,21 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0
 .mock-bbl{max-width:82%;padding:9px 13px;font-size:13px;line-height:1.55;box-shadow:0 1px 4px rgba(0,0,0,.07);}
 .mock-row.bot .mock-bbl{background:#f5f2ed;color:#1a1a14;border-radius:4px 14px 14px 14px;}
 .mock-row.user .mock-bbl{background:#b84d1a;color:#fff;border-radius:14px 4px 14px 14px;}
-.mock-card{background:#fff;border-radius:10px;padding:13px 14px;box-shadow:0 1px 6px rgba(0,0,0,.08);margin-top:4px;}
-.mock-card .lbl{font-size:11px;color:#6b6b50;margin-bottom:2px;}
-.mock-card .val{font-size:19px;font-weight:700;color:#5c6b1e;}
-.mock-card .note{font-size:11px;color:#6b6b50;margin-top:2px;}
-.mock-card .breakdown{margin-top:10px;border-top:1px solid #e8e4d8;padding-top:8px;display:flex;flex-direction:column;gap:5px;}
-.mock-card .br-row{display:flex;justify-content:space-between;font-size:12px;color:#444;gap:8px;}
-.mock-card .br-row span:last-child{font-weight:600;color:#5c6b1e;white-space:nowrap;}
-.mock-card .br-total{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#1a1a14;border-top:1px solid #e8e4d8;padding-top:8px;margin-top:4px;}
-.mock-card .br-total span:last-child{color:#5c6b1e;}
+.mock-card{background:#fff;border-radius:10px;padding:14px 15px;box-shadow:0 1px 6px rgba(0,0,0,.08);margin-top:4px;font-size:13px;}
+.mock-card .cp-choices{background:#f4f1ec;border-radius:6px;padding:9px 11px;margin-bottom:11px;}
+.mock-card .cp-chd{font-weight:700;font-size:12px;color:#1a1a14;margin-bottom:5px;}
+.mock-card .cp-ci{font-size:12px;color:#1a1a14;padding:1px 0;}
+.mock-card .cp-est-hd{font-size:15px;font-weight:700;color:#1a1a14;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.mock-card .cp-est-hd::before{content:"✅";font-size:13px;}
+.mock-card .cp-total-lbl{font-size:11px;color:#6b6b50;margin-bottom:1px;margin-top:8px;}
+.mock-card .cp-total-val{font-size:20px;font-weight:700;color:#5c6b1e;margin-bottom:10px;}
+.mock-card .cp-toel{background:#f4f1ec;border-left:3px solid #5c6b1e;border-radius:4px;padding:9px 11px;font-size:11.5px;color:#6b6b50;font-style:italic;line-height:1.55;margin-bottom:12px;}
+.mock-card .cp-sec-hd{font-size:13px;font-weight:700;color:#1a1a14;margin:10px 0 2px;}
+.mock-card .cp-sec-note{font-size:11px;color:#6b6b50;font-style:italic;margin-bottom:6px;}
+.mock-card .cp-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid #e8e4d8;gap:8px;}
+.mock-card .cp-row-lbl{font-size:12px;color:#1a1a14;flex:1;}
+.mock-card .cp-row-val{font-size:12px;font-weight:600;color:#5c6b1e;white-space:nowrap;}
+.mock-card .cp-footer{font-size:11px;color:#6b6b50;font-style:italic;margin-top:10px;}
 .mock-speed{background:#f4f1ec;padding:8px 16px;font-size:12px;color:#5c6b1e;font-weight:600;text-align:center;border-top:1px solid #e0ddd6;}
 .mock-speed::before{content:"⏱  ";}
 
@@ -174,18 +180,23 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
           <div class="mock-row bot">
             <div class="mock-av">🌿</div>
             <div class="mock-bbl">
-              Op basis van uw keuzes kom ik op:
               <div class="mock-card">
-                <div class="lbl">Geschatte totaalprijs</div>
-                <div class="val">€ 3.630 – € 5.770</div>
-                <div class="note">terras 25m² + gazon 40m² + border, incl. btw</div>
-                <div class="breakdown">
-                  <div class="br-row"><span>Terras gebakken klinkers 25m²</span><span>€ 2.000 – € 3.250</span></div>
-                  <div class="br-row"><span>Gazon aanleg 40m²</span><span>€ 480 – € 720</span></div>
-                  <div class="br-row"><span>Border + beplanting</span><span>€ 750 – € 1.200</span></div>
-                  <div class="br-row"><span>Grondwerk &amp; afvoer</span><span>€ 400 – € 600</span></div>
-                  <div class="br-total"><span>Totaal indicatie</span><span>€ 3.630 – € 5.770</span></div>
-                </div>
+                <div class="cp-choices"><div class="cp-chd">Uw gekozen uitgangspunten</div><div class="cp-ci">• Terras: 25m² (gebakken klinkers)</div><div class="cp-ci">• Gazon: 40m²</div><div class="cp-ci">• Border + beplanting</div></div>
+                <div class="cp-est-hd">Eerste schatting</div>
+                <div class="cp-total-lbl">Totale indicatie incl. btw</div>
+                <div class="cp-total-val">€ 3.630 – € 5.770</div>
+                <div class="cp-toel">Deze prijs is all-in: materialen, arbeid en grondwerk. Iedere tuin is uniek — dit is een richtprijs, geen definitieve offerte.</div>
+                <div class="cp-sec-hd">Grondwerk &amp; fundering:</div>
+                <div class="cp-sec-note">Varieert door: bereikbaarheid, grondsoort en afvoermogelijkheden.</div>
+                <div class="cp-row"><span class="cp-row-lbl">Grond afvoer (3,5 m³)</span><span class="cp-row-val">€ 280 – € 450</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Zand aanvoer (2,0 m³)</span><span class="cp-row-val">€ 190 – € 300</span></div>
+                <div class="cp-sec-hd">Bestrating:</div>
+                <div class="cp-row"><span class="cp-row-lbl">Terras gebakken klinkers (25m²)</span><span class="cp-row-val">€ 2.000 – € 3.250</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Zaagwerk (8 m¹)</span><span class="cp-row-val">€ 130 – € 220</span></div>
+                <div class="cp-sec-hd">Groenwerk:</div>
+                <div class="cp-row"><span class="cp-row-lbl">Gazon aanleg (40m²)</span><span class="cp-row-val">€ 480 – € 720</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Border + beplanting</span><span class="cp-row-val">€ 750 – € 1.200</span></div>
+                <div class="cp-footer">Deze schatting is gebaseerd op aannames en is inclusief arbeid en standaard materialen.</div>
               </div>
             </div>
           </div>
@@ -204,17 +215,21 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
           <div class="mock-row bot">
             <div class="mock-av">🌿</div>
             <div class="mock-bbl">
-              Voor een terras van 30m² met keramische tegels:
               <div class="mock-card">
-                <div class="lbl">Geschatte totaalprijs</div>
-                <div class="val">€ 6.200 – € 7.800</div>
-                <div class="note">keramische tegels 30m², incl. materiaal, arbeid &amp; btw</div>
-                <div class="breakdown">
-                  <div class="br-row"><span>Keramische tegels 30m²</span><span>€ 5.400 – € 6.600</span></div>
-                  <div class="br-row"><span>Grondwerk &amp; zandbed</span><span>€ 500 – € 700</span></div>
-                  <div class="br-row"><span>Zaagwerk &amp; afwerking</span><span>€ 300 – € 500</span></div>
-                  <div class="br-total"><span>Totaal indicatie</span><span>€ 6.200 – € 7.800</span></div>
-                </div>
+                <div class="cp-choices"><div class="cp-chd">Uw gekozen uitgangspunten</div><div class="cp-ci">• Terras: 30m² (keramische tegels)</div></div>
+                <div class="cp-est-hd">Eerste schatting</div>
+                <div class="cp-total-lbl">Totale indicatie incl. btw</div>
+                <div class="cp-total-val">€ 6.200 – € 7.800</div>
+                <div class="cp-toel">Keramische tegels vragen nauwkeurig zaagwerk en een stabiele ondergrond. De prijs is sterk afhankelijk van tegelformaat en bereikbaarheid.</div>
+                <div class="cp-sec-hd">Grondwerk &amp; fundering:</div>
+                <div class="cp-sec-note">Varieert door: bereikbaarheid en grondsoort.</div>
+                <div class="cp-row"><span class="cp-row-lbl">Grond afvoer (4,0 m³)</span><span class="cp-row-val">€ 320 – € 500</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Zand aanvoer (2,5 m³)</span><span class="cp-row-val">€ 238 – € 375</span></div>
+                <div class="cp-sec-hd">Bestrating:</div>
+                <div class="cp-sec-note">Prijs varieert o.a. door: tegelformaat, hoeken en bereikbaarheid.</div>
+                <div class="cp-row"><span class="cp-row-lbl">Keramische tegels (30m²)</span><span class="cp-row-val">€ 5.400 – € 6.600</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Zaagwerk (11 m¹)</span><span class="cp-row-val">€ 175 – € 306</span></div>
+                <div class="cp-footer">Deze schatting is gebaseerd op aannames en is inclusief arbeid en standaard materialen.</div>
               </div>
             </div>
           </div>
@@ -233,17 +248,18 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
           <div class="mock-row bot">
             <div class="mock-av">🌿</div>
             <div class="mock-bbl">
-              Voor beregening gazon 60m² + border 20m:
               <div class="mock-card">
-                <div class="lbl">Geschatte totaalprijs</div>
-                <div class="val">€ 2.200 – € 3.110</div>
-                <div class="note">beregeningssysteem incl. aanleg &amp; besturing</div>
-                <div class="breakdown">
-                  <div class="br-row"><span>Sprinklers gazon 60m²</span><span>€ 1.400 – € 1.900</span></div>
-                  <div class="br-row"><span>Druppelslang border 20m</span><span>€ 300 – € 460</span></div>
-                  <div class="br-row"><span>Centrale unit + besturing</span><span>€ 500 – € 750</span></div>
-                  <div class="br-total"><span>Totaal indicatie</span><span>€ 2.200 – € 3.110</span></div>
-                </div>
+                <div class="cp-choices"><div class="cp-chd">Uw gekozen uitgangspunten</div><div class="cp-ci">• Gazon: 60m²</div><div class="cp-ci">• Border: 20m</div></div>
+                <div class="cp-est-hd">Eerste schatting</div>
+                <div class="cp-total-lbl">Totale indicatie incl. btw</div>
+                <div class="cp-total-val">€ 2.200 – € 3.110</div>
+                <div class="cp-toel">Prijs is afhankelijk van grondsoort, bereikbaarheid en het aantal beregeningszones. Wateraansluiting dient aanwezig te zijn.</div>
+                <div class="cp-sec-hd">Beregeningssysteem:</div>
+                <div class="cp-sec-note">Varieert door: aantal zones, grondsoort en leidinglengte.</div>
+                <div class="cp-row"><span class="cp-row-lbl">Sprinklers gazon (60m²)</span><span class="cp-row-val">€ 1.400 – € 1.900</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Druppelslang border (20m)</span><span class="cp-row-val">€ 300 – € 460</span></div>
+                <div class="cp-row"><span class="cp-row-lbl">Centrale unit + besturing</span><span class="cp-row-val">€ 500 – € 750</span></div>
+                <div class="cp-footer">Deze schatting is gebaseerd op aannames en is inclusief arbeid en standaard materialen.</div>
               </div>
             </div>
           </div>
