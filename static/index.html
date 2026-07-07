@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+  <title>Tuinaanleg prijsindicatie – Veldman Hoveniers</title>
+  <style>
+    /* =====================================================================
+       HUISSTIJL — pas de waarden hieronder aan naar uw eigen merk
+       ===================================================================== */
+    :root {
+      --primary:          #5c6b1e;   /* olijfgroen (logo links)           */
+      --primary-dark:     #46520f;   /* hover-kleur                       */
+
+      --accent:           #b84d1a;   /* terracotta (logo rechts)          */
+      --accent-dark:      #8f3a12;   /* terracotta hover                  */
+
+      --bg-page:          #f4f1ec;   /* warme off-white achtergrond       */
+      --bg-msg-area:      #ffffff;
+
+      --bubble-bot-bg:    #f5f2ed;   /* warme lichte ballon               */
+      --bubble-bot-text:  #1a1a14;
+      --bubble-user-bg:   #b84d1a;   /* terracotta voor gebruiker         */
+      --bubble-user-text: #ffffff;
+
+      --title-color:      #2e3410;
+      --subtitle-color:   #6b6b50;
+
+      --input-border:     #d4cfc0;
+      --input-focus:      #5c6b1e;
+      --send-bg:          #b84d1a;   /* terracotta verzendknop            */
+      --send-hover:       #8f3a12;
+
+      --font-family:      'Segoe UI', system-ui, -apple-system, sans-serif;
+      --font-size:        15px;
+      --line-height:      1.6;
+      --max-width:        760px;
+    }
+    /* ===================================================================== */
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-page);
+    }
+
+    body {
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      line-height: var(--line-height);
+      color: var(--bubble-bot-text);
+    }
+
+    /* ---- Paginacontainer ---- */
+    /* position:fixed voorkomt window-scroll op Android.
+       Hoogte wordt via JS (visualViewport) gezet zodat het inputveld
+       zichtbaar blijft als het toetsenbord open is. */
+    #page {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-msg-area);
+    }
+
+    /* ---- Header ---- */
+    #page-header {
+      background: var(--primary);
+      padding: 22px 24px 18px;
+      flex-shrink: 0;
+    }
+
+    #page-header h1 {
+      font-size: 1.55em;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    #page-header .subtitle {
+      margin-top: 4px;
+      font-size: 0.83em;
+      color: rgba(255,255,255,0.75);
+    }
+
+    #page-header .tagline {
+      margin-top: 10px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    #page-header .tagline span {
+      background: rgba(255,255,255,0.15);
+      color: #ffffff;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.78em;
+      letter-spacing: 0.01em;
+    }
+
+    #btn-reset {
+      float: right;
+      margin-top: 2px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.35);
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 0.82em;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #btn-reset:hover { background: rgba(255,255,255,0.28); }
+
+    /* ---- Berichtengebied ---- */
+    #messages {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-anchor: none;   /* voorkomt dat browser scrollpositie aanpast bij viewport-resize */
+      padding: 20px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+
+    /* ---- Berichtrij met avatar ---- */
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .msg-row.user {
+      flex-direction: row-reverse;
+    }
+
+    /* ---- Avatar ---- */
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3em;
+      background: #e8e4d8;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      animation: sway 4s ease-in-out infinite;
+      transform-origin: bottom center;
+    }
+
+    @keyframes sway {
+      0%, 100% { transform: rotate(-2deg) scale(1.02); }
+      50%       { transform: rotate(2deg)  scale(1.02); }
+    }
+
+    .msg-row.bot  .avatar { background: #e8e4d8; }
+    .msg-row.user .avatar { background: #d4cfc0; }
+
+    /* ---- Berichtballon ---- */
+    .bubble {
+      max-width: 78%;
+      padding: 10px 14px;
+      border-radius: 4px 14px 14px 14px;
+      word-break: break-word;
+      font-size: var(--font-size);
+      line-height: var(--line-height);
+      background: var(--bubble-bot-bg);
+      color: var(--bubble-bot-text);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .msg-row.user .bubble {
+      background: var(--bubble-user-bg);
+      color: var(--bubble-user-text);
+      border-radius: 14px 4px 14px 14px;
+    }
+
+    /* Markdown styling */
+    .bubble strong { font-weight: 700; }
+    .bubble em     { font-style: italic; color: #555; }
+
+    .bubble ul.md-list {
+      list-style: disc;
+      margin: 6px 0 4px 20px;
+      padding: 0;
+    }
+
+    .bubble ol.md-list {
+      list-style: none;   /* nummers staan al in de tekst */
+      margin: 6px 0 4px 4px;
+      padding: 0;
+    }
+
+    .bubble .md-list li { margin: 3px 0; }
+    .bubble a { color: var(--primary); text-decoration: underline; }
+    .bubble a:hover { color: var(--primary-dark); }
+
+    /* ---- Prijskaart (.cp) ---- */
+    .bubble.wide { max-width: 96%; }
+    .cp { font-size: 14px; line-height: 1.5; }
+
+    .cp-choices {
+      background: var(--bg-page); border-radius: 8px;
+      padding: 12px 14px; margin-bottom: 14px;
+    }
+    .cp-chd { font-weight: 700; font-size: 13px; color: var(--bubble-bot-text); margin-bottom: 6px; }
+    .cp-ci  { font-size: 13px; color: var(--bubble-bot-text); padding: 2px 0; }
+    .cp-ci-sub { padding-left: 14px; color: var(--subtitle-color); }
+
+    .cp-est-hd   { font-size: 16px; font-weight: 700; color: var(--bubble-bot-text); margin-bottom: 4px; }
+    .cp-est-sub  { font-size: 13px; color: var(--bubble-bot-text); margin-bottom: 4px; }
+    .cp-est-note { font-size: 12px; font-style: italic; color: var(--subtitle-color); margin-bottom: 12px; }
+
+    .cp-total     { background: var(--bg-page); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+    .cp-total-lbl { font-size: 12px; color: var(--subtitle-color); margin-bottom: 2px; }
+    .cp-btw       { font-size: 11px; font-style: italic; }
+    .cp-total-val { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .cp-min       { font-size: 12px; color: var(--subtitle-color); font-style: italic; margin-bottom: 10px; }
+
+    .cp-toel {
+      background: var(--bg-page); border-radius: 8px; padding: 12px 14px;
+      border-left: 3px solid var(--primary);
+      font-size: 13px; color: var(--subtitle-color); font-style: italic;
+      line-height: 1.6; margin-bottom: 16px;
+    }
+
+    .cp-section  { margin-bottom: 16px; }
+    .cp-sec-hd   { font-size: 14px; font-weight: 700; color: var(--bubble-bot-text); margin-bottom: 4px; }
+    .cp-sec-note { font-size: 12px; font-style: italic; color: var(--subtitle-color); margin-bottom: 6px; }
+
+    .cp-row      { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--input-border); gap: 8px; }
+    .cp-row-lbl  { font-size: 13px; color: var(--bubble-bot-text); flex: 1; }
+    .cp-qty      { font-size: 12px; color: var(--subtitle-color); }
+    .cp-row-val  { font-size: 13px; font-weight: 600; color: var(--primary); white-space: nowrap; }
+    .cp-row-offerte { color: var(--subtitle-color); font-weight: normal; }
+
+    .cp-sloop      { background: var(--bg-page); border-radius: 8px; padding: 12px 14px; border-left: 3px solid var(--input-border); margin: 16px 0 12px; }
+    .cp-sloop-hd   { font-size: 13px; font-weight: 700; color: var(--bubble-bot-text); margin-bottom: 4px; }
+    .cp-sloop-note { font-size: 12px; color: var(--subtitle-color); font-style: italic; }
+    .cp-footer     { font-size: 12px; color: var(--subtitle-color); font-style: italic; margin-top: 8px; }
+
+    /* ---- Tik-indicator ---- */
+    .typing-bubble {
+      background: var(--bubble-bot-bg);
+      border-radius: 4px 14px 14px 14px;
+      padding: 12px 16px;
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .typing-bubble span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: bounce 1.2s infinite;
+      opacity: 0.65;
+    }
+
+    .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%           { transform: translateY(-6px); }
+    }
+
+    /* ---- Invoerbalk (altijd onderaan, #page is fixed-height) ---- */
+    #input-area {
+      flex-shrink: 0;
+      padding: 10px 16px 6px;
+      background: var(--bg-msg-area);
+      border-top: 1px solid #e4ebe4;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    #input-footer {
+      text-align: center;
+      padding: 4px 0 8px;
+    }
+
+    #btn-reset-bottom {
+      background: none;
+      border: none;
+      color: var(--subtitle-color);
+      font-size: 0.78em;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    #btn-reset-bottom:hover { color: var(--primary); }
+
+    #input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+
+    #user-input {
+      flex: 1;
+      border: 1.5px solid var(--input-border);
+      border-radius: 24px;
+      padding: 10px 18px;
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      color: var(--bubble-bot-text);
+      background: #fff;
+      resize: none;
+      overflow-y: hidden;
+      min-height: 44px;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.15s;
+      line-height: 1.45;
+    }
+
+    #user-input:focus { border-color: var(--input-focus); }
+    #user-input::placeholder { color: #a8b4a8; }
+
+    #btn-send {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      border: none;
+      border-radius: 50%;
+      background: var(--send-bg);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    #btn-send:hover:not(:disabled)  { background: var(--send-hover); }
+    #btn-send:active:not(:disabled) { transform: scale(0.92); }
+    #btn-send:disabled { opacity: 0.4; cursor: default; }
+
+    #btn-send svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* ---- Scrollbar ---- */
+    #messages::-webkit-scrollbar       { width: 5px; }
+    #messages::-webkit-scrollbar-thumb { background: #ccd8cc; border-radius: 4px; }
+
+    /* ---- Mobiel ---- */
+    @media (max-width: 560px) {
+      #page-header h1  { font-size: 1.25em; }
+      #page-header     { padding: 16px 14px 14px; }
+      #messages        { padding: 14px 10px 8px; }
+      #input-area      { padding: 8px 10px 10px; }
+      #btn-reset       { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="page">
+
+  <!-- =====================================================================
+       HEADER — pas titel en ondertitel aan
+       ===================================================================== -->
+  <div id="page-header">
+    <button id="btn-reset" title="Gesprek opnieuw starten">↺ Reset</button>
+    <h1 id="header-title">Tuinaanleg prijsindicatie</h1>
+    <p class="subtitle" id="header-subtitle"></p>
+    <div class="tagline">
+      <span>Vrijblijvend</span>
+      <span>Binnen een paar minuten</span>
+      <span>Indicatie – geen offerte</span>
+    </div>
+    <div id="demo-badge" style="display:none;margin-top:8px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:6px 10px;font-size:11.5px;color:rgba(255,255,255,0.85);line-height:1.4;">
+      Demo versie &mdash; voorbeeldprijzen. Jouw Indiqa werkt met jouw eigen tarieven.
+    </div>
+  </div>
+
+  <!-- Berichtengebied -->
+  <div id="messages" role="log" aria-live="polite"></div>
+
+  <!-- Invoerbalk -->
+  <div id="input-area">
+    <div id="input-row">
+      <textarea
+        id="user-input"
+        rows="1"
+        placeholder="Typ uw antwoord…"
+        aria-label="Uw bericht"
+      ></textarea>
+      <button id="btn-send" aria-label="Versturen" disabled>
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+    <div id="input-footer">
+      <button id="btn-reset-bottom">↺ Gesprek opnieuw starten</button>
+    </div>
+  </div>
+
+</div><!-- /#page -->
+
+<script>
+  // Houdt #page exact gelijk aan het zichtbare scherm (visual viewport).
+  // offsetTop meenemen zodat #page ook correct staat als de URL-balk
+  // of toetsenbord de Y-positie van het visual viewport verschuift.
+  const pageEl = document.getElementById('page');
+  let lastBotEl  = null;   // bijgehouden zodat we ernaar kunnen scrollen bij keyboard-open
+  let prevVvH    = 0;
+
+  function updateLayout() {
+    const vv = window.visualViewport;
+    const newH = vv ? vv.height : window.innerHeight;
+
+    pageEl.style.top    = (vv ? vv.offsetTop : 0) + 'px';
+    pageEl.style.height = newH + 'px';
+
+    // Toetsenbord gaat open (viewport krimpt >80px): scroll naar laatste bot-vraag
+    if (prevVvH > 0 && prevVvH - newH > 80 && lastBotEl) {
+      setTimeout(() => {
+        messagesEl.scrollTop = Math.max(0, lastBotEl.offsetTop - 16);
+      }, 100);
+    }
+    prevVvH = newH;
+  }
+  updateLayout();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateLayout);
+    window.visualViewport.addEventListener('scroll', updateLayout);
+  } else {
+    window.addEventListener('resize', updateLayout);
+  }
+
+  // =====================================================================
+  // AVATARS — verander dit naar uw eigen icoon of afbeeldingspad
+  //
+  //   Emoji gebruiken:       BOT_AVATAR  = { type: 'emoji', value: '🌿' }
+  //   Afbeelding gebruiken:  BOT_AVATAR  = { type: 'img',   value: 'logo.png' }
+  //     (zet logo.png dan in de map  static/  naast dit bestand)
+  // =====================================================================
+  const BOT_AVATAR  = { type: 'img', value: 'logo.png' };
+  const USER_AVATAR = { type: 'emoji', value: '👤' };
+  // =====================================================================
+
+  const API_BASE    = '';
+  const STORAGE_KEY = 'tuinchat';
+
+  // DOM
+  const messagesEl    = document.getElementById('messages');
+  const inputEl       = document.getElementById('user-input');
+  const sendBtn         = document.getElementById('btn-send');
+  const resetBtn        = document.getElementById('btn-reset');
+  const resetBtnBottom  = document.getElementById('btn-reset-bottom');
+
+  // Sessie
+  const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 uur
+  let sessionId  = null;
+  let msgHistory = [];
+
+  function loadStorage() {
+    try {
+      const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (!d) return;
+      if (d.savedAt && (Date.now() - d.savedAt) > SESSION_TTL_MS) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (d.sessionId) sessionId = d.sessionId;
+      if (Array.isArray(d.messages)) msgHistory = d.messages;
+    } catch (_) {}
+  }
+
+  function saveStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId, messages: msgHistory, savedAt: Date.now() }));
+    } catch (_) {}
+  }
+
+  // ---- Markdown-renderer ----
+  function renderMarkdown(raw) {
+    let s = raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const lines  = s.split('\n');
+    const out    = [];
+    let inList   = false;
+    let listType = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      let l = lines[i];
+      l = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      l = l.replace(/(?<![a-zA-Z0-9])_([^_\n]+?)_(?![a-zA-Z0-9])/g, '<em>$1</em>');
+      l = l.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+      const isBullet = /^[-*]\s/.test(l);
+      const isNum    = /^\d+[).]\s/.test(l);
+      const curType  = isBullet ? 'ul' : isNum ? 'ol' : '';
+
+      if (curType) {
+        if (inList && listType !== curType) {
+          out.push(`</${listType}>`);
+          inList = false;
+        }
+        if (!inList) {
+          out.push(`<${curType} class="md-list">`);
+          inList = true; listType = curType;
+        }
+        // Bewaar het originele nummer als tekst zodat "4)" ook "4)" blijft
+        const content = isBullet ? l.slice(2) : l;
+        out.push(`<li>${content}</li>`);
+      } else if (l.trim() === '') {
+        if (inList) { out.push(`</${listType}>`); inList = false; listType = ''; }
+        // Geen <br> als de volgende niet-lege regel een lijstitem is
+        out.push('<br>');
+      } else {
+        if (inList) { out.push(`</${listType}>`); inList = false; listType = ''; }
+        out.push(l + '<br>');
+      }
+    }
+
+    if (inList) out.push(`</${listType}>`);
+    return out.join('').replace(/(<br>){3,}/g, '<br><br>').replace(/<br>$/, '');
+  }
+
+  // ---- Avatar-element maken ----
+  function makeAvatar(cfg) {
+    const el = document.createElement('div');
+    el.className = 'avatar';
+    if (cfg.type === 'img') {
+      const img = document.createElement('img');
+      img.src = cfg.value;
+      img.alt = '';
+      el.appendChild(img);
+    } else {
+      el.textContent = cfg.value;
+    }
+    return el;
+  }
+
+  // ---- Bericht toevoegen ----
+  function appendMessage(role, text) {
+    const row    = document.createElement('div');
+    row.className = `msg-row ${role}`;
+
+    const avatar = makeAvatar(role === 'bot' ? BOT_AVATAR : USER_AVATAR);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (role === 'bot') {
+      if (text.startsWith('CHATHTML:')) {
+        bubble.classList.add('wide');
+        bubble.innerHTML = text.slice(9);
+      } else {
+        bubble.innerHTML = renderMarkdown(text);
+      }
+    } else {
+      bubble.textContent = text;
+    }
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    if (role === 'bot') lastBotEl = row;
+    return row;
+  }
+
+  function showTyping() {
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    row.id = 'typing-indicator';
+    const avatar = makeAvatar(BOT_AVATAR);
+    row.innerHTML = '';
+    row.appendChild(avatar);
+    const tb = document.createElement('div');
+    tb.className = 'typing-bubble';
+    tb.innerHTML = '<span></span><span></span><span></span>';
+    row.appendChild(tb);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  // Scroll zodat firstEl bovenaan staat.
+  // Wacht 350ms: Android-toetsenbordanimatie duurt 200-300ms.
+  // Daarna is het viewport stabiel en wordt scrollTop niet meer overschreven.
+  function scrollToFirstNew(firstEl) {
+    if (!firstEl) { scrollToBottom(); return; }
+    setTimeout(() => {
+      messagesEl.scrollTop = Math.max(0, firstEl.offsetTop - 16);
+    }, 350);
+  }
+
+  function scrollToBottom() {
+    setTimeout(() => {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }, 50);
+  }
+
+  function renderHistory() {
+    messagesEl.innerHTML = '';
+    for (const m of msgHistory) appendMessage(m.role, m.text);
+    // Scroll naar het begin van het laatste bot-bericht (zelfde gedrag als na een nieuw antwoord)
+    if (lastBotEl) {
+      setTimeout(() => {
+        messagesEl.scrollTop = Math.max(0, lastBotEl.offsetTop - 16);
+      }, 50);
+    } else {
+      messagesEl.scrollTop = 0;
+    }
+  }
+
+  function addAndScroll(role, text) {
+    msgHistory.push({ role, text });
+    return appendMessage(role, text);
+  }
+
+  // ---- API ----
+  async function apiReset() {
+    const r = await fetch(`${API_BASE}/api/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+    return r.json();
+  }
+
+  async function apiChat(message) {
+    const r = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, message }),
+    });
+    return r.json();
+  }
+
+  // ---- Initialisatie ----
+  async function init() {
+    loadStorage();
+
+    // Ondertitel ophalen via eigen endpoint (optioneel)
+    try {
+      const info = await fetch(`${API_BASE}/api/info`).then(r => r.ok ? r.json() : null);
+      if (info) {
+        document.getElementById('header-subtitle').textContent =
+          `${info.bedrijfsnaam} • ${info.regio}`;
+        if (info.demo) {
+          document.getElementById('demo-badge').style.display = 'block';
+        }
+      }
+    } catch (_) {}
+
+    const keuze = new URLSearchParams(window.location.search).get('keuze');
+
+    if (sessionId && msgHistory.length > 0 && !keuze) {
+      renderHistory();
+    } else {
+      try {
+        const data = await apiReset();
+        sessionId  = data.session_id;
+        msgHistory = [];
+        for (const m of data.messages) addAndScroll('bot', m.text);
+        messagesEl.scrollTop = 0;
+        saveStorage();
+        if (keuze === '1' || keuze === '2') {
+          setEnabled(true);
+          await sendMessageText(keuze);
+          return;
+        }
+      } catch (_) {
+        appendMessage('bot', '⚠️ Kon geen verbinding maken. Vernieuw de pagina.');
+      }
+    }
+
+    setEnabled(true);
+  }
+
+  // ---- Versturen (programmatisch) ----
+  async function sendMessageText(text) {
+    showTyping();
+    try {
+      const data = await apiChat(text);
+      removeTyping();
+      if (data.session_id) sessionId = data.session_id;
+      let firstBotEl = null;
+      for (const m of (data.messages || [])) {
+        const el = addAndScroll('bot', m.text);
+        if (!firstBotEl) firstBotEl = el;
+      }
+      saveStorage();
+      setEnabled(true);
+      scrollToFirstNew(firstBotEl);
+    } catch (_) {
+      removeTyping();
+      addAndScroll('bot', '⚠️ Er ging iets mis. Probeer het opnieuw.');
+      setEnabled(true);
+    }
+  }
+
+  // ---- Versturen ----
+  async function sendMessage() {
+    if (isLoading) return;
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    setEnabled(false);
+    inputEl.value = '';
+    autoResize();
+
+    addAndScroll('user', text);
+    saveStorage();
+    scrollToBottom();   // gebruikersbericht + tik-indicator in beeld
+    showTyping();
+
+    try {
+      const data = await apiChat(text);
+      removeTyping();
+      if (data.session_id) sessionId = data.session_id;
+      let firstBotEl = null;
+      for (const m of (data.messages || [])) {
+        const el = addAndScroll('bot', m.text);
+        if (!firstBotEl) firstBotEl = el;
+      }
+      saveStorage();
+      setEnabled(true);
+      scrollToFirstNew(firstBotEl);
+    } catch (_) {
+      removeTyping();
+      const errEl = addAndScroll('bot', '⚠️ Er ging iets mis. Probeer het opnieuw.');
+      saveStorage();
+      setEnabled(true);
+      scrollToFirstNew(errEl);
+    }
+  }
+
+  // ---- Reset ----
+  async function doReset() {
+    setEnabled(false);
+    messagesEl.innerHTML = '';
+    msgHistory = [];
+    try {
+      const data = await apiReset();
+      sessionId = data.session_id;
+      for (const m of data.messages) addAndScroll('bot', m.text);
+      messagesEl.scrollTop = 0;   // direct naar boven
+      saveStorage();
+    } catch (_) {
+      appendMessage('bot', '⚠️ Reset mislukt. Vernieuw de pagina.');
+    }
+    setEnabled(true);
+  }
+
+  let isLoading = false;
+
+  function setEnabled(on) {
+    isLoading = !on;
+    // inputEl wordt nooit gedisabled — toetsenbord blijft open op mobiel
+    sendBtn.disabled          = !on;
+    resetBtn.disabled         = !on;
+    resetBtnBottom.disabled   = !on;
+    inputEl.style.opacity   = on ? '' : '0.55';
+  }
+
+  function autoResize() {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  inputEl.addEventListener('input', autoResize);
+  resetBtn.addEventListener('click', () => { if (confirm('Gesprek opnieuw starten?')) doReset(); });
+  resetBtnBottom.addEventListener('click', () => { if (confirm('Gesprek opnieuw starten?')) doReset(); });
+
+  init();
+</script>
+</body>
+</html>
