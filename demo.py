@@ -214,17 +214,26 @@ def _chat_css(primary: str) -> str:
 
 
 def _default_config() -> dict:
+    try:
+        from pricing_demo import PRIJZEN_DEMO, VOLUME_KORTINGEN_DEMO, GRONDWERK_DIEPTES_DEMO
+        prijzen = {k: list(v) for k, v in PRIJZEN_DEMO.items()}
+        volume_kortingen = {k: [list(t) for t in v] for k, v in VOLUME_KORTINGEN_DEMO.items()}
+        grondwerk_dieptes = dict(GRONDWERK_DIEPTES_DEMO)
+    except ImportError:
+        prijzen = {k: list(v) for k, v in PRIJZEN.items()}
+        volume_kortingen = {k: [list(t) for t in v] for k, v in VOLUME_KORTINGEN.items()}
+        grondwerk_dieptes = dict(GRONDWERK_DIEPTES)
     return {
         "bedrijf": {
             "naam":     "Uw Hoveniersbedrijf",
-            "regio":    "regio Zwolle",
+            "regio":    "regio uw stad",
             "email":    "info@uwbedrijf.nl",
             "telefoon": "06-00000000",
             "kleur":    "#5c6b1e",
         },
-        "prijzen":           {k: list(v) for k, v in PRIJZEN.items()},
-        "grondwerk_dieptes": dict(GRONDWERK_DIEPTES),
-        "volume_kortingen":  {k: [list(t) for t in v] for k, v in VOLUME_KORTINGEN.items()},
+        "prijzen":           prijzen,
+        "grondwerk_dieptes": grondwerk_dieptes,
+        "volume_kortingen":  volume_kortingen,
     }
 
 
