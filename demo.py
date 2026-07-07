@@ -20,6 +20,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pricing as _pm
 from pricing import PRIJZEN, GRONDWERK_DIEPTES, VOLUME_KORTINGEN
+
+# Overschrijf met demo-prijzen zodat de sliders voorbeeldwaarden tonen
+try:
+    from pricing_demo import PRIJZEN_DEMO, VOLUME_KORTINGEN_DEMO, GRONDWERK_DIEPTES_DEMO
+    PRIJZEN.update(PRIJZEN_DEMO)
+    GRONDWERK_DIEPTES.update(GRONDWERK_DIEPTES_DEMO)
+    VOLUME_KORTINGEN.update({k: [tuple(t) for t in v] for k, v in VOLUME_KORTINGEN_DEMO.items()})
+except ImportError:
+    pass
+
 from bot_logic import handle_message, make_initial_state
 
 # DB tabellen aanmaken als ze nog niet bestaan (veilig om meerdere keren aan te roepen)
