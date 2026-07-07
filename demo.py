@@ -350,26 +350,7 @@ def _prow(label: str, key: str, unit: str, step: int = 1) -> None:
 
 # ─── Intro ───────────────────────────────────────────────────────────────────
 st.markdown("""
-<div class="iq-eyebrow">Uit de praktijk: ontwikkeld door een hovenier met ruim 20 jaar tuinervaring</div>
-<div class="iq-title">Sneller van aanvraag naar offerte</div>
 <div class="iq-sub">Stel hieronder de bedrijfsgegevens en tarieven in — zie rechts direct hoe de bot eruitziet voor uw klanten.</div>
-<div class="iq-cards">
-  <div class="iq-card">
-    <div class="iq-tag">Wat doet de bot?</div>
-    <h3>Serieuze aanvragen</h3>
-    <p>Begeleidt klanten stap voor stap. Stuurt direct op budget en materiaalkeuze. Maakt kostenbesparende opties inzichtelijk. Aanvraag automatisch naar uw e-mail.</p>
-  </div>
-  <div class="iq-card">
-    <div class="iq-tag">Wat is aanpasbaar?</div>
-    <h3>Volledig uw bedrijf</h3>
-    <p>Tarieven en berekeningen volledig aanpasbaar. Grondwerk dieptes en zaagwerk. Volume kortingen per categorie. Bedrijfsnaam, regio en huisstijlkleur.</p>
-  </div>
-  <div class="iq-card">
-    <div class="iq-tag">Hoe en waar?</div>
-    <h3>Op elke locatie</h3>
-    <p>Op de website, aan tafel bij de klant én in het ontwerptraject. Eigen portaal met klantinzicht. Privacyvriendelijk.</p>
-  </div>
-</div>
 """, unsafe_allow_html=True)
 
 # ─── Twee-kolom layout ───────────────────────────────────────────────────────
