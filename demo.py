@@ -468,28 +468,35 @@ with col_cfg:
                     unsafe_allow_html=True,
                 )
 
-    # ── Extras ────────────────────────────────────────────────────────────────
-    with st.expander("✨ Extras"):
+    # ── Overkapping & Verlichting ─────────────────────────────────────────────
+    with st.expander("✨ Overkapping & verlichting"):
         _pheader()
-        _prow("Overkapping",                "overkapping_per_m2",                    "€/m²",   step=10)
-        _prow("Verlichting (basis 3 arm.)", "verlichting_basis_per_stuk",            "€/stuk", step=50)
+        _prow("Overkapping",                "overkapping_per_m2",         "€/m²",   step=10)
+        _prow("Verlichting (basis 3 arm.)", "verlichting_basis_per_stuk", "€/stuk", step=50)
 
-        st.markdown("*Beregening – vaste installatie*")
+    # ── Beregening ────────────────────────────────────────────────────────────
+    with st.expander("💧 Beregening"):
+        _pheader()
+        st.caption("Vaste installatie")
         _prow("Basis",         "beregening_installatie_basis",          "€ vast", step=50)
         _prow("Volautomatisch","beregening_installatie_volautomatisch", "€ vast", step=50)
         _prow("High-end",      "beregening_installatie_highend",        "€ vast", step=100)
 
-        st.markdown("*Beregening gazon (per m²)*")
+        st.divider()
+        st.caption("Gazon (per m²)")
         _prow("Basis",         "beregening_gazon_basis_per_m2",             "€/m²")
         _prow("Volautomatisch","beregening_gazon_volautomatisch_per_m2",    "€/m²")
         _prow("High-end",      "beregening_gazon_highend_per_m2",           "€/m²")
 
-        st.markdown("*Beregening beplanting (per m²)*")
+        st.divider()
+        st.caption("Beplanting (per m²)")
         _prow("Basis",         "beregening_beplanting_basis_per_m2",            "€/m²")
         _prow("Volautomatisch","beregening_beplanting_volautomatisch_per_m2",   "€/m²")
         _prow("High-end",      "beregening_beplanting_highend_per_m2",          "€/m²")
 
-        st.markdown("*Erfafscheiding*")
+    # ── Erfafscheiding ────────────────────────────────────────────────────────
+    with st.expander("🏗️ Erfafscheiding"):
+        _pheader()
         _prow("Betonschutting",  "plaatsen_betonschutting_per_m1",   "€/m¹",  step=10)
         _prow("Design schutting","plaatsen_designschutting_per_m1",  "€/m¹",  step=10)
         _prow("Poortdeur",       "plaatsen_poortdeur_per_st",        "€/stuk", step=25)
