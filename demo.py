@@ -351,6 +351,11 @@ def _prow(label: str, key: str, unit: str, step: int = 1) -> None:
 # ─── Intro ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="iq-sub">Stel hieronder de bedrijfsgegevens en tarieven in — zie rechts direct hoe de bot eruitziet voor uw klanten.</div>
+<div style="background:#fff8e6;border:1px solid #f0d080;border-radius:10px;padding:14px 18px;margin:12px 0 4px;font-size:14px;color:#7a5c00;line-height:1.6;">
+  <strong>&#9432;&nbsp; Dit is een demo met fictieve voorbeeldprijzen.</strong><br>
+  Jouw eigen Indiqa wordt volledig ingericht met jouw tarieven, jouw bedrijfsnaam en jouw huisstijl.
+  De berekeningen kloppen — alleen de bedragen zijn als voorbeeld ingevuld.
+</div>
 """, unsafe_allow_html=True)
 
 # ─── Twee-kolom layout ───────────────────────────────────────────────────────
