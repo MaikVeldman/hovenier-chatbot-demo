@@ -358,7 +358,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── Twee-kolom layout ───────────────────────────────────────────────────────
-col_cfg, col_chat = st.columns([1, 1.1], gap="large")
+col_cfg, col_chat = st.columns([1.3, 1], gap="large")
 
 
 # ════════════════════════════════════════
