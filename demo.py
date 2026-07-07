@@ -436,8 +436,9 @@ with col_cfg:
     # ── Volume kortingen ──────────────────────────────────────────────────────
     with st.expander("📊 Volume kortingen"):
         st.caption(
-            "Factor < 1 geeft korting. De eerste rij met drempel die gehaald wordt, "
-            "geldt. Stel drempel op 0 en factor op 1.00 om een rij uit te schakelen."
+            "Hoe werkt dit? Zodra een klant meer dan de drempel (m² of m³) bestelt, "
+            "krijgt hij automatisch korting. Een kortingsfactor van 0.90 betekent 10% korting, "
+            "0.85 is 15% korting, enzovoort. Wil je een rij niet gebruiken? Zet de drempel op 0 en factor op 1.00."
         )
         for cat, tiers in VOLUME_KORTINGEN.items():
             st.markdown(f"**{_VK_LABELS.get(cat, cat)}**")
