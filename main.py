@@ -1,6 +1,6 @@
-# main.py
-
-from bot_logic import handle_message, make_initial_state, INITIAL_GREETING
+# main.py — command-line interface voor lokaal testen
+from core.controllers.chat_controller import ChatController, INITIAL_GREETING
+from core.models.chat_state import make_initial_state
 
 state = make_initial_state()
 
@@ -16,7 +16,8 @@ while True:
         break
 
     try:
-        state, messages = handle_message(state, user_input)
+        ctrl = ChatController(state)
+        state, messages = ctrl.handle(user_input)
         for msg in messages:
             print(f"Chatbot: {msg}\n")
 

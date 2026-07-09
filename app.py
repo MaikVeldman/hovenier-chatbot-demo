@@ -3,8 +3,9 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-from bedrijf import BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON
-from bot_logic import handle_message, make_initial_state, INITIAL_GREETING
+from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON
+from core.controllers.chat_controller import ChatController, INITIAL_GREETING
+from core.models.chat_state import make_initial_state
 
 # =====================
 # Config
@@ -92,7 +93,8 @@ first_new_idx = len(st.session_state.messages)
 st.session_state.messages.append({"role": "user", "content": user_text})
 
 state = st.session_state.chat_state
-state, new_messages = handle_message(state, user_text)
+ctrl = ChatController(state)
+state, new_messages = ctrl.handle(user_text)
 st.session_state.chat_state = state
 
 for msg in new_messages:

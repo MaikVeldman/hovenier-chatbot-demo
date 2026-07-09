@@ -6,7 +6,8 @@ Verwacht: geen crashes, elke flow eindigt met een prijs of bevestiging.
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
-from bot_logic import handle_message, make_initial_state
+from core.controllers.chat_controller import ChatController
+from core.models.chat_state import make_initial_state
 
 def run(inputs: list, label: str):
     state = make_initial_state()
@@ -14,7 +15,8 @@ def run(inputs: list, label: str):
     print(f"  {label}")
     print(f"{'='*50}")
     for tekst in inputs:
-        state, replies = handle_message(state, tekst)
+        ctrl = ChatController(state)
+        state, replies = ctrl.handle(tekst)
         print(f"\n> {tekst}")
         for r in replies:
             preview = r[:120].replace("\n", " ")

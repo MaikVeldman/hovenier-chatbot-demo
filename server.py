@@ -16,9 +16,9 @@ from flask import (
 )
 from flask_cors import CORS
 
-from bedrijf import BEDRIJFSNAAM, REGIO
-from bot_logic import make_initial_state, INITIAL_GREETING
-from core.controllers.chat_controller import ChatController
+from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO
+from core.controllers.chat_controller import ChatController, INITIAL_GREETING
+from core.models.chat_state import make_initial_state
 from core.models.tenant_context import TenantContext
 from core.pricing.price_table import PriceTable
 from infrastructure.db.repositories.tenant_repository import TenantRepository
