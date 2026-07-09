@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+
+from core.models.chat_state import ChatState, make_initial_state
 
 try:
     from db_logger import (
@@ -85,39 +86,6 @@ INITIAL_GREETING = (
     "_Door verder te gaan gaat u akkoord met onze [privacyverklaring](https://www.veldmanhoveniers.nl/privacybeleid/)._"
 )
 
-
-@dataclass
-class ChatState:
-    flow_type: Optional[str] = None             # "gehele_tuin" | "losse_onderdelen" | "tuinontwerp"
-    flow: Optional[TuinaanlegFlowV2] = None
-    losse_flow: Optional[LosseOnderdelenFlow] = None
-    tuinontwerp_flow: Optional[TuinontWerpFlow] = None
-    post_offer_mode: bool = False
-    post_offer_stage: Optional[str] = None
-    last_answers: Optional[Dict[str, Any]] = None
-    last_costs: Optional[Dict[str, Any]] = None
-    recalc_count: int = 0
-    pending_material_part: Optional[Tuple] = None
-    ended: bool = False
-    # DB / contact
-    session_id: Optional[str] = None
-    last_calc_id: Optional[int] = None
-    contact_naam: Optional[str] = None
-    contact_telefoon: Optional[str] = None
-    contact_email: Optional[str] = None
-    contact_adres: Optional[str] = None
-    contact_woonplaats: Optional[str] = None
-    contact_opmerking: Optional[str] = None
-    end_reason: Optional[str] = None
-    # Erfafscheiding twee-laags menu
-    erf_item_index: Optional[int] = None
-    # Leadscore-signalen
-    prijs_gezien_en_doorgegaan: bool = False
-    heeft_herberekend: bool = False
-
-
-def make_initial_state(session_id: str = None) -> ChatState:
-    return ChatState(session_id=session_id)
 
 
 # ============================================================
