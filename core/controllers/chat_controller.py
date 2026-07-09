@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from core.models.chat_state import ChatState
 
 try:
-    from db_logger import (
+    from infrastructure.db.db_logger import (
         log_event,
         log_price_calculation,
         update_session_flow,
@@ -18,7 +18,7 @@ try:
 except Exception:
     _DB = False
 
-from pricing import (
+from core.pricing.pricing import (
     estimate_tuinaanleg_costs,
     estimate_losse_onderdelen_costs,
     estimate_tuinontwerp_costs,
@@ -78,9 +78,9 @@ class ChatController:
     # ----------------------------------------------------------
 
     def _handle_flow_keuze(self, t_raw: str) -> Tuple[ChatState, List[str]]:
-        from flow_tuinaanleg import TuinaanlegFlowV2
-        from flow_losse_onderdelen import LosseOnderdelenFlow
-        from flow_tuinontwerp import TuinontWerpFlow
+        from core.flows.tuinaanleg import TuinaanlegFlowV2
+        from core.flows.losse_onderdelen import LosseOnderdelenFlow
+        from core.flows.tuinontwerp import TuinontWerpFlow
 
         if t_raw == "1":
             self.state.flow_type = "gehele_tuin"
@@ -110,7 +110,7 @@ class ChatController:
     # ----------------------------------------------------------
 
     def _handle_intake(self, t_raw: str) -> Tuple[ChatState, List[str]]:
-        from savings import post_offer_choices_text
+        from core.pricing.savings import post_offer_choices_text
         flow = self.state.flow
         if t_raw.strip().lower() in ("terug", "back", "vorige") and _DB and self.state.session_id:
             increment_terug_actie(self.state.session_id, stap=str(flow.step_index))
@@ -141,7 +141,7 @@ class ChatController:
         return self.state, msgs
 
     def _handle_losse_intake(self, t_raw: str) -> Tuple[ChatState, List[str]]:
-        from savings import post_offer_choices_losse_text
+        from core.pricing.savings import post_offer_choices_losse_text
         flow = self.state.losse_flow
         if t_raw.strip().lower() in ("terug", "back", "vorige") and _DB and self.state.session_id:
             increment_terug_actie(self.state.session_id, stap=str(getattr(flow, "step_index", "?")))
@@ -172,7 +172,7 @@ class ChatController:
         return self.state, msgs
 
     def _handle_tuinontwerp_intake(self, t_raw: str) -> Tuple[ChatState, List[str]]:
-        from savings import post_offer_choices_tuinontwerp_text
+        from core.pricing.savings import post_offer_choices_tuinontwerp_text
         flow = self.state.tuinontwerp_flow
         reply, done = flow.handle(t_raw)
         msgs: List[str] = [reply] if reply else []

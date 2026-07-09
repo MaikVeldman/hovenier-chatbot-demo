@@ -1,7 +1,7 @@
 # prompts.py
 
 from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON
-from pricing import PRICE_KEYS
+from core.pricing.pricing import PRICE_KEYS
 
 def build_system_prompt() -> str:
     SYSTEM_PROMPT = f"""

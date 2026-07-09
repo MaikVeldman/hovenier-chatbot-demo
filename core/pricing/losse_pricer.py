@@ -12,5 +12,5 @@ class LossePricer:
         self.prices = price_table
 
     def estimate(self, answers: Dict[str, Any]) -> Dict[str, Any]:
-        from pricing import estimate_losse_onderdelen_costs
+        from core.pricing.pricing import estimate_losse_onderdelen_costs
         return estimate_losse_onderdelen_costs(answers, price_table=self.prices)

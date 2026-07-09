@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from typing import Dict, Tuple, List, Optional, Set, Any
 
-from pricing import estimate_tuinaanleg_costs, estimate_losse_onderdelen_costs
+from core.pricing.pricing import estimate_tuinaanleg_costs, estimate_losse_onderdelen_costs
 
 
 def _estimate(ans: dict) -> dict:

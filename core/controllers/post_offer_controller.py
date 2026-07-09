@@ -6,7 +6,7 @@ from typing import List, Tuple
 from core.models.chat_state import ChatState
 
 try:
-    from db_logger import (
+    from infrastructure.db.db_logger import (
         log_event,
         log_price_calculation,
         update_session_ended,
@@ -14,19 +14,19 @@ try:
         log_drop_off,
         log_offerte_aangevraagd,
     )
-    from leadscore import bereken_leadscore
+    from core.services.leadscore import bereken_leadscore
     _DB = True
 except Exception:
     _DB = False
 
-from pricing import (
+from core.pricing.pricing import (
     estimate_tuinaanleg_costs,
     estimate_losse_onderdelen_costs,
     estimate_tuinontwerp_costs,
     format_costs_as_chat_html,
     format_tuinontwerp_costs_as_chat_html,
 )
-from savings import (
+from core.pricing.savings import (
     post_offer_choices_text,
     post_offer_choices_losse_text,
     post_offer_choices_tuinontwerp_text,
@@ -246,8 +246,8 @@ class PostOfferController:
     # ----------------------------------------------------------
 
     def _handle_main_menu(self, t_raw: str) -> Tuple[ChatState, List[str]]:
-        from flow_tuinaanleg import TuinaanlegFlowV2
-        from flow_losse_onderdelen import LosseOnderdelenFlow
+        from core.flows.tuinaanleg import TuinaanlegFlowV2
+        from core.flows.losse_onderdelen import LosseOnderdelenFlow
 
         if t_raw == "1":
             self.state.post_offer_stage = "contact_naam"
@@ -265,7 +265,7 @@ class PostOfferController:
                 self.state.last_answers = None
                 self.state.last_costs = None
                 if _DB and self.state.session_id:
-                    from db_logger import update_session_flow
+                    from infrastructure.db.db_logger import update_session_flow
                     update_session_flow(self.state.session_id, "gehele_tuin")
                     log_event(self.state.session_id, "flow_started", {"flow": "gehele_tuin", "from": "tuinontwerp"})
                 return self.state, [self.state.flow.get_question()]
@@ -277,7 +277,7 @@ class PostOfferController:
                 self.state.last_answers = None
                 self.state.last_costs = None
                 if _DB and self.state.session_id:
-                    from db_logger import update_session_flow
+                    from infrastructure.db.db_logger import update_session_flow
                     update_session_flow(self.state.session_id, "losse_onderdelen")
                     log_event(self.state.session_id, "flow_started", {"flow": "losse_onderdelen", "from": "tuinontwerp"})
                 return self.state, [self.state.losse_flow.start_question()]

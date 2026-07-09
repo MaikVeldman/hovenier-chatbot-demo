@@ -18,8 +18,8 @@ import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import pricing as _pm
-from pricing import PRIJZEN, GRONDWERK_DIEPTES, VOLUME_KORTINGEN
+import core.pricing.pricing as _pm
+from core.pricing.pricing import PRIJZEN, GRONDWERK_DIEPTES, VOLUME_KORTINGEN
 
 # Overschrijf met demo-prijzen zodat de sliders voorbeeldwaarden tonen
 try:

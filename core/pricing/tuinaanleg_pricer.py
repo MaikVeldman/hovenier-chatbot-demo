@@ -12,5 +12,5 @@ class TuinaanlegPricer:
         self.prices = price_table
 
     def estimate(self, answers: Dict[str, Any]) -> Dict[str, Any]:
-        from pricing import estimate_tuinaanleg_costs
+        from core.pricing.pricing import estimate_tuinaanleg_costs
         return estimate_tuinaanleg_costs(answers, price_table=self.prices)

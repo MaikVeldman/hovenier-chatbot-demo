@@ -6,14 +6,14 @@ from typing import List, Tuple
 from core.models.chat_state import ChatState
 
 try:
-    from db_logger import (
+    from infrastructure.db.db_logger import (
         log_event,
         log_contact_submission,
         update_session_ended,
         save_leadscore,
     )
-    from mailer import send_contact_email
-    from leadscore import bereken_leadscore
+    from infrastructure.services.mailer import send_contact_email
+    from core.services.leadscore import bereken_leadscore
     _DB = True
 except Exception:
     _DB = False
@@ -105,7 +105,7 @@ class ContactController:
             update_session_ended(self.state.session_id or "")
 
     def handle_naam(self, t_raw: str) -> Tuple[ChatState, List[str]]:
-        from savings import post_offer_choices_text, post_offer_choices_losse_text, post_offer_choices_tuinontwerp_text
+        from core.pricing.savings import post_offer_choices_text, post_offer_choices_losse_text, post_offer_choices_tuinontwerp_text
         if self._is_terug(t_raw):
             self.state.post_offer_stage = "menu"
             ft = (self.state.last_answers or {}).get("_flow_type")

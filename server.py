@@ -29,7 +29,7 @@ from infrastructure.db.repositories.tenant_repository import TenantRepository
 # ============================================================
 DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
 if DEMO_MODE:
-    import pricing as _p
+    import core.pricing.pricing as _p
     from pricing_demo import PRIJZEN_DEMO, VOLUME_KORTINGEN_DEMO, GRONDWERK_DIEPTES_DEMO
     _p.PRIJZEN.clear()
     _p.PRIJZEN.update(PRIJZEN_DEMO)
@@ -39,7 +39,7 @@ if DEMO_MODE:
     _p.GRONDWERK_DIEPTES.update(GRONDWERK_DIEPTES_DEMO)
 
 try:
-    from db_logger import log_session_created, log_message
+    from infrastructure.db.db_logger import log_session_created, log_message
     _DB = True
 except Exception:
     _DB = False

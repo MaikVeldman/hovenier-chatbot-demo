@@ -4,7 +4,7 @@ Preview van de klant-bevestigingsmail. Voer uit en open preview_klant.html in je
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
-from mailer import _build_customer_html
+from infrastructure.services.mailer import _build_customer_html
 
 sample_costs = {
     "total_range_eur": [3529, 5306],

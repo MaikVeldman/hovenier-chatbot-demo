@@ -45,20 +45,20 @@ class _DefaultPriceTable(PriceTable):
         pass  # geen kopie — altijd live lezen
 
     def get(self, key: str, default: Any = (0, 0)):
-        from pricing import PRIJZEN as _P
+        from core.pricing.pricing import PRIJZEN as _P
         return _P.get(key, default)
 
     def __getitem__(self, key: str):
-        from pricing import PRIJZEN as _P
+        from core.pricing.pricing import PRIJZEN as _P
         return _P[key]
 
     @property
     def grondwerk_dieptes(self):
-        from pricing import GRONDWERK_DIEPTES as _GD
+        from core.pricing.pricing import GRONDWERK_DIEPTES as _GD
         return _GD
 
     def schaal_factor(self, volume: float, soort: str) -> float:
-        from pricing import VOLUME_KORTINGEN as _VK
+        from core.pricing.pricing import VOLUME_KORTINGEN as _VK
         for drempel, factor in _VK.get(soort, []):
             if volume >= drempel:
                 return factor

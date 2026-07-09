@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import resend
 
 try:
-    from pricing import (
+    from core.pricing.pricing import (
         format_tuinaanleg_choices_for_customer,
         format_losse_onderdelen_choices_for_customer,
         get_prijstoelichting,

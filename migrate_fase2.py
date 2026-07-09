@@ -30,7 +30,7 @@ from infrastructure.db import db_models  # noqa: registreert alle modellen
 # Prijzen uit de huidige pricing.py
 # ============================================================
 try:
-    from pricing import PRIJZEN
+    from core.pricing.pricing import PRIJZEN
     _prijzen = {k: list(v) for k, v in PRIJZEN.items()}
 except Exception as e:
     print(f"[WARN] pricing.py niet geladen: {e}")

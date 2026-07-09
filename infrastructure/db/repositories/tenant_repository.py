@@ -47,7 +47,7 @@ class TenantRepository:
             from infrastructure.config.bedrijf import (
                 BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON,
             )
-            from pricing import PRIJZEN
+            from core.pricing.pricing import PRIJZEN
             prijzen = {k: tuple(v) for k, v in PRIJZEN.items()}
         except Exception:
             BEDRIJFSNAAM     = "Hoveniersbedrijf"
