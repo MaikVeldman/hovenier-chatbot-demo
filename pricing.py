@@ -734,7 +734,9 @@ def format_tuinaanleg_choices_for_customer(costs: Dict[str, Any]) -> str:
 # ============================================================
 # ✅ Globaal kostenoverzicht tuinaanleg op basis van flow
 # ============================================================
-def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
+def estimate_tuinaanleg_costs(answers: Dict[str, Any], price_table=None) -> Dict[str, Any]:
+    from core.pricing.price_table import DEFAULT_PRICE_TABLE
+    p = price_table or DEFAULT_PRICE_TABLE
     """
     Rekent met:
     - tuin_m2
@@ -795,7 +797,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     else:
         paving_share = share_map_bg.get(ratio_bg, 0.50)
     paving_m2 = m2 * paving_share
-    bestrating_factor = _schaal_factor(paving_m2, "bestrating")
+    bestrating_factor = p.schaal_factor(paving_m2, "bestrating")
 
     # Groenoppervlak
     green_m2 = max(0.0, m2 - paving_m2)
@@ -955,7 +957,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
 
     # Paden + Terras: afvoer + zand (dieptes uit GRONDWERK_DIEPTES)
     # Keramiek gebruikt een dunner grondpakket (drainage mortel in m²-prijs)
-    _gd = GRONDWERK_DIEPTES
+    _gd = p.grondwerk_dieptes
     oprit_m2_f = float(oprit_m2)
 
     def _ker_split(base_m2: float, base_mat: str, extra_items: list) -> tuple:
@@ -988,7 +990,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
         grond_afvoer_paden_terras_m3 + zand_paden_terras_m3
         + oprit_m2_f * (_gd["oprit_afvoer"] + _gd["oprit_puin"] + _gd["oprit_zand"])
     )
-    grondwerk_factor = _schaal_factor(_total_grw_m3, "grondwerk")
+    grondwerk_factor = p.schaal_factor(_total_grw_m3, "grondwerk")
 
     add_volume_cost(
         label="Grond afvoer – paden/terras",
@@ -1065,8 +1067,8 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     # ------------------------------------------------------------
     if gazon_m2 > 0:
         gazon_key = "graszoden_per_m2"
-        gazon_unit_range = PRIJZEN.get(gazon_key, (15, 25))
-        gazon_factor = _schaal_factor(gazon_m2, "groen")
+        gazon_unit_range = p.get(gazon_key, (15, 25))
+        gazon_factor = p.schaal_factor(gazon_m2, "groen")
         gazon_range = _range_mul((float(gazon_unit_range[0]), float(gazon_unit_range[1])), gazon_m2)
         if gazon_factor < 1.0:
             gazon_range = (gazon_range[0] * gazon_factor, gazon_range[1] * gazon_factor)
@@ -1147,8 +1149,8 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 key = None
                 unit_fallback = "€/m¹"
 
-            if key and key in PRIJZEN:
-                unit_range = PRIJZEN[key]
+            if key and p.get(key) != (0, 0):
+                unit_range = p[key]
                 rng = _range_mul((float(unit_range[0]), float(unit_range[1])), meters)
                 total = _range_add(total, rng)
                 breakdown.append({
@@ -1163,9 +1165,9 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 if pd and t in ("betonschutting", "design_schutting"):
                     poortdeur_count += 1
 
-        if poortdeur_count > 0 and "plaatsen_poortdeur_per_st" in PRIJZEN:
+        if poortdeur_count > 0 and p.get("plaatsen_poortdeur_per_st") != (0, 0):
             pk = "plaatsen_poortdeur_per_st"
-            pr = PRIJZEN[pk]
+            pr = p[pk]
             rng = (float(pr[0]) * poortdeur_count, float(pr[1]) * poortdeur_count)
             total = _range_add(total, rng)
             breakdown.append({
@@ -1312,7 +1314,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
         else:
             vlonder_key = "vlonder_composiet_per_m2"
 
-        vlonder_factor = _schaal_factor(vlonder_m2, "vlonder")
+        vlonder_factor = p.schaal_factor(vlonder_m2, "vlonder")
         unit_range = PRIJZEN.get(vlonder_key, (280, 350))
         rng = _range_mul((float(unit_range[0]), float(unit_range[1])), vlonder_m2)
         if vlonder_factor < 1.0:
@@ -1650,7 +1652,9 @@ def format_costs_as_chat_html(costs: Dict[str, Any], flow_type: str = "gehele_tu
 # ============================================================
 # Losse onderdelen: directe m² invoer (gedeelde PRIJZEN)
 # ============================================================
-def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
+def estimate_losse_onderdelen_costs(answers: Dict[str, Any], price_table=None) -> Dict[str, Any]:
+    from core.pricing.price_table import DEFAULT_PRICE_TABLE
+    p = price_table or DEFAULT_PRICE_TABLE
     """
     Rekent op basis van directe m² per onderdeel (geen percentages).
     Gebruikt dezelfde PRIJZEN als estimate_tuinaanleg_costs.
@@ -1734,7 +1738,7 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
         (sum(it.get("m2", 0) for it in _paden_items) if _paden_items else paden_m2) +
         (sum(it.get("m2", 0) for it in _terras_items) if _terras_items else terras_m2)
     )
-    bestrating_factor_lo = _schaal_factor(_paving_total_lo, "bestrating")
+    bestrating_factor_lo = p.schaal_factor(_paving_total_lo, "bestrating")
 
     if _oprit_items:
         for it in _oprit_items:
@@ -1776,7 +1780,7 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
             "notes": notes,
         })
 
-    _gd = GRONDWERK_DIEPTES
+    _gd = p.grondwerk_dieptes
 
     # Split keramiek vs standaard per item voor correcte grondwerkdiepte
     def _ker_m2_from_items(items: list, fallback_m2: float, fallback_mat: str):
@@ -1804,7 +1808,7 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
         _grond_afvoer_pt_m3 + _zand_pt_m3
         + oprit_m2 * (_gd["oprit_afvoer"] + _gd["oprit_puin"] + _gd["oprit_zand"])
     )
-    grondwerk_factor_lo = _schaal_factor(_total_grw_m3_lo, "grondwerk")
+    grondwerk_factor_lo = p.schaal_factor(_total_grw_m3_lo, "grondwerk")
 
     add_vol("Grond afvoer – paden/terras", "grond_afvoer_per_m3",
             _grond_afvoer_pt_m3, "Aanname: 15 cm (keramiek) of 20 cm (overige materialen).",
@@ -1855,8 +1859,8 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     # Gazon
     if gazon_m2 > 0:
         key = "graszoden_per_m2"
-        ur = PRIJZEN.get(key, (15, 25))
-        gazon_factor_lo = _schaal_factor(gazon_m2, "groen")
+        ur = p.get(key, (15, 25))
+        gazon_factor_lo = p.schaal_factor(gazon_m2, "groen")
         rng = _range_mul((float(ur[0]), float(ur[1])), gazon_m2)
         if gazon_factor_lo < 1.0:
             rng = (rng[0] * gazon_factor_lo, rng[1] * gazon_factor_lo)
@@ -1874,8 +1878,8 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     # Beplanting
     if beplanting_m2 > 0:
         key = "beplanting_border_per_m2"
-        ur = PRIJZEN.get(key, (30, 40))
-        beplanting_factor_lo = _schaal_factor(beplanting_m2, "groen")
+        ur = p.get(key, (30, 40))
+        beplanting_factor_lo = p.schaal_factor(beplanting_m2, "groen")
         rng = _range_mul((float(ur[0]), float(ur[1])), beplanting_m2)
         if beplanting_factor_lo < 1.0:
             rng = (rng[0] * beplanting_factor_lo, rng[1] * beplanting_factor_lo)
@@ -1913,8 +1917,8 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 "design_schutting": "plaatsen_designschutting_per_m1",
             }
             key = key_map.get(t)
-            if key and key in PRIJZEN:
-                ur = PRIJZEN[key]
+            if key and p.get(key) != (0, 0):
+                ur = p[key]
                 rng = _range_mul((float(ur[0]), float(ur[1])), meters)
                 total = _range_add(total, rng)
                 breakdown.append({
@@ -1929,7 +1933,7 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
                 poortdeur_count += 1
         if poortdeur_count > 0:
             pk = "plaatsen_poortdeur_per_st"
-            pr = PRIJZEN[pk]
+            pr = p[pk]
             rng = (float(pr[0]) * poortdeur_count, float(pr[1]) * poortdeur_count)
             total = _range_add(total, rng)
             breakdown.append({
@@ -2216,7 +2220,9 @@ def format_losse_onderdelen_choices_for_customer(costs: Dict[str, Any]) -> str:
 # Tuinontwerp: prijsindicatie op basis van m²-tier
 # ============================================================
 
-def estimate_tuinontwerp_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
+def estimate_tuinontwerp_costs(answers: Dict[str, Any], price_table=None) -> Dict[str, Any]:
+    from core.pricing.price_table import DEFAULT_PRICE_TABLE
+    p = price_table or DEFAULT_PRICE_TABLE
     m2 = float((answers or {}).get("tuin_m2") or 0)
 
     if m2 < 100:
@@ -2228,7 +2234,7 @@ def estimate_tuinontwerp_costs(answers: Dict[str, Any]) -> Dict[str, Any]:
     else:
         key = "3d_tuinontwerp_>1000m2"
 
-    lo, hi = PRIJZEN[key]
+    lo, hi = p[key]
     return {
         "total_range_eur": (lo, hi),
         "tuin_m2": m2,
