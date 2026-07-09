@@ -17,7 +17,11 @@ from flask import (
 from flask_cors import CORS
 
 from bedrijf import BEDRIJFSNAAM, REGIO
-from bot_logic import handle_message, make_initial_state, INITIAL_GREETING
+from bot_logic import make_initial_state, INITIAL_GREETING
+from core.controllers.chat_controller import ChatController
+from core.models.tenant_context import TenantContext
+from core.pricing.price_table import PriceTable
+from infrastructure.db.repositories.tenant_repository import TenantRepository
 
 # ============================================================
 # Demo modus: DEMO_MODE=1 laadt voorbeeldprijzen in plaats van
@@ -125,8 +129,13 @@ def chat():
     if not message:
         return jsonify({"error": "empty message"}), 400
 
+    slug = request.headers.get("X-Tenant-Slug", "veldman-hoveniers")
+    tenant_cfg = TenantRepository().get_or_default(slug)
+    tenant_ctx = TenantContext(config=tenant_cfg, price_table=PriceTable(tenant_cfg))
+
     sid, state = _get_or_create(session_id)
-    state, new_messages = handle_message(state, message)
+    ctrl = ChatController(state, tenant_ctx)
+    state, new_messages = ctrl.handle(message)
     _sessions[sid] = state
 
     if _DB:
