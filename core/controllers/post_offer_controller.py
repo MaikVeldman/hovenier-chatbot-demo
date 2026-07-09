@@ -153,8 +153,8 @@ class PostOfferController:
         if not (_DB and self.state.session_id):
             return 0, "", {}
         try:
-            from models import DbSession
-            from database import SessionLocal
+            from infrastructure.db.db_models import DbSession
+            from infrastructure.db.database import SessionLocal
             with SessionLocal() as db:
                 sess = db.get(DbSession, self.state.session_id)
                 terug_acties = (sess.terug_acties or 0) if sess else 0

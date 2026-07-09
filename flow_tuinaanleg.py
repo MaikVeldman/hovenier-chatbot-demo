@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import re
 from typing import Any, Dict, Optional, Tuple, List
 
-from bedrijf import CONTACT_TELEFOON, CONTACT_EMAIL
+from infrastructure.config.bedrijf import CONTACT_TELEFOON, CONTACT_EMAIL
 from pricing import PRIJZEN
 from core.flows.base import BaseFlow
 

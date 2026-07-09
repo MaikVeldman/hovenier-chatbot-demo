@@ -30,12 +30,13 @@ try:
 except ImportError:
     pass
 
-from bot_logic import handle_message, make_initial_state
+from core.controllers.chat_controller import ChatController
+from core.models.chat_state import make_initial_state
 
 # DB tabellen aanmaken als ze nog niet bestaan (veilig om meerdere keren aan te roepen)
 try:
-    from database import engine, Base
-    import models  # noqa: F401
+    from infrastructure.db.database import engine, Base
+    from infrastructure.db import db_models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 except Exception:
     pass
@@ -105,7 +106,8 @@ def _patched(config: dict):
 
 def _handle(state, text: str, config: dict):
     with _patched(config):
-        return handle_message(state, text)
+        ctrl = ChatController(state)
+        return ctrl.handle(text)
 
 
 def _render_markdown(text: str) -> str:

@@ -1,0 +1,281 @@
+<!--
+  ============================================================
+  VELDMAN HOVENIERS — Chatbot Widget Embed Script
+  ============================================================
+  Plak de <script> tag hieronder in het veld
+  "Scripts na body tag" in uw WordPress Customizer.
+
+  BELANGRIJK: vervang de URL hieronder door het adres
+  waar uw Flask server publiek draait, bijv.:
+    https://chatbot.veldmanhoveniers.nl
+  of het IP-adres van uw VPS.
+  ============================================================
+-->
+
+<script>
+(function () {
+  var CHATBOT_URL = 'https://chatbot.veldmanhoveniers.nl';
+
+  var CLR_PRIMARY = '#5c6b1e';
+  var CLR_WHITE   = '#ffffff';
+
+  /* Contactgegevens getoond als de chatbot niet bereikbaar is */
+  var CONTACT_TELEFOON = '06-18906921';
+  var CONTACT_EMAIL    = 'info@veldmanhoveniers.nl';
+  var HEALTHCHECK_TIMEOUT_MS = 4000;
+
+  var ICON_EXPAND   = '□';
+  var ICON_COMPRESS = '▣';
+
+  /* ── Injecteer CSS ── */
+  var style = document.createElement('style');
+  style.textContent = [
+    '#vh-chat-btn{position:fixed;bottom:24px;right:24px;z-index:99999;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;background:#ffffff;box-shadow:0 4px 16px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;transition:transform .15s;padding:0;overflow:hidden;}',
+    '#vh-chat-btn:hover{transform:scale(1.08);}',
+    '#vh-chat-btn img{width:100%;height:100%;object-fit:cover;border-radius:50%;}',
+    '#vh-chat-badge{position:absolute;top:-4px;right:-4px;background:#5c6b1e;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:700;pointer-events:none;}',
+
+    '#vh-chat-modal{display:none;position:fixed;z-index:2147483647;bottom:96px;right:24px;width:480px;height:720px;max-width:calc(100vw - 32px);max-height:calc(100vh - 120px);border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.30);transition:opacity .2s,transform .2s,width .25s,height .25s,inset .25s;opacity:0;transform:translateY(16px) scale(.97);}',
+    '#vh-chat-modal.open{display:block;}',
+    '#vh-chat-modal.visible{opacity:1;transform:translateY(0) scale(1);}',
+    '#vh-chat-modal.maximized{inset:24px;width:auto;height:auto;max-width:none;max-height:none;border-radius:12px;}',
+    '#vh-chat-modal iframe{width:100%;height:100%;border:none;display:block;}',
+
+    /* Sluitknop — alleen mobiel */
+    '#vh-chat-close{display:none;position:absolute;top:10px;right:10px;z-index:2147483647;width:26px;height:26px;border-radius:50%;border:none;cursor:pointer;background:rgba(0,0,0,0.55);color:#fff;font-size:14px;align-items:center;justify-content:center;line-height:1;}',
+    '@media(max-width:480px){#vh-chat-close{display:flex;}}',
+
+    /* Maximaliseer-knop — alleen desktop */
+    '#vh-chat-maximize{position:absolute;top:10px;right:10px;z-index:2147483647;width:26px;height:26px;border-radius:50%;border:none;cursor:pointer;background:rgba(0,0,0,0.45);color:#fff;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s;}',
+    '#vh-chat-maximize:hover{background:rgba(0,0,0,0.70);}',
+    '@media(max-width:480px){#vh-chat-maximize{display:none;}}',
+
+    '#vh-chat-overlay{display:none;position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.08);}',
+    '#vh-chat-overlay.open{display:block;}',
+
+    '#vh-chat-popup{position:fixed;bottom:96px;right:24px;z-index:99999;background:#ffffff;color:#1a1a14;border-radius:12px 12px 0 12px;padding:12px 14px 10px;max-width:240px;box-shadow:0 4px 16px rgba(0,0,0,.18);font-family:sans-serif;font-size:13px;line-height:1.4;opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s;pointer-events:none;}',
+    '#vh-chat-popup.visible{opacity:1;transform:translateY(0);pointer-events:auto;}',
+    '#vh-chat-popup-close{position:absolute;top:4px;right:6px;background:none;border:none;cursor:pointer;font-size:14px;color:#999;line-height:1;padding:0;}',
+    '#vh-chat-popup p{margin:0;font-weight:600;}',
+
+    /* Fallback-bericht: getoond i.p.v. de chat als de server niet bereikbaar is */
+    '#vh-chat-fallback{display:none;position:fixed;z-index:99999;bottom:96px;right:24px;width:240px;max-width:calc(100vw - 32px);background:#ffffff;color:#1a1a14;border-radius:12px 12px 0 12px;padding:14px 30px 14px 14px;box-shadow:0 4px 16px rgba(0,0,0,.18);font-family:sans-serif;font-size:13px;line-height:1.5;}',
+    '#vh-chat-fallback.visible{display:block;}',
+    '#vh-chat-fallback p{margin:0 0 6px;}',
+    '#vh-chat-fallback p:last-child{margin-bottom:0;}',
+    '#vh-chat-fallback strong{display:block;margin-bottom:4px;}',
+    '#vh-chat-fallback a{color:#5c6b1e;font-weight:600;text-decoration:none;}',
+    '#vh-chat-fallback-close{position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;color:#999;line-height:1;padding:0;}',
+
+    '@media(max-width:480px){',
+      '#vh-chat-modal{bottom:0;right:0;left:0;width:100%;border-radius:16px 16px 0 0;height:85vh;max-height:85vh;}',
+      '#vh-chat-btn{bottom:140px;right:16px;}',
+      '#vh-chat-popup{bottom:212px;right:16px;}',
+      '#vh-chat-fallback{bottom:212px;right:16px;}',
+    '}',
+  ].join('');
+  document.head.appendChild(style);
+
+  /* ── Overlay ── */
+  var overlay = document.createElement('div');
+  overlay.id = 'vh-chat-overlay';
+  document.body.appendChild(overlay);
+
+  /* ── Popup ballon ── */
+  var popup = document.createElement('div');
+  popup.id = 'vh-chat-popup';
+  popup.innerHTML =
+    '<button id="vh-chat-popup-close" aria-label="Sluiten">✕</button>' +
+    '<p>Wat kost uw tuinproject? Tik hier om te berekenen.</p>';
+  document.body.appendChild(popup);
+
+  function hidePopup() { popup.classList.remove('visible'); }
+
+  document.getElementById('vh-chat-popup-close').addEventListener('click', function (e) {
+    e.stopPropagation();
+    hidePopup();
+  });
+  popup.addEventListener('click', function () { attemptOpenChat(); });
+
+  /* ── Fallback-bericht (server niet bereikbaar) ── */
+  var telHref = CONTACT_TELEFOON.replace(/[^0-9+]/g, '');
+  var fallback = document.createElement('div');
+  fallback.id = 'vh-chat-fallback';
+  fallback.innerHTML =
+    '<button id="vh-chat-fallback-close" aria-label="Sluiten">✕</button>' +
+    '<p><strong>Even geen verbinding</strong>Onze chatbot is nu niet bereikbaar.</p>' +
+    '<p>Bel <a href="tel:' + telHref + '">' + CONTACT_TELEFOON + '</a> of mail ' +
+    '<a href="mailto:' + CONTACT_EMAIL + '">' + CONTACT_EMAIL + '</a>.</p>';
+  document.body.appendChild(fallback);
+
+  function showFallback() { fallback.classList.add('visible'); }
+  function hideFallback() { fallback.classList.remove('visible'); }
+
+  document.getElementById('vh-chat-fallback-close').addEventListener('click', function (e) {
+    e.stopPropagation();
+    hideFallback();
+  });
+
+  /* Controleert of de chatbot-server bereikbaar is (met timeout) */
+  function checkHealth(callback) {
+    var settled = false;
+    var controller = ('AbortController' in window) ? new AbortController() : null;
+
+    var timer = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      if (controller) controller.abort();
+      callback(false);
+    }, HEALTHCHECK_TIMEOUT_MS);
+
+    fetch(CHATBOT_URL + '/api/info', {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller ? controller.signal : undefined,
+    }).then(function (res) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback(!!res.ok);
+    }).catch(function () {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback(false);
+    });
+  }
+
+  /* Eerst bereikbaarheid checken, dan pas de chat openen (of fallback tonen) */
+  var isChecking = false;
+
+  function attemptOpenChat() {
+    if (isOpen || isChecking) return;
+    hidePopup();
+    hideFallback();
+    isChecking = true;
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    checkHealth(function (ok) {
+      isChecking = false;
+      btn.disabled = false;
+      btn.style.opacity = '';
+      if (ok) {
+        openChat();
+      } else {
+        showFallback();
+      }
+    });
+  }
+
+  /* ── Modal met iframe ── */
+  var closeBtn = document.createElement('button');
+  closeBtn.id = 'vh-chat-close';
+  closeBtn.setAttribute('aria-label', 'Sluiten');
+  closeBtn.textContent = '✕';
+
+  var maxBtn = document.createElement('button');
+  maxBtn.id = 'vh-chat-maximize';
+  maxBtn.setAttribute('aria-label', 'Groter maken');
+  maxBtn.innerHTML = ICON_EXPAND;
+
+  var iframe = document.createElement('iframe');
+  iframe.src = CHATBOT_URL;
+  iframe.title = 'Veldman Hoveniers – Tuinaanleg prijsindicatie';
+  iframe.allow = 'clipboard-write';
+
+  var modal = document.createElement('div');
+  modal.id = 'vh-chat-modal';
+  modal.appendChild(closeBtn);
+  modal.appendChild(maxBtn);
+  modal.appendChild(iframe);
+  document.body.appendChild(modal);
+
+  /* Popup verschijnt na 3 seconden */
+  setTimeout(function () { popup.classList.add('visible'); }, 3000);
+
+  /* ── Floating knop ── */
+  var btn = document.createElement('button');
+  btn.id = 'vh-chat-btn';
+  btn.setAttribute('aria-label', 'Tuinadvies chatbot openen');
+  btn.innerHTML =
+    '<img src="' + CHATBOT_URL + '/Logo%20social%20media.png" alt="Veldman Hoveniers" />' +
+    '<span id="vh-chat-badge" aria-hidden="true">1</span>';
+  document.body.appendChild(btn);
+
+  /* ── WordPress vaste knoppen verbergen als chat open is ── */
+  var hiddenEls = [];
+
+  function hideWpButtons() {
+    hiddenEls = [];
+    var all = document.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.id && el.id.indexOf('vh-chat') === 0) continue;
+      var st = window.getComputedStyle(el);
+      if (st.position === 'fixed' && parseInt(st.bottom) < 200 && st.display !== 'none') {
+        hiddenEls.push({ el: el, display: el.style.display });
+        el.style.display = 'none';
+      }
+    }
+  }
+
+  function showWpButtons() {
+    for (var i = 0; i < hiddenEls.length; i++) {
+      hiddenEls[i].el.style.display = hiddenEls[i].display;
+    }
+    hiddenEls = [];
+  }
+
+  /* ── Maximaliseer logica ── */
+  var isMaximized = false;
+
+  function setMaximized(on) {
+    isMaximized = on;
+    modal.classList.toggle('maximized', on);
+    maxBtn.innerHTML   = on ? ICON_COMPRESS : ICON_EXPAND;
+    maxBtn.setAttribute('aria-label', on ? 'Kleiner maken' : 'Groter maken');
+  }
+
+  maxBtn.addEventListener('click', function () { setMaximized(!isMaximized); });
+
+  /* ── Open / sluit logica ── */
+  var isOpen = false;
+
+  function openChat() {
+    isOpen = true;
+    hidePopup();
+    hideWpButtons();
+    document.body.style.overflow = 'hidden';
+    var badge = document.getElementById('vh-chat-badge');
+    if (badge) badge.style.display = 'none';
+
+    overlay.classList.add('open');
+    modal.classList.add('open');
+    setTimeout(function () { modal.classList.add('visible'); }, 10);
+    btn.setAttribute('aria-label', 'Tuinadvies chatbot sluiten');
+  }
+
+  function closeChat() {
+    isOpen = false;
+    setMaximized(false);
+    showWpButtons();
+    document.body.style.overflow = '';
+    modal.classList.remove('visible');
+    overlay.classList.remove('open');
+    setTimeout(function () { modal.classList.remove('open'); }, 200);
+    btn.setAttribute('aria-label', 'Tuinadvies chatbot openen');
+    iframe.src = CHATBOT_URL;
+  }
+
+  btn.addEventListener('click', function () { isOpen ? closeChat() : attemptOpenChat(); });
+  closeBtn.addEventListener('click', closeChat);
+  overlay.addEventListener('click', closeChat);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (isOpen) closeChat();
+    hideFallback();
+  });
+
+})();
+</script>
