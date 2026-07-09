@@ -165,6 +165,17 @@ def _chat_css(primary: str) -> str:
   --dut: #ffffff;
   --dsub: #6b6b50;
   --dbrd: #d4cfc0;
+  --dav: #e8e4d8;
+}}
+@media (prefers-color-scheme: dark) {{
+  :root {{
+    --dbg: #2a2a1f;
+    --dbb: #2f2f24;
+    --dbt: #e4e4cc;
+    --dsub: #a0a07a;
+    --dbrd: #3a3a2e;
+    --dav:  #3a3830;
+  }}
 }}
 .demo-msgs {{ display:flex; flex-direction:column; gap:14px; padding:8px 0;
               font-family:'Segoe UI',system-ui,sans-serif; font-size:15px; line-height:1.6; }}
@@ -172,8 +183,8 @@ def _chat_css(primary: str) -> str:
 .demo-row.user {{ flex-direction:row-reverse; }}
 .demo-av {{ width:38px; height:38px; border-radius:50%; flex-shrink:0;
             display:flex; align-items:center; justify-content:center;
-            font-size:1.2em; background:#e8e4d8; box-shadow:0 1px 4px rgba(0,0,0,.12); }}
-.demo-row.user .demo-av {{ background:#d4cfc0; }}
+            font-size:1.2em; background:var(--dav); box-shadow:0 1px 4px rgba(0,0,0,.12); }}
+.demo-row.user .demo-av {{ background:var(--da); }}
 .demo-bbl {{ max-width:80%; padding:10px 14px; word-break:break-word;
              border-radius:4px 14px 14px 14px;
              background:var(--dbb); color:var(--dbt);
@@ -182,7 +193,7 @@ def _chat_css(primary: str) -> str:
                             border-radius:14px 4px 14px 14px; }}
 .demo-bbl.wide {{ max-width:96%; }}
 .demo-bbl strong {{ font-weight:700; }}
-.demo-bbl em     {{ font-style:italic; color:#555; }}
+.demo-bbl em     {{ font-style:italic; color:var(--dsub); }}
 .demo-bbl ol.md-list {{ list-style:none; margin:6px 0 4px 4px; padding:0; }}
 .demo-bbl ul.md-list {{ list-style:disc;  margin:6px 0 4px 20px; padding:0; }}
 .demo-bbl .md-list li {{ margin:3px 0; }}
@@ -302,7 +313,8 @@ _kleur = _ac["bedrijf"].get("kleur", "#3E7C4F")
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
-:root{--ink:#1C2B23;--leaf:#3E7C4F;--mist:#EEF2EC;--paper:#FBFCFA;--line:#DCE4DA;}
+:root{--ink:#1C2B23;--leaf:#3E7C4F;--mist:#EEF2EC;--paper:#FBFCFA;--line:#DCE4DA;--label:#555555;--muted:#777777;}
+@media(prefers-color-scheme:dark){:root{--ink:#D4E8D5;--mist:#1A2B1C;--paper:#111811;--line:#2A3C2B;--label:#A8BAA6;--muted:#8A9E88;}}
 html,body,[class*="css"]{font-family:'Inter',sans-serif!important;color:var(--ink);}
 [data-testid="stAppViewContainer"]{background:var(--paper)!important;}
 [data-testid="stHeader"]{background:transparent!important;}
@@ -310,12 +322,14 @@ html,body,[class*="css"]{font-family:'Inter',sans-serif!important;color:var(--in
 /* Indiqa intro */
 .iq-eyebrow{color:var(--leaf);font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
 .iq-title{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.5px;color:var(--ink);margin-bottom:8px;}
-.iq-sub{font-size:15px;color:#44534A;margin-bottom:16px;}
+.iq-sub{font-size:15px;color:var(--muted);margin-bottom:16px;}
 .iq-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:4px 0 20px;}
-.iq-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 16px;}
+.iq-card{background:var(--mist);border:1px solid var(--line);border-radius:12px;padding:20px 16px;}
 .iq-tag{display:inline-block;background:var(--mist);color:var(--leaf);font-weight:600;font-size:12px;padding:4px 10px;border-radius:99px;margin-bottom:10px;}
 .iq-card h3{font-family:'Sora',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px;color:var(--ink);}
-.iq-card p{font-size:13.5px;color:#44534A;line-height:1.55;}
+.iq-card p{font-size:13.5px;color:var(--muted);line-height:1.55;}
+/* Disclaimer banner */
+.iq-disclaimer{background:rgba(240,200,60,.10);border:1px solid rgba(220,175,40,.35);border-radius:10px;padding:14px 18px;margin:12px 0 4px;font-size:14px;line-height:1.6;}
 /* Bot header */
 .bot-header{color:#fff;padding:14px 18px;font-family:'Sora',sans-serif;
             font-size:1.05em;font-weight:700;border-radius:8px 8px 0 0;margin-bottom:8px;}
@@ -329,9 +343,9 @@ html,body,[class*="css"]{font-family:'Inter',sans-serif!important;color:var(--in
 def _pheader() -> None:
     """Min / Max kolomkoppen boven een prijsblok."""
     _, b, c, _ = st.columns([3, 1.4, 1.4, 1.1])
-    b.markdown("<span style='font-size:.78rem;font-weight:600;color:#555'>Min</span>",
+    b.markdown("<span style='font-size:.78rem;font-weight:600;color:var(--label)'>Min</span>",
                unsafe_allow_html=True)
-    c.markdown("<span style='font-size:.78rem;font-weight:600;color:#555'>Max</span>",
+    c.markdown("<span style='font-size:.78rem;font-weight:600;color:var(--label)'>Max</span>",
                unsafe_allow_html=True)
 
 
@@ -344,14 +358,14 @@ def _prow(label: str, key: str, unit: str, step: int = 1) -> None:
                    key=f"p_{key}_min", label_visibility="collapsed")
     c.number_input("max", value=int(d[1]), step=step,
                    key=f"p_{key}_max", label_visibility="collapsed")
-    e.markdown(f"<span style='font-size:.77rem;color:#777'>{unit}</span>",
+    e.markdown(f"<span style='font-size:.77rem;color:var(--muted)'>{unit}</span>",
                unsafe_allow_html=True)
 
 
 # ─── Intro ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="iq-sub">Stel hieronder de bedrijfsgegevens en tarieven in en zie direct hoe de bot eruitziet voor uw klanten.</div>
-<div style="background:#fff8e6;border:1px solid #f0d080;border-radius:10px;padding:14px 18px;margin:12px 0 4px;font-size:14px;color:#7a5c00;line-height:1.6;">
+<div class="iq-disclaimer">
   <strong>Dit is een demo met fictieve voorbeeldprijzen.</strong><br>
   Alle getoonde prijzen zijn inclusief materiaal, arbeid en btw. Jouw eigen Indiqa wordt volledig ingericht met jouw tarieven, jouw bedrijfsnaam en jouw huisstijl. De berekeningen kloppen, alleen de bedragen zijn als voorbeeld ingevuld.
 </div>
@@ -430,7 +444,7 @@ with col_cfg:
                 key=sk,
                 label_visibility="collapsed",
             )
-            c.markdown("<span style='font-size:.77rem;color:#777'>m</span>",
+            c.markdown("<span style='font-size:.77rem;color:var(--muted)'>m</span>",
                        unsafe_allow_html=True)
 
     # ── Volume kortingen ──────────────────────────────────────────────────────
@@ -444,9 +458,9 @@ with col_cfg:
         for cat, tiers in VOLUME_KORTINGEN.items():
             st.markdown(f"**{_VK_LABELS.get(cat, cat)}**")
             h1, h2, h3, h4, h5 = st.columns([0.9, 1.4, 1.0, 1.4, 1.8])
-            h2.markdown("<span style='font-size:.77rem;font-weight:600;color:#555'>Drempel</span>",
+            h2.markdown("<span style='font-size:.77rem;font-weight:600;color:var(--label)'>Drempel</span>",
                         unsafe_allow_html=True)
-            h4.markdown("<span style='font-size:.77rem;font-weight:600;color:#555'>Factor</span>",
+            h4.markdown("<span style='font-size:.77rem;font-weight:600;color:var(--label)'>Factor</span>",
                         unsafe_allow_html=True)
             for i, (drempel, factor) in enumerate(tiers):
                 a, b, c, d, e = st.columns([0.9, 1.4, 1.0, 1.4, 1.8])
@@ -466,7 +480,7 @@ with col_cfg:
                 )
                 korting = round((1.0 - f_live) * 100)
                 e.markdown(
-                    f"<span style='font-size:.8rem;color:#666'>−{korting}% korting</span>",
+                    f"<span style='font-size:.8rem;color:var(--muted)'>−{korting}% korting</span>",
                     unsafe_allow_html=True,
                 )
 
