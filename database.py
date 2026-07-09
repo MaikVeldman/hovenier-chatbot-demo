@@ -1,20 +1,2 @@
-# database.py
-from __future__ import annotations
-
-import os
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///chatbot.db")
-
-_connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    connect_args=_connect_args,
-)
-
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-Base = declarative_base()
+# database.py — backward-compatible re-export, verwijder in fase 12
+from infrastructure.db.database import engine, SessionLocal, Base, DATABASE_URL

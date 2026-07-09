@@ -1,5 +1,2 @@
-# ====== HOVENIER INSTELLINGEN (pas dit aan) ======
-BEDRIJFSNAAM = "[Veldman hoveniers]"
-REGIO = "regio Balkbrug (binnen 30 km)"
-CONTACT_EMAIL = "info@veldmanhoveniers.nl"
-CONTACT_TELEFOON = "06-18906921"
+# bedrijf.py — backward-compatible re-export, verwijder in fase 12
+from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON
