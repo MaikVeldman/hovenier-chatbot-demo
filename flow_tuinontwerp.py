@@ -5,10 +5,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
 
 from flow_tuinaanleg import parse_m2, _is_dont_know
+from core.flows.base import BaseFlow
 
 
 @dataclass
-class TuinontWerpFlow:
+class TuinontWerpFlow(BaseFlow):
     """Flow voor een 3D tuinontwerp prijsindicatie. Eén vraag: tuin m²."""
     step_index: int = 0
     answers: Dict[str, Any] = field(default_factory=dict)

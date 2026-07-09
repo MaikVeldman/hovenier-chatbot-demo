@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from flow_tuinaanleg import parse_m2, parse_yesno, _is_dont_know
+from core.flows.base import BaseFlow
 
 # ----------------------------------------------------------------
 # Constants
@@ -133,7 +134,7 @@ def _parse_erf_types(text: str) -> Optional[List[str]]:
 # ----------------------------------------------------------------
 
 @dataclass
-class LosseOnderdelenFlow:
+class LosseOnderdelenFlow(BaseFlow):
     """
     Flow voor losse onderdelen met directe m² invoer.
 
@@ -211,6 +212,9 @@ class LosseOnderdelenFlow:
 
     def start_question(self) -> str:
         return self._menu_text()
+
+    def get_question(self) -> str:
+        return self.start_question()
 
     def handle(self, user_text: str) -> Tuple[str, bool]:
         if self._done:

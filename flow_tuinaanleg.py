@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Tuple, List
 
 from bedrijf import CONTACT_TELEFOON, CONTACT_EMAIL
 from pricing import PRIJZEN
+from core.flows.base import BaseFlow
 
 
 _M2_RE = re.compile(r"(?P<num>\d+(?:[.,]\d+)?)\s*(?:m2|m²)?", re.IGNORECASE)
@@ -93,7 +94,7 @@ class Step:
 # ============================================================
 
 @dataclass
-class TuinaanlegFlowV2:
+class TuinaanlegFlowV2(BaseFlow):
     """Verbeterde gehele-tuin flow: stelt directe m²-vragen per onderdeel."""
     step_index: int = 0
     answers: Dict[str, Any] = field(default_factory=dict)
