@@ -140,6 +140,7 @@ class DbContactSubmission(Base):
     notitie              = Column(Text, nullable=True)
     price_calculation_id = Column(Integer, ForeignKey("price_calculations.id"), nullable=True)
     email_sent_at        = Column(DateTime, nullable=True)
+    bekijk_token         = Column(String(36), unique=True, nullable=True)
 
     session           = relationship("DbSession",          back_populates="contact_submissions")
     price_calculation = relationship("DbPriceCalculation", back_populates="contact_submissions")

@@ -542,6 +542,7 @@ def _build_customer_html(
     naam: str,
     costs: Optional[Dict[str, Any]],
     flow_type: Optional[str],
+    bekijk_token: Optional[str] = None,
 ) -> str:
     price_block = ""
     if costs:
@@ -566,8 +567,22 @@ def _build_customer_html(
         <div style="margin-top:20px;">
           {_grouped_breakdown_html(costs)}
         </div>
-
 """
+
+    portaal_blok = ""
+    if bekijk_token:
+        _base = os.getenv("BASE_URL", "https://www.veldmanhoveniers.nl")
+        _url  = f"{_base}/mijn-offerte/{bekijk_token}"
+        portaal_blok = (
+            f'<div style="margin-top:20px;padding:16px 20px;background:{_BG};'
+            f'border-radius:8px;border-left:4px solid {_GREEN};">'
+            f'<p style="margin:0 0 8px;font-size:14px;font-weight:700;color:{_TEXT};">Uw offerte online bekijken?</p>'
+            f'<p style="margin:0 0 12px;font-size:13px;color:{_MUTED};">'
+            'Via onderstaande link kunt u uw offerte-indicatie altijd terugvinden en bewaren.</p>'
+            f'<a href="{_url}" style="display:inline-block;background:{_GREEN};color:{_WHITE};'
+            'padding:10px 20px;border-radius:7px;text-decoration:none;font-weight:600;font-size:13px;">'
+            'Bekijk uw offerte &rarr;</a></div>'
+        )
 
     content = f"""
     <h2 style="margin:0 0 4px;font-size:20px;color:{_TEXT};">Goed nieuws, {naam}! Uw aanvraag is ontvangen.</h2>
@@ -581,6 +596,7 @@ def _build_customer_html(
     </p>
 
     {price_block}
+    {portaal_blok}
 
     <div style="margin-top:24px;padding:16px 20px;background:{_BG};border-radius:8px;border-left:4px solid {_GREEN};">
       <p style="margin:0 0 6px;font-size:14px;color:{_TEXT};font-weight:700;">Wat kunt u verwachten?</p>
@@ -594,7 +610,7 @@ def _build_customer_html(
       <a href="https://www.veldmanhoveniers.nl"
          style="display:inline-block;background:{_GREEN};color:{_WHITE};padding:12px 24px;
                 border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
-        Bekijk onze website →
+        Bekijk onze website &rarr;
       </a>
     </div>"""
 
@@ -617,6 +633,7 @@ def send_contact_email(
     leadscore: int = 0,
     lead_label: str = "",
     score_breakdown: Optional[Dict[str, int]] = None,
+    bekijk_token: Optional[str] = None,
 ) -> None:
     if not RESEND_API_KEY:
         raise RuntimeError("RESEND_API_KEY niet ingesteld in .env")
@@ -643,7 +660,7 @@ def send_contact_email(
             "from":    RESEND_FROM,
             "to":      [email],
             "subject": "Uw aanvraag bij Veldman Hoveniers",
-            "html":    _build_customer_html(naam, costs, flow_type),
+            "html":    _build_customer_html(naam, costs, flow_type, bekijk_token=bekijk_token),
         })
     except Exception as exc:
         print(f"[mailer] Klantbevestiging niet verstuurd (domein nog niet geverifieerd?): {exc}")

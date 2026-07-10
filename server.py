@@ -47,6 +47,8 @@ except Exception:
 ADMIN_USER     = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
+TENANT_SLUG    = os.getenv("TENANT_SLUG", "veldmanhoveniers")
+BASE_URL       = os.getenv("BASE_URL", "http://localhost:5000")
 
 app = Flask(__name__, static_folder="static", static_url_path="", template_folder="templates")
 app.secret_key = SECRET_KEY
@@ -55,6 +57,14 @@ _origins = ["https://veldmanhoveniers.nl", "https://www.veldmanhoveniers.nl"]
 if DEMO_MODE:
     _origins += ["https://indiqa.nl", "https://www.indiqa.nl", "https://demo.indiqa.nl"]
 CORS(app, origins=_origins)
+
+# ============================================================
+# Template globals
+# ============================================================
+
+@app.context_processor
+def _inject_session():
+    return {"session": flask_session}
 
 # ============================================================
 # Admin auth helper
@@ -157,17 +167,58 @@ def chat():
 def admin_login():
     error = None
     if request.method == "POST":
-        if (request.form.get("username") == ADMIN_USER
-                and request.form.get("password") == ADMIN_PASSWORD):
+        login_input = (request.form.get("username") or "").strip()
+        password    = request.form.get("password") or ""
+        authenticated = False
+        tenant_id = None
+        user_id   = None
+        user_email = login_input
+
+        # ── Probeer DB-authenticatie ──────────────────────────
+        if _DB:
+            try:
+                from infrastructure.db.repositories.user_repository import UserRepository
+                _user_repo = UserRepository()
+                _user = _user_repo.find_by_email(login_input)
+                if _user and _user_repo.verify_password(_user, password):
+                    authenticated = True
+                    tenant_id  = _user.tenant_id
+                    user_id    = _user.id
+                    user_email = _user.email
+            except Exception as _e:
+                print(f"[admin_login] DB-auth fout: {_e}")
+
+        # ── Fallback: ENV-var authenticatie ───────────────────
+        if not authenticated and login_input == ADMIN_USER and password == ADMIN_PASSWORD:
+            authenticated = True
+            user_email = ADMIN_USER
+            if _DB:
+                try:
+                    from infrastructure.db.repositories.tenant_repository import TenantRepository
+                    from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON
+                    tenant_id = TenantRepository().get_or_create_id(
+                        slug=TENANT_SLUG,
+                        bedrijfsnaam=BEDRIJFSNAAM,
+                        regio=REGIO,
+                        contact_email=CONTACT_EMAIL,
+                        contact_telefoon=CONTACT_TELEFOON,
+                    )
+                except Exception as _e:
+                    print(f"[admin_login] tenant init fout: {_e}")
+
+        if authenticated:
             flask_session["admin_logged_in"] = True
+            flask_session["tenant_id"]  = tenant_id
+            flask_session["user_id"]    = user_id
+            flask_session["user_email"] = user_email
             return redirect(url_for("admin_overzicht"))
-        error = "Onjuiste gebruikersnaam of wachtwoord."
+        error = "Onjuiste inloggegevens."
     return render_template("admin/login.html", error=error)
 
 
 @app.route("/beheer/logout")
 def admin_logout():
-    flask_session.pop("admin_logged_in", None)
+    flask_session.clear()
     return redirect(url_for("admin_login"))
 
 
@@ -177,8 +228,8 @@ def admin_logout():
 def admin_overzicht():
     if not _DB:
         return "Database niet beschikbaar.", 503
-    from database import SessionLocal
-    from models import DbSession, DbContactSubmission
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbSession, DbContactSubmission
     from sqlalchemy import func
 
     zeven_dagen_terug = datetime.now(timezone.utc).replace(
@@ -203,6 +254,7 @@ def admin_overzicht():
 
     return render_template(
         "admin/overzicht.html",
+        active="overzicht",
         sessies=recente_sessies,
         stats={
             "sessies":   stats_7d_sessies,
@@ -217,8 +269,8 @@ def admin_overzicht():
 def admin_sessie_detail(session_id: str):
     if not _DB:
         return "Database niet beschikbaar.", 503
-    from database import SessionLocal
-    from models import DbSession, DbMessage, DbFlowEvent, DbPriceCalculation, DbContactSubmission
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbSession, DbMessage, DbFlowEvent, DbPriceCalculation, DbContactSubmission
 
     with SessionLocal() as db:
         sessie = db.get(DbSession, session_id)
@@ -231,11 +283,183 @@ def admin_sessie_detail(session_id: str):
 
     return render_template(
         "admin/sessie_detail.html",
+        active="overzicht",
         sessie=sessie,
         berichten=berichten,
         events=events,
         berekeningen=berekeningen,
         contact=contact,
+    )
+
+
+@app.route("/beheer/leads")
+@_admin_required
+def admin_leads():
+    if not _DB:
+        return "Database niet beschikbaar.", 503
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbContactSubmission
+
+    with SessionLocal() as db:
+        contacten = (
+            db.query(DbContactSubmission)
+            .order_by(DbContactSubmission.timestamp.desc())
+            .limit(100)
+            .all()
+        )
+    return render_template("admin/leads.html", active="leads", contacten=contacten)
+
+
+_PRIJS_CATEGORIEEN = [
+    ("Onderhoud", [
+        ("onderhoud_aanleg_uurtarief",              "Uurtarief aanleg/onderhoud",          "€/uur"),
+        ("voorjaar_najaarsbeurt",                   "Voorjaars-/najaarsbeurt",             "€ totaal"),
+        ("gazon_maaien",                            "Gazon maaien",                        "€/keer"),
+        ("haag_snoeien",                            "Haag snoeien",                        "€/keer"),
+    ]),
+    ("Grondwerk & afvoer", [
+        ("grond_afvoer_per_m3",                     "Grond afvoeren",                      "€/m³"),
+        ("zand_aanvoer_per_m3",                     "Zand aanvoeren",                      "€/m³"),
+        ("puin_aanvoer_per_m3",                     "Puin aanvoeren",                      "€/m³"),
+        ("bestrating_verwijderen_per_m3",           "Bestrating verwijderen",              "€/m³"),
+        ("bestrating_afvoer_per_m3",                "Bestrating afvoeren",                 "€/m³"),
+        ("bouw_sloop_afval_afvoer_per_m3",          "Bouw-/sloopafval afvoeren",           "€/m³"),
+    ]),
+    ("Bestrating", [
+        ("beton_straatwerk_per_m2",                 "Betonstraatstenen",                   "€/m²"),
+        ("keramisch_straatwerk_per_m2",             "Keramische tegels",                   "€/m²"),
+        ("gebakken_straatwerk_per_m2",              "Gebakken klinkers",                   "€/m²"),
+        ("grind_per_m2",                            "Grind",                               "€/m²"),
+        ("plaatsen_betonband_per_m1",               "Betonband plaatsen",                  "€/m¹"),
+        ("zaagwerk_per_m1",                         "Zaagwerk",                            "€/m¹"),
+        ("voegen_straatwerk_per_m2",                "Voegen (onkruidwerend)",              "€/m²"),
+    ]),
+    ("Vlonders", [
+        ("vlonder_zachthout_per_m2",                "Zachthout (grenen/lariks)",           "€/m²"),
+        ("vlonder_hardhout_per_m2",                 "Hardhout (bangkirai)",                "€/m²"),
+        ("vlonder_composiet_per_m2",                "Composiet",                           "€/m²"),
+    ]),
+    ("Groen", [
+        ("graszoden_per_m2",                        "Graszoden",                           "€/m²"),
+        ("beplanting_border_per_m2",                "Beplanting border",                   "€/m²"),
+        ("beplanting_haag_voordelig_laag_per_m1",   "Haag voordelig laag (0,5–1m)",        "€/m¹"),
+        ("beplanting_haag_voordelig_hoog_per_m1",   "Haag voordelig hoog (1,5–2m)",        "€/m¹"),
+        ("beplanting_haag_premium_laag_per_m1",     "Haag premium laag (0,5–1m)",          "€/m¹"),
+        ("beplanting_haag_premium_hoog_per_m1",     "Haag premium hoog (1,5–2m)",          "€/m¹"),
+        ("beplanting_boom_per_stuk",                "Boom plaatsen",                       "€/stuk"),
+    ]),
+    ("Beregening", [
+        ("beregening_installatie_basis",            "Installatie basis (handmatig)",       "€ vast"),
+        ("beregening_installatie_volautomatisch",   "Installatie volautomatisch",          "€ vast"),
+        ("beregening_installatie_highend",          "Installatie highend",                 "€ vast"),
+        ("beregening_gazon_basis_per_m2",           "Gazon basis",                         "€/m²"),
+        ("beregening_gazon_volautomatisch_per_m2",  "Gazon volautomatisch",                "€/m²"),
+        ("beregening_gazon_highend_per_m2",         "Gazon highend",                       "€/m²"),
+        ("beregening_beplanting_basis_per_m2",      "Beplanting basis",                    "€/m²"),
+        ("beregening_beplanting_volautomatisch_per_m2", "Beplanting volautomatisch",       "€/m²"),
+        ("beregening_beplanting_highend_per_m2",    "Beplanting highend",                  "€/m²"),
+    ]),
+    ("Overkapping & verlichting", [
+        ("overkapping_per_m2",                      "Overkapping",                         "€/m²"),
+        ("verlichting_basis_per_stuk",              "Verlichting (spot/paal)",             "€/stuk"),
+    ]),
+    ("Erfafscheiding", [
+        ("plaatsen_betonschutting_per_m1",          "Betonschutting",                      "€/m¹"),
+        ("plaatsen_designschutting_per_m1",         "Designschutting",                     "€/m¹"),
+        ("plaatsen_poortdeur_per_st",               "Poort/deur",                          "€/stuk"),
+    ]),
+    ("3D Tuinontwerp", [
+        ("3d_tuinontwerp_<100m2",                   "Tuinontwerp <100m²",                  "€ vast"),
+        ("3d_tuinontwerp_100-500m2",                "Tuinontwerp 100–500m²",               "€ vast"),
+        ("3d_tuinontwerp_500-1000m2",               "Tuinontwerp 500–1000m²",              "€ vast"),
+        ("3d_tuinontwerp_>1000m2",                  "Tuinontwerp >1000m²",                 "€ vast"),
+    ]),
+]
+
+
+@app.route("/beheer/tarieven", methods=["GET", "POST"])
+@_admin_required
+def admin_tarieven():
+    import core.pricing.pricing as _p
+    tenant_id = flask_session.get("tenant_id") if _DB else None
+    repo = None
+    if _DB and tenant_id:
+        from infrastructure.db.repositories.tenant_repository import TenantRepository
+        repo = TenantRepository()
+
+    if request.method == "POST" and repo:
+        overrides = {}
+        for _, items in _PRIJS_CATEGORIEEN:
+            for key, _, _ in items:
+                try:
+                    mn = int(request.form.get(f"min_{key}", 0))
+                    mx = int(request.form.get(f"max_{key}", 0))
+                    default = _p.PRIJZEN.get(key, (0, 0))
+                    if (mn, mx) != default:
+                        overrides[key] = (mn, mx)
+                except (ValueError, TypeError):
+                    pass
+        repo.save_prijzen(tenant_id, overrides)
+        return redirect(url_for("admin_tarieven", opgeslagen=1))
+
+    overrides = repo.get_prijzen_overrides(tenant_id) if repo else {}
+    opgeslagen = request.args.get("opgeslagen") == "1"
+
+    categorieen = []
+    for cat_naam, items in _PRIJS_CATEGORIEEN:
+        rijen = []
+        for key, label, eenheid in items:
+            default = _p.PRIJZEN.get(key, (0, 0))
+            current = overrides.get(key, default)
+            rijen.append({
+                "key":     key,
+                "label":   label,
+                "eenheid": eenheid,
+                "min":     current[0],
+                "max":     current[1],
+                "is_override": key in overrides,
+            })
+        categorieen.append({"naam": cat_naam, "rijen": rijen})
+
+    return render_template(
+        "admin/tarieven.html",
+        active="tarieven",
+        categorieen=categorieen,
+        opgeslagen=opgeslagen,
+        db_actief=bool(repo),
+    )
+
+
+@app.route("/mijn-offerte/<token>")
+def klantportaal(token: str):
+    if not _DB:
+        return "Portaal tijdelijk niet beschikbaar.", 503
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbContactSubmission, DbPriceCalculation, DbSession
+
+    with SessionLocal() as db:
+        contact = db.query(DbContactSubmission).filter_by(bekijk_token=token).first()
+        if not contact:
+            return render_template("klantportaal/niet_gevonden.html"), 404
+
+        berekening = None
+        if contact.price_calculation_id:
+            berekening = db.get(DbPriceCalculation, contact.price_calculation_id)
+        if not berekening:
+            berekening = (
+                db.query(DbPriceCalculation)
+                .filter_by(session_id=contact.session_id)
+                .order_by(DbPriceCalculation.timestamp.desc())
+                .first()
+            )
+
+        sessie = db.get(DbSession, contact.session_id)
+
+    return render_template(
+        "klantportaal/offerte.html",
+        contact=contact,
+        berekening=berekening,
+        sessie=sessie,
     )
 
 

@@ -65,8 +65,22 @@ class ContactController:
             sessie_volledig=True, offerte_aangevraagd=True
         )
 
+        bekijk_token = None
         email_sent_at = None
+
         if _DB:
+            bekijk_token = log_contact_submission(
+                session_id=self.state.session_id or "",
+                naam=self.state.contact_naam or "",
+                telefoon=self.state.contact_telefoon or "",
+                email=self.state.contact_email or "",
+                adres=self.state.contact_adres or "",
+                woonplaats=self.state.contact_woonplaats or "",
+                notitie=self.state.contact_opmerking,
+                price_calculation_id=self.state.last_calc_id,
+                email_sent_at=None,
+            )
+
             try:
                 send_contact_email(
                     naam=self.state.contact_naam or "",
@@ -80,23 +94,27 @@ class ContactController:
                     leadscore=score,
                     lead_label=label,
                     score_breakdown=breakdown,
+                    bekijk_token=bekijk_token,
                 )
                 from datetime import datetime as _dt, timezone as _tz
                 email_sent_at = _dt.now(_tz.utc)
             except Exception as exc:
                 print(f"[mailer] Kon e-mail niet versturen: {exc}")
 
-            log_contact_submission(
-                session_id=self.state.session_id or "",
-                naam=self.state.contact_naam or "",
-                telefoon=self.state.contact_telefoon or "",
-                email=self.state.contact_email or "",
-                adres=self.state.contact_adres or "",
-                woonplaats=self.state.contact_woonplaats or "",
-                notitie=self.state.contact_opmerking,
-                price_calculation_id=self.state.last_calc_id,
-                email_sent_at=email_sent_at,
-            )
+            if email_sent_at:
+                try:
+                    from infrastructure.db.database import SessionLocal
+                    from infrastructure.db.db_models import DbContactSubmission
+                    with SessionLocal() as db:
+                        sub = db.query(DbContactSubmission).filter_by(
+                            bekijk_token=bekijk_token
+                        ).first()
+                        if sub:
+                            sub.email_sent_at = email_sent_at
+                            db.commit()
+                except Exception:
+                    pass
+
             log_event(self.state.session_id or "", "contact_submitted", {
                 "naam": self.state.contact_naam,
                 "email": self.state.contact_email,

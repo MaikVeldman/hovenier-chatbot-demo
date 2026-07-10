@@ -1,7 +1,7 @@
-streamlit>=1.31
 flask>=3.0
 flask-cors>=4.0
 python-dotenv
 SQLAlchemy>=2.0
 psycopg2-binary
 resend
+gunicorn>=21.0

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Uw offerte — Veldman Hoveniers</title>
+  <style>
+:root {
+  --green:    #3E7C4F;
+  --green-dk: #1C2B23;
+  --bg:       #F0F4F1;
+  --surface:  #fff;
+  --text:     #1C2B23;
+  --text-2:   #4A6655;
+  --text-3:   #7A9882;
+  --border:   #DDE8DF;
+  --accent-bg:#E8F4EB;
+}
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+a { color: inherit; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.wrapper {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+/* Header */
+.site-header {
+  background: var(--green-dk);
+  padding: 20px 32px;
+  margin-bottom: 28px;
+}
+
+.site-header-inner {
+  max-width: 660px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.site-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.site-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.55);
+  margin-top: 1px;
+}
+
+/* Hero prijs */
+.prijs-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 28px 24px;
+  margin-bottom: 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(28,43,35,.06);
+}
+
+.prijs-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.prijs-bedrag {
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.prijs-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(28,43,35,.05);
+}
+
+.card-header {
+  padding: 12px 20px;
+  background: #F7FAF7;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-3);
+}
+
+/* Contactgegevens */
+.kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  gap: 16px;
+}
+.kv-row:last-child { border-bottom: none; }
+.kv-key { color: var(--text-3); white-space: nowrap; }
+.kv-val { font-weight: 600; text-align: right; }
+
+/* Breakdown */
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  gap: 16px;
+}
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-lbl  { color: var(--text); flex: 1; }
+.breakdown-unit { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.breakdown-eur  { font-weight: 600; color: var(--green); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Disclaimer */
+.disclaimer {
+  background: var(--accent-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+/* Contact block */
+.contact-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.contact-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--accent-bg);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.contact-naam { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.contact-info { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+.contact-info a { color: var(--green); text-decoration: none; }
+.contact-info a:hover { text-decoration: underline; }
+
+/* Footer */
+.page-footer {
+  margin-top: 40px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-3);
+}
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <div>
+      <div class="site-name">Veldman Hoveniers</div>
+      <div class="site-sub">Ontwerp · Aanleg · Onderhoud</div>
+    </div>
+    <div style="color:rgba(255,255,255,.45);font-size:11px;">Uw offerte</div>
+  </div>
+</header>
+
+<div class="wrapper">
+
+  <!-- Prijsindicatie hero -->
+  {% if berekening %}
+  <div class="prijs-hero">
+    <div class="prijs-label">
+      {% if berekening.flow_type == 'gehele_tuin' %}Gehele tuin
+      {% elif berekening.flow_type == 'losse_onderdelen' %}Losse onderdelen
+      {% elif berekening.flow_type == 'tuinontwerp' %}Tuinontwerp
+      {% else %}Prijsindicatie{% endif %}
+      &nbsp;·&nbsp;
+      {{ contact.timestamp.strftime('%d %B %Y') if contact.timestamp else '' }}
+    </div>
+    <div class="prijs-bedrag">
+      €&thinsp;{{ '{:,}'.format(berekening.total_min_eur or 0).replace(',', '.') }}
+      &nbsp;–&nbsp;
+      €&thinsp;{{ '{:,}'.format(berekening.total_max_eur or 0).replace(',', '.') }}
+    </div>
+    <div class="prijs-sub">
+      Dit is een indicatieve prijs. De definitieve offerte stellen wij op na een persoonlijk gesprek.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    Iedere tuin is uniek. Deze indicatie is gebaseerd op uw opgegeven wensen en geeft een globale richtprijs.
+    Materiaalsoort, grondgesteldheid en bereikbaarheid kunnen de eindprijs beïnvloeden. Wij kijken dit graag
+    samen met u door tijdens een vrijblijvend gesprek op locatie.
+  </div>
+
+  <!-- Gegevens -->
+  <div class="card">
+    <div class="card-header">Uw gegevens</div>
+    {% if contact.naam %}
+    <div class="kv-row"><span class="kv-key">Naam</span><span class="kv-val">{{ contact.naam }}</span></div>
+    {% endif %}
+    {% if contact.adres %}
+    <div class="kv-row"><span class="kv-key">Adres</span><span class="kv-val">{{ contact.adres }}</span></div>
+    {% endif %}
+    {% if contact.woonplaats %}
+    <div class="kv-row"><span class="kv-key">Woonplaats</span><span class="kv-val">{{ contact.woonplaats }}</span></div>
+    {% endif %}
+    <div class="kv-row">
+      <span class="kv-key">Aangevraagd op</span>
+      <span class="kv-val">{{ contact.timestamp.strftime('%d-%m-%Y om %H:%M') if contact.timestamp else '–' }}</span>
+    </div>
+    {% if contact.notitie %}
+    <div class="kv-row" style="align-items:flex-start;">
+      <span class="kv-key">Opmerking</span>
+      <span class="kv-val" style="font-style:italic;font-weight:400;">{{ contact.notitie }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Breakdown -->
+  {% if berekening and berekening.breakdown %}
+  <div class="card">
+    <div class="card-header">Kostenopbouw</div>
+    {% for item in berekening.breakdown %}
+    <div class="breakdown-row">
+      <span class="breakdown-lbl">{{ item.label }}</span>
+      {% if item.qty is not none %}
+      <span class="breakdown-unit">{{ item.qty }} {{ item.unit or '' }}</span>
+      {% endif %}
+      <span class="breakdown-eur">
+        {% if item.range_eur %}
+          €{{ '{:,}'.format(item.range_eur[0]|int).replace(',', '.') }} – €{{ '{:,}'.format(item.range_eur[1]|int).replace(',', '.') }}
+        {% else %}op offerte{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Contact opnemen -->
+  <div class="contact-block">
+    <div class="contact-icon">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="contact-naam">Veldman Hoveniers</div>
+      <div class="contact-info">
+        Wij nemen binnenkort contact met u op voor een vrijblijvend gesprek op locatie.<br>
+        <a href="tel:06-18906921">06-18906921</a> &nbsp;·&nbsp;
+        <a href="mailto:info@veldmanhoveniers.nl">info@veldmanhoveniers.nl</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <p>© Veldman Hoveniers · <a href="https://www.veldmanhoveniers.nl" style="color:var(--text-3);">veldmanhoveniers.nl</a></p>
+    <p style="margin-top:4px;">Deze pagina is persoonlijk voor u aangemaakt. Deel de link niet openbaar.</p>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,189 +1,143 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin — Sessiedetail</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #f4f1ec; font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a14; }
-    header { background: #5c6b1e; color: #fff; padding: 16px 32px; display: flex;
-             align-items: center; justify-content: space-between; }
-    header h1 { font-size: 18px; font-weight: 700; }
-    header a { color: rgba(255,255,255,.75); font-size: 13px; text-decoration: none; }
-    header a:hover { color: #fff; }
-    .container { max-width: 980px; margin: 0 auto; padding: 32px 24px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
-    .card { background: #fff; border-radius: 10px; padding: 20px 24px; border: 1px solid #d4cfc0; }
-    .card h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
-               color: #6b6b50; margin-bottom: 14px; }
-    .kv { display: flex; justify-content: space-between; padding: 6px 0;
-          border-bottom: 1px solid #ede9df; font-size: 13px; }
-    .kv:last-child { border-bottom: none; }
-    .kv .k { color: #6b6b50; }
-    .kv .v { font-weight: 600; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-warm { background: #fdecea; color: #b94040; }
-    .badge-potentieel { background: #fef9e7; color: #9a6000; }
-    .badge-orienterend { background: #f0f0e8; color: #6b6b50; }
-    h2.section { font-size: 15px; font-weight: 700; margin-bottom: 12px; margin-top: 28px; }
-    .chat { display: flex; flex-direction: column; gap: 8px; }
-    .msg { max-width: 70%; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
-    .msg.bot { background: #fff; border: 1px solid #d4cfc0; align-self: flex-start; }
-    .msg.user { background: #5c6b1e; color: #fff; align-self: flex-end; }
-    .msg .ts { font-size: 10px; opacity: .6; margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px;
-            overflow: hidden; border: 1px solid #d4cfc0; font-size: 13px; margin-top: 8px; }
-    th { padding: 8px 12px; text-align: left; font-weight: 600; color: #6b6b50;
-         background: #f4f1ec; font-size: 11px; text-transform: uppercase; }
-    td { padding: 8px 12px; border-top: 1px solid #ede9df; word-break: break-all; }
-    .score-big { font-size: 42px; font-weight: 700; color: #5c6b1e; }
-    .score-label { font-size: 15px; color: #6b6b50; margin-top: 4px; }
-    .breakdown-row { display: flex; justify-content: space-between; padding: 5px 0;
-                     border-bottom: 1px solid #ede9df; font-size: 13px; }
-    .breakdown-row:last-child { border-bottom: none; }
-    .pos { color: #27ae60; font-weight: 600; }
-    .neg { color: #c0392b; font-weight: 600; }
-    a.back { color: #5c6b1e; text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 20px; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Sessiedetail</h1>
-    <a href="{{ url_for('admin_logout') }}">Uitloggen</a>
-  </header>
-  <div class="container">
-    <a class="back" href="{{ url_for('admin_overzicht') }}">← Terug naar overzicht</a>
+{% extends "admin/base_admin.html" %}
+{% block title %}Sessiedetail{% endblock %}
+{% block content %}
 
-    <div class="grid">
-      <!-- Sessie-info -->
-      <div class="card">
-        <h2>Sessie</h2>
-        <div class="kv"><span class="k">Gestart</span><span class="v">{{ sessie.started_at.strftime('%d-%m-%Y %H:%M') if sessie.started_at else '–' }}</span></div>
-        <div class="kv"><span class="k">Afgesloten</span><span class="v">{{ sessie.ended_at.strftime('%d-%m-%Y %H:%M') if sessie.ended_at else '–' }}</span></div>
-        <div class="kv"><span class="k">Flow</span><span class="v">{{ 'Gehele tuin' if sessie.flow_type == 'gehele_tuin' else ('Losse onderdelen' if sessie.flow_type else '–') }}</span></div>
-        <div class="kv"><span class="k">Prijs gezien</span><span class="v">{{ '✅ Ja' if sessie.completed else '–' }}</span></div>
-        <div class="kv"><span class="k">Aanvraag ingediend</span><span class="v">{{ '✅ Ja' if sessie.contact_submitted else '–' }}</span></div>
-        <div class="kv"><span class="k">Terug-acties</span><span class="v">{{ sessie.terug_acties or 0 }}</span></div>
-      </div>
+<a class="back-link" href="{{ url_for('admin_overzicht') }}">← Overzicht</a>
 
-      <!-- Leadscore -->
-      <div class="card">
-        <h2>Leadscore</h2>
-        {% if sessie.leadscore is not none %}
-          <div class="score-big">{{ sessie.leadscore }}</div>
-          <div class="score-label">
-            {% if sessie.lead_label == 'warm' %}<span class="badge badge-warm">Warme lead — snel opbellen</span>
-            {% elif sessie.lead_label == 'potentieel' %}<span class="badge badge-potentieel">Potentieel — opvolgen</span>
-            {% else %}<span class="badge badge-orienterend">Oriënterend — lage prioriteit</span>
-            {% endif %}
-          </div>
-          {% if sessie.score_breakdown %}
-            <div style="margin-top:14px;">
-              {% for k, v in sessie.score_breakdown.items() %}
-              <div class="breakdown-row">
-                <span>{{ k.replace('_', ' ') }}</span>
-                <span class="{{ 'pos' if v >= 0 else 'neg' }}">{{ '+' if v >= 0 else '' }}{{ v }}</span>
-              </div>
-              {% endfor %}
-            </div>
-          {% endif %}
-        {% else %}
-          <p style="color:#aaa;font-size:13px;">Nog niet berekend.</p>
-        {% endif %}
-      </div>
+<div class="page-header">
+  <div>
+    <div class="page-title">Sessiedetail</div>
+    <div class="page-sub">{{ sessie.started_at.strftime('%d-%m-%Y %H:%M') if sessie.started_at else sessie.id }}</div>
+  </div>
+</div>
+
+<!-- Sessie + contact naast elkaar -->
+<div class="detail-grid">
+  <div class="card">
+    <div class="card-header">Sessie</div>
+    <div class="meta-row"><span class="meta-key">Gestart</span><span class="meta-val">{{ sessie.started_at.strftime('%d-%m-%Y %H:%M') if sessie.started_at else '–' }}</span></div>
+    <div class="meta-row"><span class="meta-key">Afgesloten</span><span class="meta-val">{{ sessie.ended_at.strftime('%d-%m-%Y %H:%M') if sessie.ended_at else '–' }}</span></div>
+    <div class="meta-row">
+      <span class="meta-key">Flow</span>
+      <span class="meta-val">
+        {% if sessie.flow_type == 'gehele_tuin' %}Gehele tuin
+        {% elif sessie.flow_type == 'losse_onderdelen' %}Losse onderdelen
+        {% elif sessie.flow_type == 'tuinontwerp' %}Tuinontwerp
+        {% else %}–{% endif %}
+      </span>
     </div>
+    <div class="meta-row">
+      <span class="meta-key">Status</span>
+      <span class="meta-val">
+        {% if sessie.contact_submitted %}<span class="badge badge-contact">Aanvraag ontvangen</span>
+        {% elif sessie.completed %}<span class="badge badge-offerte">Prijs gezien</span>
+        {% else %}<span class="badge badge-geen">Geen contact</span>{% endif %}
+      </span>
+    </div>
+    <div class="meta-row"><span class="meta-key">Terug-acties</span><span class="meta-val">{{ sessie.terug_acties or 0 }}</span></div>
+    <div class="meta-row"><span class="meta-key">ID</span><span class="meta-val" style="font-family:monospace;font-size:11px;color:var(--text-3);">{{ sessie.id }}</span></div>
+  </div>
 
-    <!-- Contactgegevens -->
-    {% if contact %}
-    <h2 class="section">Contactgegevens</h2>
-    <div class="card">
-      <div class="kv"><span class="k">Naam</span><span class="v">{{ contact.naam or '–' }}</span></div>
-      <div class="kv"><span class="k">Telefoon</span><span class="v">{{ contact.telefoon or '–' }}</span></div>
-      <div class="kv"><span class="k">E-mail</span><span class="v">{{ contact.email or '–' }}</span></div>
-      <div class="kv"><span class="k">Adres</span><span class="v">{{ contact.adres or '–' }}</span></div>
-      <div class="kv"><span class="k">Woonplaats</span><span class="v">{{ contact.woonplaats or '–' }}</span></div>
-      {% if contact.notitie %}
-      <div class="kv"><span class="k">Opmerking</span><span class="v">{{ contact.notitie }}</span></div>
-      {% endif %}
-      <div class="kv"><span class="k">Mail verstuurd</span><span class="v">{{ contact.email_sent_at.strftime('%H:%M') if contact.email_sent_at else '–' }}</span></div>
+  {% if contact %}
+  <div class="card">
+    <div class="card-header">Contactgegevens</div>
+    <div class="meta-row"><span class="meta-key">Naam</span><span class="meta-val">{{ contact.naam or '–' }}</span></div>
+    <div class="meta-row"><span class="meta-key">Telefoon</span><span class="meta-val">{{ contact.telefoon or '–' }}</span></div>
+    <div class="meta-row"><span class="meta-key">E-mail</span><span class="meta-val">{{ contact.email or '–' }}</span></div>
+    <div class="meta-row"><span class="meta-key">Adres</span><span class="meta-val">{{ contact.adres or '–' }}</span></div>
+    <div class="meta-row"><span class="meta-key">Woonplaats</span><span class="meta-val">{{ contact.woonplaats or '–' }}</span></div>
+    {% if contact.notitie %}
+    <div class="meta-row"><span class="meta-key">Opmerking</span><span class="meta-val" style="font-style:italic;">{{ contact.notitie }}</span></div>
+    {% endif %}
+    <div class="meta-row"><span class="meta-key">Mail verstuurd</span><span class="meta-val">{{ contact.email_sent_at.strftime('%H:%M') if contact.email_sent_at else '–' }}</span></div>
+    {% if contact.bekijk_token %}
+    <div class="meta-row">
+      <span class="meta-key">Klantportaal</span>
+      <span class="meta-val">
+        <a href="/mijn-offerte/{{ contact.bekijk_token }}" target="_blank"
+           style="color:var(--green);text-decoration:none;font-weight:600;">
+          Offerte bekijken →
+        </a>
+      </span>
     </div>
     {% endif %}
+  </div>
+  {% else %}
+  <div class="card" style="display:flex;align-items:center;justify-content:center;">
+    <div class="empty-state">Geen contactaanvraag ingediend.</div>
+  </div>
+  {% endif %}
+</div>
 
-    <!-- Prijsberekeningen -->
-    {% if berekeningen %}
-    <h2 class="section">Prijsberekeningen</h2>
-    {% for b in berekeningen %}
-    <div class="card" style="margin-bottom:12px;">
-      <div class="kv">
-        <span class="k">Tijdstip</span>
-        <span class="v">{{ b.timestamp.strftime('%H:%M:%S') if b.timestamp else '–' }}</span>
-      </div>
-      <div class="kv">
-        <span class="k">Flow</span>
-        <span class="v">{{ 'Gehele tuin' if b.flow_type == 'gehele_tuin' else 'Losse onderdelen' }}</span>
-      </div>
-      <div class="kv">
-        <span class="k">Totaal indicatie</span>
-        <span class="v" style="color:#5c6b1e;font-size:16px;">
-          €{{ '{:,}'.format(b.total_min_eur or 0).replace(',', '.') }} –
-          €{{ '{:,}'.format(b.total_max_eur or 0).replace(',', '.') }}
-        </span>
-      </div>
-      {% if b.breakdown %}
-      <div style="margin-top:12px;">
-        {% for item in b.breakdown %}
-        <div class="breakdown-row">
-          <span>{{ item.label }}</span>
-          <span style="font-size:12px;color:#6b6b50;">
-            {% if item.qty is not none %}{{ item.qty }} {{ item.unit or '' }}{% endif %}
-          </span>
-          <span style="font-weight:600;color:#5c6b1e;">
-            {% if item.range_eur %}
-              €{{ '{:,}'.format(item.range_eur[0]|int).replace(',', '.') }} – €{{ '{:,}'.format(item.range_eur[1]|int).replace(',', '.') }}
-            {% else %}op offerte{% endif %}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
+<!-- Prijsberekeningen -->
+{% if berekeningen %}
+<div class="section-title">Prijsberekeningen</div>
+{% for b in berekeningen %}
+<div class="card" style="margin-bottom:12px;">
+  <div class="card-header">
+    {{ 'Gehele tuin' if b.flow_type == 'gehele_tuin' else ('Losse onderdelen' if b.flow_type == 'losse_onderdelen' else b.flow_type or '–') }}
+    <span style="margin-left:auto;font-weight:400;color:var(--text-3);">{{ b.timestamp.strftime('%H:%M:%S') if b.timestamp else '' }}</span>
+    <span style="margin-left:16px;color:var(--accent);">
+      €{{ '{:,}'.format(b.total_min_eur or 0).replace(',', '.') }} – €{{ '{:,}'.format(b.total_max_eur or 0).replace(',', '.') }}
+    </span>
+  </div>
+  {% if b.breakdown %}
+    {% for item in b.breakdown %}
+    <div class="breakdown-row">
+      <span class="breakdown-lbl">{{ item.label }}</span>
+      <span class="breakdown-unit">{% if item.qty is not none %}{{ item.qty }} {{ item.unit or '' }}{% endif %}</span>
+      <span class="breakdown-eur">
+        {% if item.range_eur %}
+          €{{ '{:,}'.format(item.range_eur[0]|int).replace(',', '.') }} – €{{ '{:,}'.format(item.range_eur[1]|int).replace(',', '.') }}
+        {% else %}op offerte{% endif %}
+      </span>
     </div>
     {% endfor %}
-    {% endif %}
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
 
-    <!-- Chat -->
-    <h2 class="section">Chatgesprek ({{ berichten|length }} berichten)</h2>
-    <div class="chat">
-      {% for m in berichten %}
-      <div class="msg {{ m.role }}">
-        {% if m.role == 'bot' %}
-          {{ m.content | safe }}
-        {% else %}
-          {{ m.content }}
-        {% endif %}
-        <div class="ts">{{ m.timestamp.strftime('%H:%M:%S') if m.timestamp else '' }}{% if m.flow_step %} · {{ m.flow_step }}{% endif %}</div>
+<!-- Chat -->
+<div class="section-title">Chatgesprek ({{ berichten|length }} berichten)</div>
+<div class="card">
+  {% if berichten %}
+  <div class="chat-log">
+    {% for m in berichten %}
+    <div class="chat-msg {{ m.role }}">
+      <div class="chat-bubble">
+        {% if m.role == 'bot' %}{{ m.content | safe }}{% else %}{{ m.content }}{% endif %}
       </div>
-      {% else %}
-      <p style="color:#aaa;font-size:13px;">Geen berichten.</p>
-      {% endfor %}
+      <div class="chat-ts">
+        {{ m.timestamp.strftime('%H:%M:%S') if m.timestamp else '' }}{% if m.flow_step %} · {{ m.flow_step }}{% endif %}
+      </div>
     </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">Geen berichten opgeslagen.</div>
+  {% endif %}
+</div>
 
-    <!-- Events -->
-    <h2 class="section">Events</h2>
+<!-- Events -->
+{% if events %}
+<div class="section-title">Events ({{ events|length }})</div>
+<div class="card">
+  <div class="table-wrap">
     <table>
       <thead><tr><th>Tijdstip</th><th>Type</th><th>Data</th></tr></thead>
       <tbody>
         {% for e in events %}
         <tr>
-          <td>{{ e.timestamp.strftime('%H:%M:%S') if e.timestamp else '–' }}</td>
-          <td>{{ e.event_type }}</td>
-          <td style="color:#6b6b50;">{{ e.event_data | tojson if e.event_data else '–' }}</td>
+          <td style="color:var(--text-3);white-space:nowrap;">{{ e.timestamp.strftime('%H:%M:%S') if e.timestamp else '–' }}</td>
+          <td style="font-weight:600;">{{ e.event_type }}</td>
+          <td style="color:var(--text-3);font-size:12px;font-family:monospace;">{{ e.event_data | tojson if e.event_data else '–' }}</td>
         </tr>
-        {% else %}
-        <tr><td colspan="3" style="color:#aaa;text-align:center;padding:16px;">Geen events.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</body>
-</html>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -8,6 +8,80 @@ from core.models.tenant import TenantConfig
 
 class TenantRepository:
 
+    # ── Admin helpers ─────────────────────────────────────────
+
+    def get_or_create_id(
+        self,
+        slug: str,
+        bedrijfsnaam: str,
+        regio: str = "",
+        contact_email: str = "",
+        contact_telefoon: str = "",
+    ) -> int:
+        """Geeft tenant_id terug, maakt tenant + config aan als ze nog niet bestaan."""
+        from infrastructure.db.database import SessionLocal
+        from infrastructure.db.db_models import DbTenant, DbTenantConfig
+        from datetime import datetime, timezone
+
+        with SessionLocal() as db:
+            tenant = db.query(DbTenant).filter_by(slug=slug).first()
+            if not tenant:
+                tenant = DbTenant(slug=slug, naam=bedrijfsnaam)
+                db.add(tenant)
+                db.flush()
+                db.add(DbTenantConfig(
+                    tenant_id=tenant.id,
+                    bedrijfsnaam=bedrijfsnaam,
+                    regio=regio,
+                    contact_email=contact_email,
+                    contact_telefoon=contact_telefoon,
+                ))
+            elif not tenant.config:
+                db.add(DbTenantConfig(
+                    tenant_id=tenant.id,
+                    bedrijfsnaam=bedrijfsnaam,
+                ))
+            db.commit()
+            db.refresh(tenant)
+            return tenant.id
+
+    def get_prijzen_overrides(self, tenant_id: int) -> Dict[str, Tuple[int, int]]:
+        """Laadt huidige prijsoverrides uit DbTenantConfig.prijzen."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenantConfig
+
+            with SessionLocal() as db:
+                cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                if not cfg or not cfg.prijzen:
+                    return {}
+                result = {}
+                for k, v in cfg.prijzen.items():
+                    if isinstance(v, (list, tuple)) and len(v) == 2:
+                        result[k] = (int(v[0]), int(v[1]))
+                return result
+        except Exception as e:
+            print(f"[TenantRepository] get_prijzen_overrides fout: {e}")
+            return {}
+
+    def save_prijzen(self, tenant_id: int, overrides: Dict[str, Tuple[int, int]]) -> None:
+        """Slaat prijsoverrides op in DbTenantConfig.prijzen."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenantConfig
+            from datetime import datetime, timezone
+
+            with SessionLocal() as db:
+                cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                if cfg:
+                    cfg.prijzen = {k: list(v) for k, v in overrides.items()}
+                    cfg.bijgewerkt_op = datetime.now(timezone.utc)
+                    db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] save_prijzen fout: {e}")
+
+    # ── Chatbot helpers ───────────────────────────────────────
+
     def get(self, slug: str) -> Optional[TenantConfig]:
         try:
             from infrastructure.db.database import SessionLocal

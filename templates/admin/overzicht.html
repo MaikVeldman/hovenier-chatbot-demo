@@ -1,70 +1,38 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin — Overzicht</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #f4f1ec; font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a14; }
-    header { background: #5c6b1e; color: #fff; padding: 16px 32px; display: flex;
-             align-items: center; justify-content: space-between; }
-    header h1 { font-size: 18px; font-weight: 700; }
-    header a { color: rgba(255,255,255,.75); font-size: 13px; text-decoration: none; }
-    header a:hover { color: #fff; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-    .stat-card { background: #fff; border-radius: 10px; padding: 20px 24px;
-                 border: 1px solid #d4cfc0; }
-    .stat-card .num { font-size: 36px; font-weight: 700; color: #5c6b1e; }
-    .stat-card .lbl { font-size: 13px; color: #6b6b50; margin-top: 4px; }
-    h2 { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px;
-            overflow: hidden; border: 1px solid #d4cfc0; font-size: 13px; }
-    thead { background: #f4f1ec; }
-    th { padding: 10px 14px; text-align: left; font-weight: 600; color: #6b6b50;
-         text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
-    td { padding: 11px 14px; border-top: 1px solid #ede9df; }
-    tr:hover td { background: #faf8f4; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-warm { background: #fdecea; color: #b94040; }
-    .badge-potentieel { background: #fef9e7; color: #9a6000; }
-    .badge-orienterend { background: #f0f0e8; color: #6b6b50; }
-    .badge-geen { background: #f0f0e8; color: #aaa; }
-    a.row-link { color: #5c6b1e; text-decoration: none; font-weight: 600; }
-    a.row-link:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Admin — Veldman Hoveniers</h1>
-    <a href="{{ url_for('admin_logout') }}">Uitloggen</a>
-  </header>
-  <div class="container">
-    <div class="stats">
-      <div class="stat-card">
-        <div class="num">{{ stats.sessies }}</div>
-        <div class="lbl">Sessies (7 dagen)</div>
-      </div>
-      <div class="stat-card">
-        <div class="num">{{ stats.offertes }}</div>
-        <div class="lbl">Prijsindicaties (7 dagen)</div>
-      </div>
-      <div class="stat-card">
-        <div class="num">{{ stats.contacten }}</div>
-        <div class="lbl">Contactaanvragen (7 dagen)</div>
-      </div>
-    </div>
+{% extends "admin/base_admin.html" %}
+{% block title %}Overzicht{% endblock %}
+{% block content %}
 
-    <h2>Recente sessies</h2>
+<div class="page-header">
+  <div>
+    <div class="page-title">Overzicht</div>
+    <div class="page-sub">Afgelopen 7 dagen</div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.sessies }}</div>
+    <div class="stat-lbl">Sessies</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.offertes }}</div>
+    <div class="stat-lbl">Prijsindicaties</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.contacten }}</div>
+    <div class="stat-lbl">Contactaanvragen</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Recente sessies</div>
+  <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Datum</th>
           <th>Flow</th>
           <th>Status</th>
-          <th>Leadscore</th>
-          <th>Label</th>
           <th>Terug</th>
           <th></th>
         </tr>
@@ -72,34 +40,33 @@
       <tbody>
         {% for s in sessies %}
         <tr>
-          <td>{{ s.started_at.strftime('%d-%m-%Y %H:%M') if s.started_at else '–' }}</td>
-          <td>{{ 'Gehele tuin' if s.flow_type == 'gehele_tuin' else ('Losse onderdelen' if s.flow_type == 'losse_onderdelen' else '–') }}</td>
-          <td>
-            {% if s.contact_submitted %}✅ Aanvraag
-            {% elif s.completed %}💰 Prijs gezien
-            {% else %}👀 Begonnen
-            {% endif %}
+          <td style="color:var(--text-3);white-space:nowrap;">
+            {{ s.started_at.strftime('%d-%m-%Y %H:%M') if s.started_at else '–' }}
           </td>
-          <td>{{ s.leadscore if s.leadscore is not none else '–' }}</td>
           <td>
-            {% if s.lead_label == 'warm' %}
-              <span class="badge badge-warm">Warm</span>
-            {% elif s.lead_label == 'potentieel' %}
-              <span class="badge badge-potentieel">Potentieel</span>
-            {% elif s.lead_label == 'oriënterend' %}
-              <span class="badge badge-orienterend">Oriënterend</span>
+            {% if s.flow_type == 'gehele_tuin' %}Gehele tuin
+            {% elif s.flow_type == 'losse_onderdelen' %}Losse onderdelen
+            {% elif s.flow_type == 'tuinontwerp' %}Tuinontwerp
+            {% else %}–{% endif %}
+          </td>
+          <td>
+            {% if s.contact_submitted %}
+              <span class="badge badge-contact">Aanvraag ontvangen</span>
+            {% elif s.completed %}
+              <span class="badge badge-offerte">Prijs gezien</span>
             {% else %}
-              <span class="badge badge-geen">–</span>
+              <span class="badge badge-geen">Geen contact</span>
             {% endif %}
           </td>
-          <td>{{ s.terug_acties or 0 }}</td>
+          <td style="color:var(--text-3);text-align:center;">{{ s.terug_acties or 0 }}</td>
           <td><a class="row-link" href="{{ url_for('admin_sessie_detail', session_id=s.id) }}">Details →</a></td>
         </tr>
         {% else %}
-        <tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px;">Nog geen sessies.</td></tr>
+        <tr><td colspan="5" class="empty-state">Nog geen sessies.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</body>
-</html>
+</div>
+
+{% endblock %}

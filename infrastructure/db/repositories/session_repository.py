@@ -66,6 +66,19 @@ class SessionRepository:
                     s.ended_at = datetime.now(timezone.utc)
         self._safe(_do)
 
+    # ── Berichten ─────────────────────────────────────────────
+
+    def log_message(self, session_id: str, role: str, content: str, flow_step: str = None) -> None:
+        def _do():
+            with self._db() as db:
+                db.add(DbMessage(
+                    session_id=session_id,
+                    role=role,
+                    content=content,
+                    flow_step=flow_step,
+                ))
+        self._safe(_do)
+
     # ── Events ────────────────────────────────────────────────
 
     def log_event(self, session_id: str, event_type: str, event_data: Dict = None) -> None:
@@ -154,8 +167,13 @@ class SessionRepository:
         notitie: str = None,
         price_calculation_id: int = None,
         email_sent_at: datetime = None,
-    ) -> None:
+    ) -> Optional[str]:
+        import uuid as _uuid_mod
+        token: Optional[str] = None
+
         def _do():
+            nonlocal token
+            token = str(_uuid_mod.uuid4())
             with self._db() as db:
                 db.add(DbContactSubmission(
                     session_id=session_id,
@@ -167,8 +185,11 @@ class SessionRepository:
                     notitie=notitie,
                     price_calculation_id=price_calculation_id,
                     email_sent_at=email_sent_at,
+                    bekijk_token=token,
                 ))
                 s = db.get(DbSession, session_id)
                 if s:
                     s.contact_submitted = True
+
         self._safe(_do)
+        return token

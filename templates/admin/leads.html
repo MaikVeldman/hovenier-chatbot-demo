@@ -1,0 +1,68 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Leads</div>
+    <div class="page-sub">Contactaanvragen van bezoekers</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Contactaanvragen</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Naam</th>
+          <th>Telefoon</th>
+          <th>E-mail</th>
+          <th>Woonplaats</th>
+          <th>Mail</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in contacten %}
+        <tr>
+          <td style="color:var(--text-3);white-space:nowrap;">
+            {{ c.timestamp.strftime('%d-%m-%Y %H:%M') if c.timestamp else '–' }}
+          </td>
+          <td style="font-weight:600;">{{ c.naam or '–' }}</td>
+          <td>{{ c.telefoon or '–' }}</td>
+          <td>{{ c.email or '–' }}</td>
+          <td>{{ c.woonplaats or '–' }}</td>
+          <td>
+            {% if c.email_sent_at %}
+              <span class="badge badge-offerte">Verstuurd</span>
+            {% else %}
+              <span class="badge badge-geen">–</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.bekijk_token %}
+              <a class="row-link" href="/mijn-offerte/{{ c.bekijk_token }}" target="_blank">
+                Offerte →
+              </a>
+            {% else %}
+              <span style="color:var(--text-3);">–</span>
+            {% endif %}
+          </td>
+          <td>
+            <a class="row-link" href="{{ url_for('admin_sessie_detail', session_id=c.session_id) }}">
+              Sessie →
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="empty-state">Nog geen contactaanvragen.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
