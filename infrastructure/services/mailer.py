@@ -5,7 +5,9 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import resend
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 try:
     from core.pricing.pricing import (
@@ -18,9 +20,29 @@ except Exception:
     _PRICING_AVAILABLE = False
     def get_prijstoelichting(breakdown=None): return ""
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-RESEND_FROM    = os.getenv("RESEND_FROM", "Veldman Hoveniers <onboarding@resend.dev>")
-NOTIFY_TO      = os.getenv("NOTIFY_TO", "info@veldmanhoveniers.nl")
+BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN", "")
+BREVO_SMTP_KEY   = os.getenv("BREVO_SMTP_KEY", "")
+BREVO_FROM       = os.getenv("BREVO_FROM", "Veldman Hoveniers <noreply@indiqa.nl>")
+NOTIFY_TO        = os.getenv("NOTIFY_TO", "info@veldmanhoveniers.nl")
+
+_BREVO_HOST = "smtp-relay.brevo.com"
+_BREVO_PORT = 587
+
+
+def _send_mail(to: str, subject: str, html: str, reply_to: str = None) -> None:
+    if not BREVO_SMTP_LOGIN or not BREVO_SMTP_KEY:
+        raise RuntimeError("BREVO_SMTP_LOGIN of BREVO_SMTP_KEY niet ingesteld in .env")
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = BREVO_FROM
+    msg["To"]      = to
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.attach(MIMEText(html, "html", "utf-8"))
+    with smtplib.SMTP(_BREVO_HOST, _BREVO_PORT) as server:
+        server.starttls()
+        server.login(BREVO_SMTP_LOGIN, BREVO_SMTP_KEY)
+        server.send_message(msg)
 
 # Huisstijlkleuren
 _GREEN     = "#5c6b1e"
@@ -635,32 +657,23 @@ def send_contact_email(
     score_breakdown: Optional[Dict[str, int]] = None,
     bekijk_token: Optional[str] = None,
 ) -> None:
-    if not RESEND_API_KEY:
-        raise RuntimeError("RESEND_API_KEY niet ingesteld in .env")
-
-    resend.api_key = RESEND_API_KEY
-
     # Mail 1 — notificatie aan hovenier
-    owner_mail = {
-        "from":    RESEND_FROM,
-        "to":      [NOTIFY_TO],
-        "subject": f"Offerte aanvraag – {naam}",
-        "html":    _build_owner_html(
+    _send_mail(
+        to=NOTIFY_TO,
+        subject=f"Offerte aanvraag – {naam}",
+        html=_build_owner_html(
             naam, telefoon, email, adres, woonplaats, opmerking, costs, flow_type,
             leadscore=leadscore, lead_label=lead_label, score_breakdown=score_breakdown,
         ),
-    }
-    if email and "@" in email:
-        owner_mail["reply_to"] = email
-    resend.Emails.send(owner_mail)
+        reply_to=email if email and "@" in email else None,
+    )
 
-    # Mail 2 — bevestiging aan klant (best-effort: faalt stil totdat domein geverifieerd is)
+    # Mail 2 — bevestiging aan klant
     try:
-        resend.Emails.send({
-            "from":    RESEND_FROM,
-            "to":      [email],
-            "subject": "Uw aanvraag bij Veldman Hoveniers",
-            "html":    _build_customer_html(naam, costs, flow_type, bekijk_token=bekijk_token),
-        })
+        _send_mail(
+            to=email,
+            subject="Uw aanvraag bij Veldman Hoveniers",
+            html=_build_customer_html(naam, costs, flow_type, bekijk_token=bekijk_token),
+        )
     except Exception as exc:
-        print(f"[mailer] Klantbevestiging niet verstuurd (domein nog niet geverifieerd?): {exc}")
+        print(f"[mailer] Klantbevestiging niet verstuurd: {exc}")
