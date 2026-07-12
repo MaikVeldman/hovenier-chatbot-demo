@@ -48,8 +48,20 @@ def _refresh_price_table() -> None:
     if not _DB:
         return
     try:
+        import core.pricing.pricing as _p
         import core.pricing.price_table as _pt
-        _pt.DEFAULT_PRICE_TABLE = PriceTable(TenantRepository().get_or_default(TENANT_SLUG))
+        from core.pricing.constants import PRIJZEN as _BASE
+
+        tenant_config = TenantRepository().get_or_default(TENANT_SLUG)
+        overrides = tenant_config.prijzen or {}
+
+        # In-place update zodat alle PRIJZEN.get() aanroepen in pricing.py de juiste waarden zien
+        _p.PRIJZEN.clear()
+        _p.PRIJZEN.update(_BASE)
+        _p.PRIJZEN.update(overrides)
+
+        # Ook DEFAULT_PRICE_TABLE verversen voor PriceTable-bewuste aanroepen
+        _pt.DEFAULT_PRICE_TABLE = PriceTable(tenant_config)
     except Exception as e:
         print(f"[server] Prijstabel verversen mislukt: {e}")
 
