@@ -44,6 +44,15 @@ try:
 except Exception:
     _DB = False
 
+def _refresh_price_table() -> None:
+    if not _DB:
+        return
+    try:
+        import core.pricing.price_table as _pt
+        _pt.DEFAULT_PRICE_TABLE = PriceTable(TenantRepository().get_or_default(TENANT_SLUG))
+    except Exception as e:
+        print(f"[server] Prijstabel verversen mislukt: {e}")
+
 ADMIN_USER     = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
@@ -57,6 +66,9 @@ _origins = ["https://veldmanhoveniers.nl", "https://www.veldmanhoveniers.nl"]
 if DEMO_MODE:
     _origins += ["https://indiqa.nl", "https://www.indiqa.nl", "https://demo.indiqa.nl"]
 CORS(app, origins=_origins)
+
+# Laad tenant-prijzen bij opstart
+_refresh_price_table()
 
 # ============================================================
 # Template globals
@@ -400,6 +412,7 @@ def admin_tarieven():
                 except (ValueError, TypeError):
                     pass
         repo.save_prijzen(tenant_id, overrides)
+        _refresh_price_table()
         return redirect(url_for("admin_tarieven", opgeslagen=1))
 
     overrides = repo.get_prijzen_overrides(tenant_id) if repo else {}
