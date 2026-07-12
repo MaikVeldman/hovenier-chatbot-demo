@@ -405,6 +405,7 @@ _PRIJS_CATEGORIEEN = [
 @_admin_required
 def admin_tarieven():
     import core.pricing.pricing as _p
+    from core.pricing.constants import PRIJZEN as _BASE_PRIJZEN
     tenant_id = flask_session.get("tenant_id") if _DB else None
     repo = None
     if _DB and tenant_id:
@@ -418,7 +419,7 @@ def admin_tarieven():
                 try:
                     mn = int(request.form.get(f"min_{key}", 0))
                     mx = int(request.form.get(f"max_{key}", 0))
-                    default = _p.PRIJZEN.get(key, (0, 0))
+                    default = _BASE_PRIJZEN.get(key, (0, 0))
                     if (mn, mx) != default:
                         overrides[key] = (mn, mx)
                 except (ValueError, TypeError):
@@ -434,7 +435,7 @@ def admin_tarieven():
     for cat_naam, items in _PRIJS_CATEGORIEEN:
         rijen = []
         for key, label, eenheid in items:
-            default = _p.PRIJZEN.get(key, (0, 0))
+            default = _BASE_PRIJZEN.get(key, (0, 0))
             current = overrides.get(key, default)
             rijen.append({
                 "key":     key,
