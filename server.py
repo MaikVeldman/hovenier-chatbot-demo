@@ -649,6 +649,17 @@ def admin_tarieven():
     )
 
 
+@app.route("/beheer/tarieven/reset", methods=["POST"])
+@_admin_required
+def admin_tarieven_reset():
+    tenant_id = flask_session.get("tenant_id") if _DB else None
+    if _DB and tenant_id:
+        from infrastructure.db.repositories.tenant_repository import TenantRepository
+        TenantRepository().save_prijzen(tenant_id, {})
+        _refresh_price_table()
+    return redirect(url_for("admin_tarieven", opgeslagen=1))
+
+
 @app.route("/beheer/klanten")
 @_admin_required
 def admin_klanten():
