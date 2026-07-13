@@ -62,6 +62,19 @@ class DbTenantConfig(Base):
     tenant = relationship("DbTenant", back_populates="config")
 
 
+class DbPasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    user_id     = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token       = Column(String(64), unique=True, nullable=False)
+    verloopt_op = Column(DateTime, nullable=False)
+    gebruikt    = Column(Boolean, default=False, nullable=False)
+    aangemaakt  = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("DbUser")
+
+
 class DbSession(Base):
     __tablename__ = "sessions"
 

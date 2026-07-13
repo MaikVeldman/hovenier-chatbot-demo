@@ -322,6 +322,46 @@ def _unique_slug(base: str) -> str:
             n += 1
     return slug
 
+@app.route("/wachtwoord-vergeten", methods=["GET", "POST"])
+def wachtwoord_vergeten():
+    verzonden = False
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        if email and "@" in email and _DB:
+            try:
+                from infrastructure.db.repositories.user_repository import UserRepository
+                from infrastructure.services.mailer import send_wachtwoord_reset_email
+                token = UserRepository().create_reset_token(email)
+                if token:
+                    reset_url = f"{BASE_URL}/wachtwoord-reset/{token}"
+                    send_wachtwoord_reset_email(email, reset_url)
+            except Exception as e:
+                print(f"[wachtwoord_vergeten] {e}")
+        verzonden = True  # altijd tonen (voorkomt e-mail enumeration)
+    return render_template("account/wachtwoord_vergeten.html", verzonden=verzonden)
+
+
+@app.route("/wachtwoord-reset/<token>", methods=["GET", "POST"])
+def wachtwoord_reset(token: str):
+    error = None
+    success = False
+    if request.method == "POST":
+        nieuw  = request.form.get("wachtwoord") or ""
+        nieuw2 = request.form.get("wachtwoord2") or ""
+        if len(nieuw) < 8:
+            error = "Wachtwoord moet minimaal 8 tekens bevatten."
+        elif nieuw != nieuw2:
+            error = "Wachtwoorden komen niet overeen."
+        else:
+            from infrastructure.db.repositories.user_repository import UserRepository
+            ok = UserRepository().use_reset_token(token, nieuw)
+            if ok:
+                success = True
+            else:
+                error = "Deze link is verlopen of al gebruikt. Vraag een nieuwe aan."
+    return render_template("account/wachtwoord_reset.html", token=token, error=error, success=success)
+
+
 @app.route("/aanmelden", methods=["GET", "POST"])
 def aanmelden():
     if not _DB:

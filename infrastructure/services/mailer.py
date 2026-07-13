@@ -749,6 +749,51 @@ def send_welkom_email(
     )
 
 
+def send_wachtwoord_reset_email(email: str, reset_url: str) -> None:
+    html = f"""<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#F0F4F1;font-family:'Segoe UI',Arial,sans-serif;font-size:15px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F1;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0"
+             style="max-width:600px;width:100%;background:#fff;border-radius:12px;
+                    overflow:hidden;border:1px solid #DDE8DF;">
+        <tr>
+          <td style="background:{_INDIQA_GREEN};padding:24px 32px;">
+            <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-.03em;">indiqa.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px;">Wachtwoord herstellen</div>
+          </td>
+        </tr>
+        <tr><td style="padding:32px;">
+          <h2 style="margin:0 0 12px;font-size:20px;color:#1C2B23;">Wachtwoord vergeten?</h2>
+          <p style="margin:0 0 24px;font-size:14px;color:#4A6655;line-height:1.6;">
+            Gebruik de knop hieronder om een nieuw wachtwoord in te stellen.
+            Deze link is 2 uur geldig.
+          </p>
+          <a href="{reset_url}"
+             style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                    padding:12px 28px;border-radius:7px;text-decoration:none;
+                    font-weight:600;font-size:14px;">
+            Nieuw wachtwoord instellen →
+          </a>
+          <p style="margin:24px 0 0;font-size:12px;color:#7A9882;">
+            Heb je dit niet aangevraagd? Dan hoef je niets te doen.
+          </p>
+        </td></tr>
+        <tr>
+          <td style="background:#F0F4F1;padding:16px 32px;border-top:1px solid #DDE8DF;">
+            <p style="margin:0;font-size:12px;color:#7A9882;">Indiqa · indiqa.nl</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    _send_mail(to=email, subject="Wachtwoord herstellen — Indiqa", html=html)
+
+
 def send_nieuwe_aanmelding_email(
     bedrijfsnaam: str,
     email: str,
