@@ -1,0 +1,78 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Klanten{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Klanten</div>
+    <div class="page-sub">Alle aanmeldingen — activeer of blokkeer accounts</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Aanmeldingen ({{ tenants|length }})</div>
+  <div class="table-wrap">
+    {% if tenants %}
+    <table>
+      <thead>
+        <tr>
+          <th>Bedrijf</th>
+          <th>E-mail</th>
+          <th>Regio</th>
+          <th>Slug</th>
+          <th>Aangemeld</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tenants %}
+        <tr>
+          <td style="font-weight:600;">{{ t.naam }}</td>
+          <td style="color:var(--text-2);">{{ t.email or '—' }}</td>
+          <td style="color:var(--text-3);">{{ t.regio or '—' }}</td>
+          <td style="font-family:monospace;font-size:12px;color:var(--text-3);">{{ t.slug }}</td>
+          <td style="color:var(--text-3);white-space:nowrap;">
+            {% if t.aangemaakt_op %}
+              {{ t.aangemaakt_op.strftime('%d-%m-%Y') }}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if t.actief %}
+              <span class="badge badge-offerte">Actief</span>
+            {% else %}
+              <span class="badge badge-geen">Wacht op activatie</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;white-space:nowrap;">
+            <form method="POST" action="/beheer/klanten/{{ t.id }}/activeer"
+                  style="display:inline;">
+              {% if t.actief %}
+                <input type="hidden" name="actief" value="0"/>
+                <button type="submit"
+                        style="background:none;border:1px solid var(--border);border-radius:5px;
+                               padding:5px 12px;font-size:12px;cursor:pointer;color:var(--text-3);
+                               font-family:inherit;">
+                  Deactiveer
+                </button>
+              {% else %}
+                <input type="hidden" name="actief" value="1"/>
+                <button type="submit"
+                        style="background:var(--accent);border:none;border-radius:5px;
+                               padding:5px 12px;font-size:12px;cursor:pointer;color:#fff;
+                               font-weight:600;font-family:inherit;">
+                  Activeer
+                </button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state">Nog geen aanmeldingen.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

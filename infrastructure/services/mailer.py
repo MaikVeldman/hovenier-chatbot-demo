@@ -749,6 +749,72 @@ def send_welkom_email(
     )
 
 
+def send_nieuwe_aanmelding_email(
+    bedrijfsnaam: str,
+    email: str,
+    regio: str,
+    slug: str,
+    website_implementatie: bool = False,
+) -> None:
+    """Notificatie aan de Indiqa-beheerder bij elke nieuwe aanmelding."""
+    activeer_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/klanten"
+    addon_txt = " + website-implementatie" if website_implementatie else ""
+    html = f"""<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#F0F4F1;font-family:'Segoe UI',Arial,sans-serif;font-size:15px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F1;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0"
+             style="max-width:600px;width:100%;background:#fff;border-radius:12px;
+                    overflow:hidden;border:1px solid #DDE8DF;">
+        <tr>
+          <td style="background:{_INDIQA_GREEN};padding:24px 32px;">
+            <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-.03em;">indiqa.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px;">Nieuwe aanmelding</div>
+          </td>
+        </tr>
+        <tr><td style="padding:32px;">
+          <h2 style="margin:0 0 20px;font-size:20px;color:#1C2B23;">Nieuwe aanmelding wacht op activatie</h2>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #DDE8DF;border-radius:8px;overflow:hidden;font-size:14px;">
+            <tr style="background:#F0F4F1;">
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;width:40%;">Bedrijfsnaam</td>
+              <td style="padding:10px 16px;color:#1C2B23;font-weight:700;">{bedrijfsnaam}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">E-mail</td>
+              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{email}</td>
+            </tr>
+            <tr style="background:#F0F4F1;">
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Regio</td>
+              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{regio or '—'}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Slug</td>
+              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">indiqa.nl/{slug}</td>
+            </tr>
+            <tr style="background:#F0F4F1;">
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Abonnement</td>
+              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">€69/mnd{addon_txt}</td>
+            </tr>
+          </table>
+          <div style="margin-top:24px;">
+            <a href="{activeer_url}"
+               style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                      padding:12px 24px;border-radius:7px;text-decoration:none;
+                      font-weight:600;font-size:14px;">
+              Activeer dit account →
+            </a>
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    _send_mail(to=NOTIFY_TO, subject=f"Nieuwe aanmelding: {bedrijfsnaam}", html=html)
+
+
 # ============================================================
 # Publieke functie
 # ============================================================

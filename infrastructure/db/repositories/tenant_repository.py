@@ -17,6 +17,7 @@ class TenantRepository:
         regio: str = "",
         contact_email: str = "",
         contact_telefoon: str = "",
+        actief: bool = True,
     ) -> int:
         """Geeft tenant_id terug, maakt tenant + config aan als ze nog niet bestaan."""
         from infrastructure.db.database import SessionLocal
@@ -26,7 +27,7 @@ class TenantRepository:
         with SessionLocal() as db:
             tenant = db.query(DbTenant).filter_by(slug=slug).first()
             if not tenant:
-                tenant = DbTenant(slug=slug, naam=bedrijfsnaam)
+                tenant = DbTenant(slug=slug, naam=bedrijfsnaam, actief=actief)
                 db.add(tenant)
                 db.flush()
                 db.add(DbTenantConfig(
@@ -44,6 +45,42 @@ class TenantRepository:
             db.commit()
             db.refresh(tenant)
             return tenant.id
+
+    def set_actief(self, tenant_id: int, actief: bool) -> None:
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant
+            with SessionLocal() as db:
+                t = db.get(DbTenant, tenant_id)
+                if t:
+                    t.actief = actief
+                    db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] set_actief fout: {e}")
+
+    def list_all(self):
+        """Geeft alle tenants terug voor superadmin-overzicht."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant, DbTenantConfig
+            with SessionLocal() as db:
+                tenants = db.query(DbTenant).order_by(DbTenant.aangemaakt_op.desc()).all()
+                result = []
+                for t in tenants:
+                    cfg = t.config
+                    result.append({
+                        "id":           t.id,
+                        "slug":         t.slug,
+                        "naam":         t.naam,
+                        "actief":       t.actief,
+                        "aangemaakt_op": t.aangemaakt_op,
+                        "email":        cfg.contact_email if cfg else "",
+                        "regio":        cfg.regio if cfg else "",
+                    })
+                return result
+        except Exception as e:
+            print(f"[TenantRepository] list_all fout: {e}")
+            return []
 
     def get_prijzen_overrides(self, tenant_id: int) -> Dict[str, Tuple[int, int]]:
         """Laadt huidige prijsoverrides uit DbTenantConfig.prijzen."""

@@ -160,6 +160,13 @@ def chatbot_tenant(slug: str):
 
     tenant_cfg = TenantRepository().get(slug)
     if not tenant_cfg:
+        # Bestaat de slug maar is het account nog niet geactiveerd?
+        from infrastructure.db.database import SessionLocal as _SL
+        from infrastructure.db.db_models import DbTenant as _DbT
+        with _SL() as _db:
+            _t = _db.query(_DbT).filter_by(slug=slug).first()
+            if _t and not _t.actief:
+                return render_template("chatbot/wacht_activatie.html", bedrijfsnaam=_t.naam), 202
         return "Onbekende URL.", 404
 
     primaire_kleur = tenant_cfg.primaire_kleur or "#5c6b1e"
@@ -284,6 +291,7 @@ def admin_login():
             flask_session["tenant_id"]  = tenant_id
             flask_session["user_id"]    = user_id
             flask_session["user_email"] = user_email
+            flask_session["is_superadmin"] = (user_id is None)  # ENV-var login = superadmin
             return redirect(url_for("admin_overzicht"))
         error = "Onjuiste inloggegevens."
     return render_template("admin/login.html", error=error)
@@ -350,13 +358,14 @@ def aanmelden():
             if UserRepository().find_by_email(email):
                 error = "Dit e-mailadres is al geregistreerd."
             else:
-                # Tenant + user aanmaken
+                # Tenant + user aanmaken (inactief tot superadmin activeert)
                 slug = _unique_slug(_make_slug(bedrijfsnaam))
                 tenant_id = TenantRepository().get_or_create_id(
                     slug=slug,
                     bedrijfsnaam=bedrijfsnaam,
                     regio=regio,
                     contact_email=email,
+                    actief=False,
                 )
                 user_id = UserRepository().create(
                     tenant_id=tenant_id,
@@ -367,17 +376,18 @@ def aanmelden():
                 if not user_id:
                     error = "Er ging iets mis bij het aanmaken van je account. Probeer het opnieuw."
                 else:
-                    # Welkomstmail sturen
+                    # Notificatie aan superadmin + welkomstmail bij activatie
                     try:
-                        from infrastructure.services.mailer import send_welkom_email
-                        send_welkom_email(
+                        from infrastructure.services.mailer import send_nieuwe_aanmelding_email
+                        send_nieuwe_aanmelding_email(
                             bedrijfsnaam=bedrijfsnaam,
                             email=email,
+                            regio=regio,
                             slug=slug,
                             website_implementatie=website_impl,
                         )
                     except Exception as e:
-                        print(f"[aanmelden] Welkomstmail mislukt: {e}")
+                        print(f"[aanmelden] Notificatiemail mislukt: {e}")
 
                     # Direct inloggen
                     flask_session["admin_logged_in"] = True
@@ -607,6 +617,25 @@ def admin_tarieven():
         opgeslagen=opgeslagen,
         db_actief=bool(repo),
     )
+
+
+@app.route("/beheer/klanten")
+@_admin_required
+def admin_klanten():
+    if not flask_session.get("is_superadmin"):
+        return redirect(url_for("admin_overzicht"))
+    tenants = TenantRepository().list_all()
+    return render_template("admin/klanten.html", active="klanten", tenants=tenants)
+
+
+@app.route("/beheer/klanten/<int:tenant_id>/activeer", methods=["POST"])
+@_admin_required
+def admin_tenant_activeer(tenant_id: int):
+    if not flask_session.get("is_superadmin"):
+        return redirect(url_for("admin_overzicht"))
+    actief = request.form.get("actief") == "1"
+    TenantRepository().set_actief(tenant_id, actief)
+    return redirect(url_for("admin_klanten"))
 
 
 @app.route("/beheer/instellingen", methods=["GET", "POST"])
