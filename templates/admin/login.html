@@ -105,7 +105,10 @@ input:focus { border-color: var(--accent); }
 <body>
   <div class="card">
     <div class="logo">indiqa</div>
-    <div class="sub">Beheerpaneel — inloggen</div>
+    <div style="display:flex;border-bottom:1px solid var(--border);margin:0 -40px 20px;padding:0 40px;">
+      <a href="/beheer/login" style="flex:1;padding:9px 0;text-align:center;font-size:13px;font-weight:600;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-1px;text-decoration:none;">Inloggen</a>
+      <a href="/aanmelden" style="flex:1;padding:9px 0;text-align:center;font-size:13px;font-weight:600;color:var(--text-3);border-bottom:2px solid transparent;text-decoration:none;">Aanmelden</a>
+    </div>
     {% if error %}
       <div class="error">{{ error }}</div>
     {% endif %}

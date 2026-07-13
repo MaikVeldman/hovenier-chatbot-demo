@@ -640,6 +640,116 @@ def _build_customer_html(
 
 
 # ============================================================
+# Mail 3 — welkomstmail nieuwe Indiqa klant
+# ============================================================
+
+_INDIQA_GREEN    = "#1E4D2B"
+_INDIQA_GREEN_LT = "#EEF4F0"
+
+
+def send_welkom_email(
+    bedrijfsnaam: str,
+    email: str,
+    slug: str,
+    website_implementatie: bool = False,
+) -> None:
+    base = os.getenv("BASE_URL", "https://indiqa.nl")
+    tool_url  = f"https://indiqa.nl/{slug}"
+    login_url = f"https://indiqa.nl/beheer/login"
+
+    addon_blok = ""
+    if website_implementatie:
+        addon_blok = f"""
+        <div style="margin-top:16px;padding:14px 18px;background:{_INDIQA_GREEN_LT};
+                    border-radius:8px;border-left:4px solid {_INDIQA_GREEN};font-size:14px;">
+          <strong>Website-implementatie</strong><br>
+          <span style="color:#4A6655;">We nemen binnen 2 werkdagen contact met je op om de planning te bespreken.</span>
+        </div>"""
+
+    content = f"""
+    <h2 style="margin:0 0 6px;font-size:22px;color:{_INDIQA_GREEN};font-weight:800;">
+      Welkom bij Indiqa, {bedrijfsnaam}!
+    </h2>
+    <p style="margin:0 0 24px;font-size:14px;color:#4A6655;">
+      Je account is aangemaakt. Hieronder vind je alles wat je nodig hebt om te starten.
+    </p>
+
+    <div style="margin-bottom:20px;padding:16px 20px;background:{_INDIQA_GREEN_LT};border-radius:8px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                  color:#7A9882;margin-bottom:10px;">Jouw rekentool</div>
+      <a href="{tool_url}" style="font-size:16px;font-weight:700;color:{_INDIQA_GREEN};
+                                   text-decoration:none;">{tool_url}</a>
+      <div style="font-size:13px;color:#4A6655;margin-top:4px;">
+        Gebruik deze link aan tafel bij klanten of deel hem met je team.
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;padding:16px 20px;background:#F8FAF8;border:1px solid #DDE8DF;border-radius:8px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                  color:#7A9882;margin-bottom:10px;">Beheerpaneel</div>
+      <div style="font-size:14px;color:#1C2B23;margin-bottom:10px;">
+        Stel je eigen tarieven in en bekijk je leads via het beheerpaneel.
+      </div>
+      <a href="{login_url}"
+         style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                padding:10px 20px;border-radius:7px;text-decoration:none;
+                font-weight:600;font-size:13px;">
+        Naar het beheerpaneel →
+      </a>
+    </div>
+
+    {addon_blok}
+
+    <div style="margin-top:24px;padding:16px 20px;background:#F8FAF8;
+                border-radius:8px;font-size:14px;color:#4A6655;">
+      <strong style="color:#1C2B23;">Eerste stap:</strong> log in en stel je eigen tarieven in.
+      De tool werkt direct — we hebben standaard tarieven ingeladen als startpunt.
+    </div>
+
+    <p style="margin-top:24px;font-size:13px;color:#7A9882;">
+      Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
+      style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
+    </p>"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#F0F4F1;font-family:'Segoe UI',Arial,sans-serif;font-size:15px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F1;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0"
+             style="max-width:600px;width:100%;background:#fff;border-radius:12px;
+                    overflow:hidden;border:1px solid #DDE8DF;">
+        <tr>
+          <td style="background:{_INDIQA_GREEN};padding:24px 32px;">
+            <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-.03em;">indiqa.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px;">
+              Rekentool voor hoveniers
+            </div>
+          </td>
+        </tr>
+        <tr><td style="padding:32px;">{content}</td></tr>
+        <tr>
+          <td style="background:#F0F4F1;padding:18px 32px;border-top:1px solid #DDE8DF;">
+            <p style="margin:0;font-size:12px;color:#7A9882;">
+              Indiqa · indiqa.nl · info@veldmanhoveniers.nl
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    _send_mail(
+        to=email,
+        subject=f"Welkom bij Indiqa, {bedrijfsnaam}!",
+        html=html,
+    )
+
+
+# ============================================================
 # Publieke functie
 # ============================================================
 

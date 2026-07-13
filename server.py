@@ -246,6 +246,100 @@ def admin_logout():
     return redirect(url_for("admin_login"))
 
 
+# ============================================================
+# Registratie nieuwe Indiqa klant
+# ============================================================
+
+import re as _re
+
+def _make_slug(name: str) -> str:
+    return _re.sub(r'[^a-z0-9]', '', name.lower())[:40] or "bedrijf"
+
+def _unique_slug(base: str) -> str:
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbTenant
+    slug, n = base, 2
+    with SessionLocal() as db:
+        while db.query(DbTenant).filter_by(slug=slug).first():
+            slug = f"{base}{n}"
+            n += 1
+    return slug
+
+@app.route("/aanmelden", methods=["GET", "POST"])
+def aanmelden():
+    if not _DB:
+        return "Registratie tijdelijk niet beschikbaar.", 503
+
+    form = {}
+    error = None
+
+    if request.method == "POST":
+        bedrijfsnaam        = (request.form.get("bedrijfsnaam") or "").strip()
+        regio               = (request.form.get("regio") or "").strip()
+        email               = (request.form.get("email") or "").strip().lower()
+        wachtwoord          = request.form.get("wachtwoord") or ""
+        wachtwoord2         = request.form.get("wachtwoord2") or ""
+        website_impl        = bool(request.form.get("website_implementatie"))
+
+        form = dict(bedrijfsnaam=bedrijfsnaam, regio=regio, email=email,
+                    website_implementatie=website_impl)
+
+        # Validatie
+        if not bedrijfsnaam:
+            error = "Vul een bedrijfsnaam in."
+        elif not email or "@" not in email:
+            error = "Vul een geldig e-mailadres in."
+        elif len(wachtwoord) < 8:
+            error = "Wachtwoord moet minimaal 8 tekens bevatten."
+        elif wachtwoord != wachtwoord2:
+            error = "Wachtwoorden komen niet overeen."
+        else:
+            from infrastructure.db.repositories.user_repository import UserRepository
+            from infrastructure.db.repositories.tenant_repository import TenantRepository
+
+            # E-mail al in gebruik?
+            if UserRepository().find_by_email(email):
+                error = "Dit e-mailadres is al geregistreerd."
+            else:
+                # Tenant + user aanmaken
+                slug = _unique_slug(_make_slug(bedrijfsnaam))
+                tenant_id = TenantRepository().get_or_create_id(
+                    slug=slug,
+                    bedrijfsnaam=bedrijfsnaam,
+                    regio=regio,
+                    contact_email=email,
+                )
+                user_id = UserRepository().create(
+                    tenant_id=tenant_id,
+                    email=email,
+                    plain_password=wachtwoord,
+                )
+
+                if not user_id:
+                    error = "Er ging iets mis bij het aanmaken van je account. Probeer het opnieuw."
+                else:
+                    # Welkomstmail sturen
+                    try:
+                        from infrastructure.services.mailer import send_welkom_email
+                        send_welkom_email(
+                            bedrijfsnaam=bedrijfsnaam,
+                            email=email,
+                            slug=slug,
+                            website_implementatie=website_impl,
+                        )
+                    except Exception as e:
+                        print(f"[aanmelden] Welkomstmail mislukt: {e}")
+
+                    # Direct inloggen
+                    flask_session["admin_logged_in"] = True
+                    flask_session["tenant_id"]       = tenant_id
+                    flask_session["user_id"]         = user_id
+                    flask_session["user_email"]      = email
+                    return redirect(url_for("admin_overzicht"))
+
+    return render_template("account/registreer.html", error=error, form=form)
+
+
 @app.route("/beheer")
 @app.route("/beheer/")
 @_admin_required

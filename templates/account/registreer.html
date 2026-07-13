@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Aanmelden — Indiqa</title>
+  <style>
+:root {
+  --accent:    #3E7C4F;
+  --accent-hi: #2E5E3B;
+  --accent-bg: #E8F4EB;
+  --bg:        #F0F4F1;
+  --surface:   #fff;
+  --text:      #1C2B23;
+  --text-2:    #4A6655;
+  --text-3:    #7A9882;
+  --border:    #DDE8DF;
+  --error-bg:  #FDECEA;
+  --error:     #B94040;
+}
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--text);
+}
+
+.back {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 18px;
+  align-self: flex-start;
+  max-width: 420px;
+  width: 100%;
+}
+.back a { color: var(--text-3); text-decoration: none; }
+.back a:hover { color: var(--text); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 4px 24px rgba(28,43,35,.09);
+  overflow: hidden;
+}
+
+.card-top { padding: 28px 32px 0; }
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+}
+.logo-dot { color: var(--accent); }
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin: 0 -32px;
+  padding: 0 32px;
+}
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: -1px;
+  text-decoration: none;
+  text-align: center;
+  display: block;
+  transition: color .12s, border-color .12s;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.card-body { padding: 24px 32px 28px; }
+
+.field-section {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-3);
+  margin: 18px 0 10px;
+}
+.field-section:first-child { margin-top: 0; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field { margin-bottom: 12px; }
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  background: var(--surface);
+  transition: border-color .12s;
+}
+input:focus { border-color: var(--accent); }
+
+/* Abonnement blok */
+.abo-blok {
+  background: var(--accent-bg);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.abo-naam  { font-size: 14px; font-weight: 700; color: var(--text); }
+.abo-sub   { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.abo-prijs { font-size: 20px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.abo-per   { font-size: 12px; font-weight: 500; color: var(--text-3); }
+
+/* Add-on checkbox */
+.addon-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: border-color .12s, background .12s;
+}
+.addon-label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.addon-label input { margin-top: 2px; accent-color: var(--accent); }
+.addon-txt h4 { font-size: 14px; font-weight: 600; color: var(--text); }
+.addon-txt p  { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.addon-note   { font-size: 11px; color: var(--text-3); margin-bottom: 14px; padding-left: 2px; }
+
+.error {
+  background: var(--error-bg);
+  color: var(--error);
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s;
+  margin-top: 20px;
+}
+.btn:hover { background: var(--accent-hi); }
+
+.card-footer {
+  text-align: center;
+  padding: 0 32px 24px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.card-footer a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="back"><a href="/">← Terug naar indiqa.nl</a></div>
+
+  <div class="card">
+    <div class="card-top">
+      <div class="logo">indiqa<span class="logo-dot">.</span></div>
+      <div class="tabs" style="gap:0;">
+        <a class="tab" href="/beheer/login">Inloggen</a>
+        <a class="tab active" href="/aanmelden">Aanmelden</a>
+      </div>
+    </div>
+
+    <div class="card-body">
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/aanmelden">
+
+        <div class="field-section">Bedrijfsgegevens</div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="bedrijfsnaam">Bedrijfsnaam</label>
+            <input type="text" id="bedrijfsnaam" name="bedrijfsnaam"
+                   value="{{ form.bedrijfsnaam or '' }}"
+                   placeholder="Jansen Hoveniers" required/>
+          </div>
+          <div class="field">
+            <label for="regio">Regio</label>
+            <input type="text" id="regio" name="regio"
+                   value="{{ form.regio or '' }}"
+                   placeholder="Gelderland"/>
+          </div>
+        </div>
+
+        <div class="field-section">Inloggegevens</div>
+
+        <div class="field">
+          <label for="email">E-mailadres</label>
+          <input type="email" id="email" name="email"
+                 value="{{ form.email or '' }}"
+                 placeholder="naam@bedrijf.nl" required/>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="wachtwoord">Wachtwoord</label>
+            <input type="password" id="wachtwoord" name="wachtwoord"
+                   placeholder="Min. 8 tekens" required/>
+          </div>
+          <div class="field">
+            <label for="wachtwoord2">Herhaal</label>
+            <input type="password" id="wachtwoord2" name="wachtwoord2"
+                   placeholder="••••••••" required/>
+          </div>
+        </div>
+
+        <div class="field-section">Abonnement</div>
+
+        <div class="abo-blok">
+          <div>
+            <div class="abo-naam">Indiqa — alles inbegrepen</div>
+            <div class="abo-sub">Introductieprijs · Maandelijks opzegbaar · Ex. btw</div>
+          </div>
+          <div>
+            <span class="abo-prijs">€ 69</span>
+            <span class="abo-per">/mnd</span>
+          </div>
+        </div>
+
+        <label class="addon-label">
+          <input type="checkbox" name="website_implementatie" value="1"
+                 {% if form.website_implementatie %}checked{% endif %}/>
+          <div class="addon-txt">
+            <h4>Website-implementatie <span style="color:var(--accent);">+ € 200 ex. btw</span></h4>
+            <p>Wij plaatsen de rekentool op jouw eigen website.</p>
+          </div>
+        </label>
+        <div class="addon-note">Na aanmelding nemen we contact op voor de planning.</div>
+
+        <button class="btn" type="submit">Account aanmaken</button>
+      </form>
+    </div>
+
+    <div class="card-footer">
+      Al een account? <a href="/beheer/login">Inloggen</a>
+    </div>
+  </div>
+</body>
+</html>
