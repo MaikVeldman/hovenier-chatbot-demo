@@ -638,6 +638,17 @@ def admin_tenant_activeer(tenant_id: int):
     return redirect(url_for("admin_klanten"))
 
 
+@app.route("/beheer/klanten/<int:tenant_id>/verwijder", methods=["POST"])
+@_admin_required
+def admin_tenant_verwijder(tenant_id: int):
+    if not flask_session.get("is_superadmin"):
+        return redirect(url_for("admin_overzicht"))
+    if tenant_id == flask_session.get("tenant_id"):
+        return redirect(url_for("admin_klanten"))  # eigen account niet verwijderen
+    TenantRepository().delete(tenant_id)
+    return redirect(url_for("admin_klanten"))
+
+
 @app.route("/beheer/instellingen", methods=["GET", "POST"])
 @_admin_required
 def admin_instellingen():

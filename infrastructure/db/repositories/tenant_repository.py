@@ -46,6 +46,20 @@ class TenantRepository:
             db.refresh(tenant)
             return tenant.id
 
+    def delete(self, tenant_id: int) -> None:
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant, DbSession
+            with SessionLocal() as db:
+                # Ontkoppel sessies zodat de FK geen problemen geeft
+                db.query(DbSession).filter_by(tenant_id=tenant_id).update({"tenant_id": None})
+                tenant = db.get(DbTenant, tenant_id)
+                if tenant:
+                    db.delete(tenant)
+                db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] delete fout: {e}")
+
     def set_actief(self, tenant_id: int, actief: bool) -> None:
         try:
             from infrastructure.db.database import SessionLocal

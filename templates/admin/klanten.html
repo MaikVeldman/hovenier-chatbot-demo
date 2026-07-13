@@ -44,7 +44,7 @@
               <span class="badge badge-geen">Wacht op activatie</span>
             {% endif %}
           </td>
-          <td style="text-align:right;white-space:nowrap;">
+          <td style="text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end;align-items:center;">
             <form method="POST" action="/beheer/klanten/{{ t.id }}/activeer"
                   style="display:inline;">
               {% if t.actief %}
@@ -64,6 +64,16 @@
                   Activeer
                 </button>
               {% endif %}
+            </form>
+            <form method="POST" action="/beheer/klanten/{{ t.id }}/verwijder"
+                  style="display:inline;"
+                  onsubmit="return confirm('{{ t.naam }} permanent verwijderen? Dit kan niet ongedaan worden.')">
+              <button type="submit"
+                      style="background:none;border:1px solid #F5C6C6;border-radius:5px;
+                             padding:5px 10px;font-size:12px;cursor:pointer;color:#B94040;
+                             font-family:inherit;">
+                ✕
+              </button>
             </form>
           </td>
         </tr>
