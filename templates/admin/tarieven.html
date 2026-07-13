@@ -124,8 +124,7 @@
 
 @media (max-width: 600px) {
   .tarief-grid { grid-template-columns: 1fr 76px 76px; }
-  /* Verberg de 4e kolom (eenheid) — elke 4e direct child van het grid */
-  .tarief-grid > :nth-child(4n) { display: none; }
+  .col-eenheid, .tarief-eenheid { display: none; }
   .tarief-input { width: 68px; font-size: 16px; padding: 5px 4px; }
   .tarief-header > span, .tarief-row > * { padding: 8px 8px; }
   .save-bar { flex-wrap: wrap; gap: 10px; }
@@ -155,7 +154,7 @@
         <span>Onderdeel</span>
         <span style="text-align:right;">Min (€)</span>
         <span style="text-align:right;">Max (€)</span>
-        <span>Eenheid</span>
+        <span class="col-eenheid">Eenheid</span>
       </div>
       {% for r in cat.rijen %}
       <div class="tarief-row">
