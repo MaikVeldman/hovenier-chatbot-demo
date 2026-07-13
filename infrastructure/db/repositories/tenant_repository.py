@@ -123,9 +123,11 @@ class TenantRepository:
             from datetime import datetime, timezone
 
             with SessionLocal() as db:
+                from sqlalchemy.orm.attributes import flag_modified
                 cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
                 if cfg:
-                    cfg.prijzen = {k: list(v) for k, v in overrides.items()}
+                    cfg.prijzen = {k: list(v) for k, v in overrides.items()} or None
+                    flag_modified(cfg, "prijzen")
                     cfg.bijgewerkt_op = datetime.now(timezone.utc)
                     db.commit()
         except Exception as e:
