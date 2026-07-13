@@ -187,15 +187,17 @@
   <div class="save-bar">
     <button type="submit" class="btn-save">Opslaan</button>
     <button type="reset" class="btn-reset">Wijzigingen ongedaan maken</button>
-    <form method="POST" action="/beheer/tarieven/reset" style="margin:0;"
-          onsubmit="return confirm('Alle tarieven terugzetten naar standaardwaarden?')">
-      <button type="submit" class="btn-reset">Reset naar standaard</button>
-    </form>
+    <button type="button" class="btn-reset"
+            onclick="if(confirm('Alle tarieven terugzetten naar standaardwaarden?')) document.getElementById('reset-standaard-form').submit();">
+      Reset naar standaard
+    </button>
     {% if opgeslagen %}
     <span class="saved-msg">✓ Tarieven opgeslagen</span>
     {% endif %}
   </div>
   {% endif %}
 </form>
+
+<form id="reset-standaard-form" method="POST" action="/beheer/tarieven/reset" style="display:none;"></form>
 
 {% endblock %}
