@@ -609,6 +609,97 @@ def admin_tarieven():
     )
 
 
+@app.route("/beheer/instellingen", methods=["GET", "POST"])
+@_admin_required
+def admin_instellingen():
+    if not _DB:
+        return "Database niet beschikbaar.", 503
+
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbTenantConfig, DbUser
+
+    tenant_id = flask_session.get("tenant_id")
+    user_id   = flask_session.get("user_id")
+
+    success_huisstijl = False
+    error_huisstijl   = None
+    success_wachtwoord = False
+    error_wachtwoord   = None
+
+    if request.method == "POST":
+        actie = request.form.get("actie")
+
+        if actie == "huisstijl" and tenant_id:
+            bedrijfsnaam  = (request.form.get("bedrijfsnaam") or "").strip()
+            regio         = (request.form.get("regio") or "").strip()
+            primaire_kleur = (request.form.get("primaire_kleur") or "").strip()
+
+            import re as _re2
+            if not bedrijfsnaam:
+                error_huisstijl = "Bedrijfsnaam mag niet leeg zijn."
+            elif primaire_kleur and not _re2.match(r'^#[0-9a-fA-F]{6}$', primaire_kleur):
+                error_huisstijl = "Ongeldige kleurcode. Gebruik formaat #rrggbb."
+            else:
+                with SessionLocal() as db:
+                    cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                    if cfg:
+                        cfg.bedrijfsnaam  = bedrijfsnaam
+                        cfg.regio         = regio
+                        if primaire_kleur:
+                            cfg.primaire_kleur = primaire_kleur
+                        db.commit()
+                success_huisstijl = True
+
+        elif actie == "wachtwoord" and user_id:
+            oud       = request.form.get("oud_wachtwoord") or ""
+            nieuw     = request.form.get("nieuw_wachtwoord") or ""
+            nieuw2    = request.form.get("nieuw_wachtwoord2") or ""
+
+            from infrastructure.db.repositories.user_repository import UserRepository
+            repo = UserRepository()
+            user = repo.find_by_id(user_id) if hasattr(repo, "find_by_id") else None
+
+            if not user:
+                error_wachtwoord = "Gebruiker niet gevonden."
+            elif not repo.verify_password(user, oud):
+                error_wachtwoord = "Huidig wachtwoord is onjuist."
+            elif len(nieuw) < 8:
+                error_wachtwoord = "Nieuw wachtwoord moet minimaal 8 tekens bevatten."
+            elif nieuw != nieuw2:
+                error_wachtwoord = "Wachtwoorden komen niet overeen."
+            else:
+                repo.update_password(user_id, nieuw)
+                success_wachtwoord = True
+
+    # Laad huidige config voor formulier
+    cfg_obj = None
+    if tenant_id:
+        with SessionLocal() as db:
+            cfg_obj = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+            if cfg_obj:
+                from dataclasses import dataclass
+                @dataclass
+                class _Cfg:
+                    bedrijfsnaam: str
+                    regio: str
+                    primaire_kleur: str
+                cfg_obj = _Cfg(
+                    bedrijfsnaam=cfg_obj.bedrijfsnaam or "",
+                    regio=cfg_obj.regio or "",
+                    primaire_kleur=cfg_obj.primaire_kleur or "#5c6b1e",
+                )
+
+    return render_template(
+        "admin/instellingen.html",
+        active="instellingen",
+        cfg=cfg_obj,
+        success_huisstijl=success_huisstijl,
+        error_huisstijl=error_huisstijl,
+        success_wachtwoord=success_wachtwoord,
+        error_wachtwoord=error_wachtwoord,
+    )
+
+
 @app.route("/mijn-offerte/<token>")
 def klantportaal(token: str):
     if not _DB:

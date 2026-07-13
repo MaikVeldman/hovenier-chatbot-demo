@@ -8,6 +8,16 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 class UserRepository:
 
+    def find_by_id(self, user_id: int):
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbUser
+            with SessionLocal() as db:
+                return db.get(DbUser, user_id)
+        except Exception as exc:
+            print(f"[UserRepository] find_by_id fout: {exc}")
+            return None
+
     def find_by_email(self, email: str):
         try:
             from infrastructure.db.database import SessionLocal

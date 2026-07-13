@@ -1,0 +1,214 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Instellingen{% endblock %}
+
+{% block content %}
+<style>
+.form-section { margin-bottom: 8px; }
+
+.field { margin-bottom: 16px; }
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.field input[type="text"],
+.field input[type="email"],
+.field input[type="password"] {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color .12s;
+}
+.field input:focus { border-color: var(--accent); }
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 380px;
+}
+
+.color-row input[type="color"] {
+  width: 44px;
+  height: 38px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.color-row input[type="text"] {
+  flex: 1;
+  font-family: monospace;
+}
+
+.color-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  transition: background .1s;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+.btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s;
+  margin-top: 4px;
+}
+.btn-save:hover { background: #2E5E3B; }
+
+.alert {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.alert-ok    { background: var(--accent-bg); color: var(--accent); }
+.alert-error { background: #FDECEA; color: #B94040; }
+
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 28px 0;
+}
+</style>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Instellingen</div>
+    <div class="page-sub">Huisstijl en accountgegevens</div>
+  </div>
+</div>
+
+{% if success_huisstijl %}
+  <div class="alert alert-ok">Huisstijl opgeslagen.</div>
+{% endif %}
+{% if error_huisstijl %}
+  <div class="alert alert-error">{{ error_huisstijl }}</div>
+{% endif %}
+{% if success_wachtwoord %}
+  <div class="alert alert-ok">Wachtwoord gewijzigd.</div>
+{% endif %}
+{% if error_wachtwoord %}
+  <div class="alert alert-error">{{ error_wachtwoord }}</div>
+{% endif %}
+
+<!-- ── Huisstijl ─────────────────────────────────── -->
+<div class="card form-section">
+  <div class="card-header">Huisstijl &amp; bedrijfsgegevens</div>
+  <div style="padding: 20px 22px 24px;">
+    <form method="POST" action="/beheer/instellingen">
+      <input type="hidden" name="actie" value="huisstijl"/>
+
+      <div class="field">
+        <label for="bedrijfsnaam">Bedrijfsnaam</label>
+        <input type="text" id="bedrijfsnaam" name="bedrijfsnaam"
+               value="{{ cfg.bedrijfsnaam or '' }}" required/>
+      </div>
+
+      <div class="field">
+        <label for="regio">Regio</label>
+        <input type="text" id="regio" name="regio"
+               value="{{ cfg.regio or '' }}"
+               placeholder="bijv. Gelderland"/>
+        <div class="field-hint">Wordt getoond als subtitle in de rekentool.</div>
+      </div>
+
+      <div class="field">
+        <label>Primaire kleur</label>
+        <div class="color-row">
+          <input type="color" id="kleur-picker"
+                 value="{{ cfg.primaire_kleur or '#5c6b1e' }}"
+                 oninput="syncKleur(this.value)"/>
+          <input type="text" id="kleur-hex" name="primaire_kleur"
+                 value="{{ cfg.primaire_kleur or '#5c6b1e' }}"
+                 maxlength="7" placeholder="#5c6b1e"
+                 oninput="syncKleurVanText(this.value)"/>
+          <div class="color-preview" id="kleur-preview"
+               style="background: {{ cfg.primaire_kleur or '#5c6b1e' }};"></div>
+        </div>
+        <div class="field-hint">Kleur van de header en knoppen in de rekentool van uw klanten.</div>
+      </div>
+
+      <button type="submit" class="btn-save">Opslaan</button>
+    </form>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ── Wachtwoord ────────────────────────────────── -->
+<div class="card form-section">
+  <div class="card-header">Wachtwoord wijzigen</div>
+  <div style="padding: 20px 22px 24px;">
+    <form method="POST" action="/beheer/instellingen">
+      <input type="hidden" name="actie" value="wachtwoord"/>
+
+      <div class="field">
+        <label for="oud_wachtwoord">Huidig wachtwoord</label>
+        <input type="password" id="oud_wachtwoord" name="oud_wachtwoord"
+               placeholder="••••••••" required/>
+      </div>
+
+      <div class="field">
+        <label for="nieuw_wachtwoord">Nieuw wachtwoord</label>
+        <input type="password" id="nieuw_wachtwoord" name="nieuw_wachtwoord"
+               placeholder="Min. 8 tekens" required/>
+      </div>
+
+      <div class="field">
+        <label for="nieuw_wachtwoord2">Herhaal nieuw wachtwoord</label>
+        <input type="password" id="nieuw_wachtwoord2" name="nieuw_wachtwoord2"
+               placeholder="••••••••" required/>
+      </div>
+
+      <button type="submit" class="btn-save">Wachtwoord wijzigen</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function syncKleur(val) {
+  document.getElementById('kleur-hex').value = val;
+  document.getElementById('kleur-preview').style.background = val;
+}
+function syncKleurVanText(val) {
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    document.getElementById('kleur-picker').value = val;
+    document.getElementById('kleur-preview').style.background = val;
+  }
+}
+</script>
+{% endblock %}
