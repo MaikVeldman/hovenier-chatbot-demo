@@ -542,7 +542,6 @@ _PRIJS_CATEGORIEEN = [
         ("grond_afvoer_per_m3",                     "Grond afvoeren",                      "€/m³"),
         ("zand_aanvoer_per_m3",                     "Zand aanvoeren",                      "€/m³"),
         ("puin_aanvoer_per_m3",                     "Puin aanvoeren",                      "€/m³"),
-        ("bestrating_verwijderen_per_m3",           "Bestrating verwijderen",              "€/m³"),
     ]),
     ("Bestrating", [
         ("beton_straatwerk_per_m2",                 "Betonstraatstenen",                   "€/m²"),
