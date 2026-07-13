@@ -406,7 +406,7 @@ def admin_overzicht():
 
     def _tenant_filter(q):
         if tenant_id:
-            return q.filter(or_(DbSession.tenant_id == tenant_id, DbSession.tenant_id == None))
+            return q.filter(DbSession.tenant_id == tenant_id)
         return q
 
     with SessionLocal() as db:
@@ -482,7 +482,7 @@ def admin_leads():
     with SessionLocal() as db:
         q = db.query(DbContactSubmission).join(DbSession, DbContactSubmission.session_id == DbSession.id)
         if tenant_id:
-            q = q.filter(or_(DbSession.tenant_id == tenant_id, DbSession.tenant_id == None))
+            q = q.filter(DbSession.tenant_id == tenant_id)
         contacten = q.order_by(DbContactSubmission.timestamp.desc()).limit(100).all()
     return render_template("admin/leads.html", active="leads", contacten=contacten)
 
