@@ -119,6 +119,71 @@ body {
 .page-title { font-size: 20px; font-weight: 700; }
 .page-sub   { font-size: 13px; color: var(--text-3); margin-top: 2px; }
 
+/* ── Mobile topbar ───────────────────────────────── */
+.mobile-topbar {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--sidebar-bg);
+  align-items: center;
+  padding: 0 16px;
+  z-index: 200;
+  gap: 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.mobile-topbar .logo-wordmark { color: #fff; font-size: 19px; }
+.hamburger {
+  background: none; border: none; cursor: pointer;
+  padding: 6px; color: rgba(255,255,255,.75);
+  display: flex; align-items: center; margin-left: auto;
+  border-radius: 6px;
+}
+.hamburger:hover { background: var(--sidebar-hover); }
+
+/* ── Overlay (behind open drawer) ────────────────── */
+.nav-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 300;
+}
+.nav-overlay.open { display: block; }
+
+/* ── Responsive ──────────────────────────────────── */
+@media (max-width: 767px) {
+  .mobile-topbar { display: flex; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    z-index: 400;
+    transform: translateX(-100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    width: 240px;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .main { padding: 72px 16px 24px; }
+
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { padding: 14px 16px; }
+  .stat-num { font-size: 28px; }
+
+  .page-header { flex-direction: column; gap: 6px; }
+  .page-title { font-size: 18px; }
+
+  .detail-grid { grid-template-columns: 1fr; }
+
+  /* Voorkom iOS auto-zoom bij input focus */
+  input, select, textarea { font-size: max(16px, 1em); }
+}
+
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Cards ───────────────────────────────────────── */
 .card {
   background: var(--surface);
@@ -281,7 +346,20 @@ tbody tr:hover td { background: var(--surface-2); }
 </head>
 <body>
 
-<nav class="sidebar">
+<div class="mobile-topbar">
+  <div class="logo-wordmark">indiqa</div>
+  <button class="hamburger" id="hamburger" aria-label="Menu openen">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+      <rect y="3" width="20" height="2" rx="1"/>
+      <rect y="9" width="20" height="2" rx="1"/>
+      <rect y="15" width="20" height="2" rx="1"/>
+    </svg>
+  </button>
+</div>
+
+<div class="nav-overlay" id="navOverlay"></div>
+
+<nav class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <div class="logo-wordmark">indiqa</div>
   </div>
@@ -352,5 +430,23 @@ tbody tr:hover td { background: var(--surface-2); }
   {% block content %}{% endblock %}
 </main>
 
+<script>
+(function() {
+  var sidebar  = document.getElementById('sidebar');
+  var overlay  = document.getElementById('navOverlay');
+  var hamburger = document.getElementById('hamburger');
+
+  function open()  { sidebar.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function close() { sidebar.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
+
+  hamburger.addEventListener('click', open);
+  overlay.addEventListener('click', close);
+
+  /* sluit drawer wanneer een nav-link wordt aangeklikt op mobiel */
+  sidebar.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', close);
+  });
+})();
+</script>
 </body>
 </html>
