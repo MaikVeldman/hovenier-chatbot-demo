@@ -184,7 +184,19 @@ def reset():
     _sessions[sid] = state
     if _DB:
         ua = request.headers.get("User-Agent", "")
-        log_session_created(sid, user_agent=ua)
+        slug = request.headers.get("X-Tenant-Slug", "")
+        tenant_id = None
+        if slug:
+            try:
+                from infrastructure.db.database import SessionLocal
+                from infrastructure.db.db_models import DbTenant
+                with SessionLocal() as db:
+                    t = db.query(DbTenant).filter_by(slug=slug, actief=True).first()
+                    if t:
+                        tenant_id = t.id
+            except Exception:
+                pass
+        log_session_created(sid, user_agent=ua, tenant_id=tenant_id)
     return jsonify({
         "session_id": sid,
         "messages": [{"role": "bot", "text": INITIAL_GREETING}],
@@ -385,25 +397,31 @@ def admin_overzicht():
         return "Database niet beschikbaar.", 503
     from infrastructure.db.database import SessionLocal
     from infrastructure.db.db_models import DbSession, DbContactSubmission
-    from sqlalchemy import func
+    from sqlalchemy import func, or_
 
+    tenant_id = flask_session.get("tenant_id")
     zeven_dagen_terug = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).replace(tzinfo=None) - __import__("datetime").timedelta(days=7)
 
+    def _tenant_filter(q):
+        if tenant_id:
+            return q.filter(or_(DbSession.tenant_id == tenant_id, DbSession.tenant_id == None))
+        return q
+
     with SessionLocal() as db:
         recente_sessies = (
-            db.query(DbSession)
+            _tenant_filter(db.query(DbSession))
             .order_by(DbSession.started_at.desc())
             .limit(50)
             .all()
         )
-        stats_7d_sessies  = db.query(func.count(DbSession.id)).filter(
+        stats_7d_sessies  = _tenant_filter(db.query(func.count(DbSession.id))).filter(
             DbSession.started_at >= zeven_dagen_terug).scalar() or 0
-        stats_7d_offertes = db.query(func.count(DbSession.id)).filter(
+        stats_7d_offertes = _tenant_filter(db.query(func.count(DbSession.id))).filter(
             DbSession.started_at >= zeven_dagen_terug,
             DbSession.completed == True).scalar() or 0
-        stats_7d_contacten = db.query(func.count(DbSession.id)).filter(
+        stats_7d_contacten = _tenant_filter(db.query(func.count(DbSession.id))).filter(
             DbSession.started_at >= zeven_dagen_terug,
             DbSession.contact_submitted == True).scalar() or 0
 
@@ -427,10 +445,13 @@ def admin_sessie_detail(session_id: str):
     from infrastructure.db.database import SessionLocal
     from infrastructure.db.db_models import DbSession, DbMessage, DbFlowEvent, DbPriceCalculation, DbContactSubmission
 
+    tenant_id = flask_session.get("tenant_id")
     with SessionLocal() as db:
         sessie = db.get(DbSession, session_id)
         if not sessie:
             return "Sessie niet gevonden.", 404
+        if tenant_id and sessie.tenant_id and sessie.tenant_id != tenant_id:
+            return "Geen toegang.", 403
         berichten  = db.query(DbMessage).filter_by(session_id=session_id).order_by(DbMessage.timestamp).all()
         events     = db.query(DbFlowEvent).filter_by(session_id=session_id).order_by(DbFlowEvent.timestamp).all()
         berekeningen = db.query(DbPriceCalculation).filter_by(session_id=session_id).order_by(DbPriceCalculation.timestamp).all()
@@ -453,15 +474,16 @@ def admin_leads():
     if not _DB:
         return "Database niet beschikbaar.", 503
     from infrastructure.db.database import SessionLocal
-    from infrastructure.db.db_models import DbContactSubmission
+    from infrastructure.db.db_models import DbContactSubmission, DbSession
+    from sqlalchemy import or_
+
+    tenant_id = flask_session.get("tenant_id")
 
     with SessionLocal() as db:
-        contacten = (
-            db.query(DbContactSubmission)
-            .order_by(DbContactSubmission.timestamp.desc())
-            .limit(100)
-            .all()
-        )
+        q = db.query(DbContactSubmission).join(DbSession, DbContactSubmission.session_id == DbSession.id)
+        if tenant_id:
+            q = q.filter(or_(DbSession.tenant_id == tenant_id, DbSession.tenant_id == None))
+        contacten = q.order_by(DbContactSubmission.timestamp.desc()).limit(100).all()
     return render_template("admin/leads.html", active="leads", contacten=contacten)
 
 

@@ -3,7 +3,7 @@ from infrastructure.db.repositories.session_repository import SessionRepository
 
 _repo = SessionRepository()
 
-def log_session_created(session_id, user_agent=None):       return _repo.log_session_created(session_id, user_agent)
+def log_session_created(session_id, user_agent=None, tenant_id=None): return _repo.log_session_created(session_id, user_agent, tenant_id)
 def log_message(session_id, role, content, flow_step=None): return _repo.log_message(session_id, role, content, flow_step)
 def update_session_flow(session_id, flow_type):             return _repo.update_session_flow(session_id, flow_type)
 def update_session_completed(session_id):                   return _repo.update_session_completed(session_id)

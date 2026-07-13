@@ -35,11 +35,11 @@ class SessionRepository:
 
     # ── Sessions ──────────────────────────────────────────────
 
-    def log_session_created(self, session_id: str, user_agent: str = None) -> None:
+    def log_session_created(self, session_id: str, user_agent: str = None, tenant_id: int = None) -> None:
         def _do():
             with self._db() as db:
                 if not db.get(DbSession, session_id):
-                    db.add(DbSession(id=session_id, user_agent=user_agent))
+                    db.add(DbSession(id=session_id, user_agent=user_agent, tenant_id=tenant_id))
         self._safe(_do)
 
     def update_session_flow(self, session_id: str, flow_type: str) -> None:
