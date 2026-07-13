@@ -287,6 +287,7 @@ def admin_login():
                     print(f"[admin_login] tenant init fout: {_e}")
 
         if authenticated:
+            flask_session.clear()
             flask_session["admin_logged_in"] = True
             flask_session["tenant_id"]  = tenant_id
             flask_session["user_id"]    = user_id
@@ -430,10 +431,12 @@ def aanmelden():
                         print(f"[aanmelden] Notificatiemail mislukt: {e}")
 
                     # Direct inloggen
+                    flask_session.clear()
                     flask_session["admin_logged_in"] = True
                     flask_session["tenant_id"]       = tenant_id
                     flask_session["user_id"]         = user_id
                     flask_session["user_email"]      = email
+                    flask_session["is_superadmin"]   = False
                     return redirect(url_for("admin_overzicht"))
 
     return render_template("account/registreer.html", error=error, form=form)
