@@ -538,19 +538,11 @@ def admin_leads():
 
 
 _PRIJS_CATEGORIEEN = [
-    ("Onderhoud", [
-        ("onderhoud_aanleg_uurtarief",              "Uurtarief aanleg/onderhoud",          "€/uur"),
-        ("voorjaar_najaarsbeurt",                   "Voorjaars-/najaarsbeurt",             "€ totaal"),
-        ("gazon_maaien",                            "Gazon maaien",                        "€/keer"),
-        ("haag_snoeien",                            "Haag snoeien",                        "€/keer"),
-    ]),
     ("Grondwerk & afvoer", [
         ("grond_afvoer_per_m3",                     "Grond afvoeren",                      "€/m³"),
         ("zand_aanvoer_per_m3",                     "Zand aanvoeren",                      "€/m³"),
         ("puin_aanvoer_per_m3",                     "Puin aanvoeren",                      "€/m³"),
         ("bestrating_verwijderen_per_m3",           "Bestrating verwijderen",              "€/m³"),
-        ("bestrating_afvoer_per_m3",                "Bestrating afvoeren",                 "€/m³"),
-        ("bouw_sloop_afval_afvoer_per_m3",          "Bouw-/sloopafval afvoeren",           "€/m³"),
     ]),
     ("Bestrating", [
         ("beton_straatwerk_per_m2",                 "Betonstraatstenen",                   "€/m²"),
@@ -573,7 +565,6 @@ _PRIJS_CATEGORIEEN = [
         ("beplanting_haag_voordelig_hoog_per_m1",   "Haag voordelig hoog (1,5–2m)",        "€/m¹"),
         ("beplanting_haag_premium_laag_per_m1",     "Haag premium laag (0,5–1m)",          "€/m¹"),
         ("beplanting_haag_premium_hoog_per_m1",     "Haag premium hoog (1,5–2m)",          "€/m¹"),
-        ("beplanting_boom_per_stuk",                "Boom plaatsen",                       "€/stuk"),
     ]),
     ("Beregening", [
         ("beregening_installatie_basis",            "Installatie basis (handmatig)",       "€ vast"),
