@@ -74,9 +74,12 @@ BASE_URL       = os.getenv("BASE_URL", "http://localhost:5000")
 app = Flask(__name__, static_folder="static", static_url_path="", template_folder="templates")
 app.secret_key = SECRET_KEY
 
-_origins = ["https://veldmanhoveniers.nl", "https://www.veldmanhoveniers.nl"]
+_origins = [
+    "https://veldmanhoveniers.nl", "https://www.veldmanhoveniers.nl",
+    "https://indiqa.nl", "https://www.indiqa.nl",
+]
 if DEMO_MODE:
-    _origins += ["https://indiqa.nl", "https://www.indiqa.nl", "https://demo.indiqa.nl"]
+    _origins += ["https://demo.indiqa.nl"]
 CORS(app, origins=_origins)
 
 # Laad tenant-prijzen bij opstart
@@ -134,6 +137,40 @@ def info():
         "regio": REGIO,
         "demo": DEMO_MODE,
     })
+
+
+def _darken_hex(hex_color: str, factor: float = 0.72) -> str:
+    h = hex_color.lstrip("#")
+    if len(h) != 6:
+        return hex_color
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return "#{:02x}{:02x}{:02x}".format(int(r * factor), int(g * factor), int(b * factor))
+
+
+@app.route("/<slug>")
+def chatbot_tenant(slug: str):
+    import os as _os
+    # <slug> shadows Flask's static file handler for single-segment paths; fall back transparently
+    static_file = _os.path.join(app.static_folder or "static", slug)
+    if _os.path.isfile(static_file):
+        return send_from_directory(app.static_folder or "static", slug)
+
+    if not _DB:
+        return "Database niet beschikbaar.", 503
+
+    tenant_cfg = TenantRepository().get(slug)
+    if not tenant_cfg:
+        return "Onbekende URL.", 404
+
+    primaire_kleur = tenant_cfg.primaire_kleur or "#5c6b1e"
+    return render_template(
+        "chatbot/index.html",
+        tenant_slug=slug,
+        bedrijfsnaam=tenant_cfg.bedrijfsnaam,
+        regio=tenant_cfg.regio or "",
+        primaire_kleur=primaire_kleur,
+        primaire_kleur_dark=_darken_hex(primaire_kleur),
+    )
 
 
 @app.route("/api/reset", methods=["POST"])
