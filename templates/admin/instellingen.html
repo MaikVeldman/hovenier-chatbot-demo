@@ -147,25 +147,6 @@
       </div>
 
       <div class="field">
-        <label>Beschikbare flows in de rekentool</label>
-        {% set actief = cfg.actieve_flows if cfg else ["tuinaanleg","losse_onderdelen","tuinontwerp"] %}
-        {% for flow_key, flow_label in [
-            ("tuinaanleg",       "Gehele tuin aanleggen"),
-            ("losse_onderdelen", "Losse onderdelen"),
-            ("tuinontwerp",      "Tuinontwerp (3D visualisatie)")
-        ] %}
-        <label style="display:flex;align-items:center;gap:10px;font-weight:400;font-size:14px;
-                       color:var(--text);cursor:pointer;margin-bottom:10px;">
-          <input type="checkbox" name="actieve_flows" value="{{ flow_key }}"
-                 {% if flow_key in actief %}checked{% endif %}
-                 style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
-          {{ flow_label }}
-        </label>
-        {% endfor %}
-        <div class="field-hint">Minstens één flow is verplicht. Niet-aangevinkte opties verdwijnen uit de rekentool.</div>
-      </div>
-
-      <div class="field">
         <label for="avatar_letter">Avatar letter</label>
         <div style="display:flex;align-items:center;gap:14px;">
           <input type="text" id="avatar_letter" name="avatar_letter"
@@ -199,6 +180,42 @@
         <div class="field-hint">Kleur van de header en knoppen in de rekentool van uw klanten.</div>
       </div>
 
+      <button type="submit" class="btn-save">Opslaan</button>
+    </form>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ── Rekentool flows ───────────────────────────── -->
+{% if success_flows %}
+  <div class="alert alert-ok">Flows opgeslagen.</div>
+{% endif %}
+<div class="card form-section">
+  <div class="card-header">Rekentool — beschikbare flows</div>
+  <div style="padding: 20px 22px 24px;">
+    <p class="field-hint" style="margin-bottom:16px;">
+      Kies welke opties zichtbaar zijn in de rekentool. Staat er maar één aan, dan slaat de tool het keuzescherm over en begint direct.
+    </p>
+    <form method="POST" action="/beheer/instellingen">
+      <input type="hidden" name="actie" value="flows"/>
+      {% set actief = cfg.actieve_flows if cfg else ["tuinaanleg","losse_onderdelen","tuinontwerp"] %}
+      {% for flow_key, flow_label, flow_hint in [
+          ("tuinaanleg",       "Gehele tuin aanleggen",          "Berekent de totale tuin stap voor stap"),
+          ("losse_onderdelen", "Losse onderdelen",               "Klant kiest zelf wat er aangelegd wordt"),
+          ("tuinontwerp",      "Tuinontwerp (3D visualisatie)",  "Geeft een indicatie van ontwerp- en projectkosten")
+      ] %}
+      <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
+        <input type="checkbox" name="actieve_flows" value="{{ flow_key }}"
+               {% if flow_key in actief %}checked{% endif %}
+               style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+        <span>
+          <span style="font-size:14px;font-weight:500;color:var(--text);">{{ flow_label }}</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">{{ flow_hint }}</span>
+        </span>
+      </label>
+      {% endfor %}
+      <div class="field-hint" style="margin-bottom:16px;">Minstens één flow moet aan staan.</div>
       <button type="submit" class="btn-save">Opslaan</button>
     </form>
   </div>

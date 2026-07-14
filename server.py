@@ -796,8 +796,9 @@ def admin_instellingen():
     tenant_id = flask_session.get("tenant_id")
     user_id   = flask_session.get("user_id")
 
-    success_huisstijl = False
-    error_huisstijl   = None
+    success_huisstijl  = False
+    error_huisstijl    = None
+    success_flows      = False
     success_wachtwoord = False
     error_wachtwoord   = None
 
@@ -836,13 +837,18 @@ def admin_instellingen():
                 inst = _tr.get_instellingen(tenant_id)
                 inst["avatar_letter"] = avatar_letter
 
-                # Flows: minstens 1 vereist, anders alle 3 behouden
-                _alle = ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
-                _gekozen = [f for f in request.form.getlist("actieve_flows") if f in _alle]
-                inst["actieve_flows"] = _gekozen if _gekozen else _alle
-
                 _tr.save_instellingen(tenant_id, inst)
                 success_huisstijl = True
+
+        elif actie == "flows" and tenant_id:
+            from infrastructure.db.repositories.tenant_repository import TenantRepository as _TR
+            _tr = _TR()
+            inst = _tr.get_instellingen(tenant_id)
+            _alle = ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
+            _gekozen = [f for f in request.form.getlist("actieve_flows") if f in _alle]
+            inst["actieve_flows"] = _gekozen if _gekozen else _alle
+            _tr.save_instellingen(tenant_id, inst)
+            success_flows = True
 
         elif actie == "wachtwoord" and user_id:
             oud       = request.form.get("oud_wachtwoord") or ""
@@ -897,6 +903,7 @@ def admin_instellingen():
         cfg=cfg_obj,
         success_huisstijl=success_huisstijl,
         error_huisstijl=error_huisstijl,
+        success_flows=success_flows,
         success_wachtwoord=success_wachtwoord,
         error_wachtwoord=error_wachtwoord,
     )
