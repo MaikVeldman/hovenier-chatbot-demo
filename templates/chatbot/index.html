@@ -422,7 +422,7 @@
     window.addEventListener('resize', updateLayout);
   }
 
-  const BOT_AVATAR  = { type: 'initial', value: '{{ (bedrijfsnaam or "H")[0] | upper }}' };
+  const BOT_AVATAR  = { type: 'initial', value: '{{ avatar_letter }}' };
   const USER_AVATAR = { type: 'initial', value: '?' };
 
   const API_BASE    = '';

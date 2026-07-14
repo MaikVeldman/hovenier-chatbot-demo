@@ -1059,7 +1059,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any], price_table=None) -> Dict
             "unit": _unit(zaag_key, "€/m¹"),
             "qty": int(round(zaag_m1)),
             "range_eur": [_eur(zaag_range[0]), _eur(zaag_range[1])],
-            "notes": "Schatting op basis van 35% van straatwerk (randen, hoeken en obstakels)."
+            "notes": f"Schatting op basis van {int(round(p.zaagwerk_pct * 100))}% van straatwerk (randen, hoeken en obstakels)."
         })
 
     # ------------------------------------------------------------
@@ -1853,7 +1853,7 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any], price_table=None) -
             "unit": _unit(zaag_key, "€/m¹"),
             "qty": int(round(z_m1)),
             "range_eur": [_eur(zaag_rng[0]), _eur(zaag_rng[1])],
-            "notes": "Schatting op basis van 35% van straatwerk (randen, hoeken en obstakels).",
+            "notes": f"Schatting op basis van {int(round(p.zaagwerk_pct * 100))}% van straatwerk (randen, hoeken en obstakels).",
         })
 
     # Gazon

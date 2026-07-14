@@ -70,5 +70,9 @@ class _DefaultPriceTable(PriceTable):
                 return factor
         return 1.0
 
+    @property
+    def zaagwerk_pct(self) -> float:
+        return 0.35
+
 
 DEFAULT_PRICE_TABLE = _DefaultPriceTable()

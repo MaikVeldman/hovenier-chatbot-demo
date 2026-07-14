@@ -192,13 +192,17 @@ def chatbot_tenant(slug: str):
         return "Onbekende URL.", 404
 
     primaire_kleur = tenant_cfg.primaire_kleur or "#5c6b1e"
+    _inst = tenant_cfg.instellingen or {}
+    _bedrijfsnaam = tenant_cfg.bedrijfsnaam or ""
+    avatar_letter = _inst.get("avatar_letter") or (_bedrijfsnaam[0].upper() if _bedrijfsnaam else "H")
     return render_template(
         "chatbot/index.html",
         tenant_slug=slug,
-        bedrijfsnaam=tenant_cfg.bedrijfsnaam,
+        bedrijfsnaam=_bedrijfsnaam,
         regio=tenant_cfg.regio or "",
         primaire_kleur=primaire_kleur,
         primaire_kleur_dark=_darken_hex(primaire_kleur),
+        avatar_letter=avatar_letter,
     )
 
 
@@ -794,9 +798,10 @@ def admin_instellingen():
         actie = request.form.get("actie")
 
         if actie == "huisstijl" and tenant_id:
-            bedrijfsnaam  = (request.form.get("bedrijfsnaam") or "").strip()
-            regio         = (request.form.get("regio") or "").strip()
+            bedrijfsnaam   = (request.form.get("bedrijfsnaam") or "").strip()
+            regio          = (request.form.get("regio") or "").strip()
             primaire_kleur = (request.form.get("primaire_kleur") or "").strip()
+            avatar_letter_raw = (request.form.get("avatar_letter") or "").strip()
 
             import re as _re2
             if not bedrijfsnaam:
@@ -804,6 +809,12 @@ def admin_instellingen():
             elif primaire_kleur and not _re2.match(r'^#[0-9a-fA-F]{6}$', primaire_kleur):
                 error_huisstijl = "Ongeldige kleurcode. Gebruik formaat #rrggbb."
             else:
+                # Avatar letter: eerste char, hoofdletter, alleen A-Z (fallback = eerste letter naam)
+                if avatar_letter_raw and avatar_letter_raw[0].isalpha():
+                    avatar_letter = avatar_letter_raw[0].upper()
+                else:
+                    avatar_letter = (bedrijfsnaam[0].upper() if bedrijfsnaam else "H")
+
                 with SessionLocal() as db:
                     cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
                     if cfg:
@@ -812,6 +823,12 @@ def admin_instellingen():
                         if primaire_kleur:
                             cfg.primaire_kleur = primaire_kleur
                         db.commit()
+
+                from infrastructure.db.repositories.tenant_repository import TenantRepository as _TR
+                _tr = _TR()
+                inst = _tr.get_instellingen(tenant_id)
+                inst["avatar_letter"] = avatar_letter
+                _tr.save_instellingen(tenant_id, inst)
                 success_huisstijl = True
 
         elif actie == "wachtwoord" and user_id:
@@ -842,15 +859,20 @@ def admin_instellingen():
             cfg_obj = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
             if cfg_obj:
                 from dataclasses import dataclass
+                _inst_laden = dict(cfg_obj.instellingen or {})
+                _naam_laden = cfg_obj.bedrijfsnaam or ""
+                _default_letter = (_naam_laden[0].upper() if _naam_laden else "H")
                 @dataclass
                 class _Cfg:
                     bedrijfsnaam: str
                     regio: str
                     primaire_kleur: str
+                    avatar_letter: str
                 cfg_obj = _Cfg(
-                    bedrijfsnaam=cfg_obj.bedrijfsnaam or "",
+                    bedrijfsnaam=_naam_laden,
                     regio=cfg_obj.regio or "",
                     primaire_kleur=cfg_obj.primaire_kleur or "#5c6b1e",
+                    avatar_letter=_inst_laden.get("avatar_letter") or _default_letter,
                 )
 
     return render_template(
