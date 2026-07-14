@@ -147,6 +147,14 @@
       </div>
 
       <div class="field">
+        <label for="privacy_url">URL privacyverklaring</label>
+        <input type="text" id="privacy_url" name="privacy_url"
+               value="{{ cfg.privacy_url if cfg else '' }}"
+               placeholder="https://uwbedrijf.nl/privacybeleid"/>
+        <div class="field-hint">Wordt getoond als klikbare link onderaan de openingsboodschap. Leeglaten = geen link.</div>
+      </div>
+
+      <div class="field">
         <label for="avatar_letter">Avatar letter</label>
         <div style="display:flex;align-items:center;gap:14px;">
           <input type="text" id="avatar_letter" name="avatar_letter"

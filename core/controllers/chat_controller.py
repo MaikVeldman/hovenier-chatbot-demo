@@ -32,16 +32,21 @@ _ALLE_FLOWS = [
     ("tuinontwerp",      "Tuinontwerp – ik wil eerst een professioneel ontwerp met 3D visualisatie"),
 ]
 
-_PRIVACY_LINK = "_Door verder te gaan gaat u akkoord met onze [privacyverklaring](https://www.veldmanhoveniers.nl/privacybeleid/)._"
+def _privacy_zin(privacy_url=None) -> str:
+    if privacy_url:
+        return f"_Door verder te gaan gaat u akkoord met onze [privacyverklaring]({privacy_url})._"
+    return "_Door verder te gaan gaat u akkoord met onze privacyverklaring._"
 
 
-def build_greeting(actieve_flows=None) -> str:
+def build_greeting(actieve_flows=None, privacy_url=None) -> str:
     actief = [f for f in _ALLE_FLOWS if actieve_flows is None or f[0] in actieve_flows]
     if not actief:
         actief = list(_ALLE_FLOWS)
 
+    privacy = _privacy_zin(privacy_url)
+
     if len(actief) == 1:
-        return f"Bereken in 2 minuten wat uw tuin kost 👇\n\n{_PRIVACY_LINK}"
+        return f"Bereken in 2 minuten wat uw tuin kost 👇\n\n{privacy}"
 
     opties = "\n".join(f"{i + 1}) {label}" for i, (_, label) in enumerate(actief))
     nummers = " of ".join(str(i + 1) for i in range(len(actief)))
@@ -49,7 +54,7 @@ def build_greeting(actieve_flows=None) -> str:
         f"Bereken in 2 minuten wat uw tuin kost 👇\n\n"
         f"{opties}\n\n"
         f"Reageer met {nummers}.\n\n"
-        f"{_PRIVACY_LINK}"
+        f"{privacy}"
     )
 
 

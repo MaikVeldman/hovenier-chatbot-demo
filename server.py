@@ -217,6 +217,7 @@ def reset():
     tenant_cfg = TenantRepository().get_or_default(slug) if slug else None
     inst = (tenant_cfg.instellingen or {}) if tenant_cfg else {}
     actieve_flows = inst.get("actieve_flows") or ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
+    privacy_url   = inst.get("privacy_url") or None
 
     sid = str(uuid.uuid4())
     state = make_initial_state(session_id=sid, actieve_flows=actieve_flows)
@@ -237,7 +238,7 @@ def reset():
                 pass
         log_session_created(sid, user_agent=ua, tenant_id=tenant_id)
 
-    greeting = build_greeting(actieve_flows)
+    greeting = build_greeting(actieve_flows, privacy_url=privacy_url)
     berichten = [{"role": "bot", "text": greeting}]
 
     # Bij één actieve flow: direct de eerste vraag tonen zonder extra stap
@@ -819,10 +820,11 @@ def admin_instellingen():
         actie = request.form.get("actie")
 
         if actie == "huisstijl" and tenant_id:
-            bedrijfsnaam   = (request.form.get("bedrijfsnaam") or "").strip()
-            regio          = (request.form.get("regio") or "").strip()
-            primaire_kleur = (request.form.get("primaire_kleur") or "").strip()
+            bedrijfsnaam      = (request.form.get("bedrijfsnaam") or "").strip()
+            regio             = (request.form.get("regio") or "").strip()
+            primaire_kleur    = (request.form.get("primaire_kleur") or "").strip()
             avatar_letter_raw = (request.form.get("avatar_letter") or "").strip()
+            privacy_url_form  = (request.form.get("privacy_url") or "").strip()
 
             import re as _re2
             if not bedrijfsnaam:
@@ -849,6 +851,7 @@ def admin_instellingen():
                 _tr = _TR()
                 inst = _tr.get_instellingen(tenant_id)
                 inst["avatar_letter"] = avatar_letter
+                inst["privacy_url"]   = privacy_url_form or None
 
                 _tr.save_instellingen(tenant_id, inst)
                 success_huisstijl = True
@@ -901,6 +904,7 @@ def admin_instellingen():
                     primaire_kleur: str
                     avatar_letter: str
                     actieve_flows: list
+                    privacy_url: str
                 _alle_flows = ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
                 cfg_obj = _Cfg(
                     bedrijfsnaam=_naam_laden,
@@ -908,6 +912,7 @@ def admin_instellingen():
                     primaire_kleur=cfg_obj.primaire_kleur or "#5c6b1e",
                     avatar_letter=_inst_laden.get("avatar_letter") or _default_letter,
                     actieve_flows=_inst_laden.get("actieve_flows") or _alle_flows,
+                    privacy_url=_inst_laden.get("privacy_url") or "",
                 )
 
     return render_template(
