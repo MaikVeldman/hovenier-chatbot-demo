@@ -158,8 +158,8 @@
       50%       { transform: rotate(2deg)  scale(1.02); }
     }
 
-    .msg-row.bot  .avatar { background: #e8e4d8; }
-    .msg-row.user .avatar { background: #d4cfc0; }
+    .msg-row.bot  .avatar { background: {{ primaire_kleur }}; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 0; }
+    .msg-row.user .avatar { background: #d4cfc0; color: #fff; font-size: 15px; font-weight: 700; }
 
     .bubble {
       max-width: 78%;
@@ -422,8 +422,8 @@
     window.addEventListener('resize', updateLayout);
   }
 
-  const BOT_AVATAR  = { type: 'img', value: '/logo.png' };
-  const USER_AVATAR = { type: 'emoji', value: '👤' };
+  const BOT_AVATAR  = { type: 'initial', value: '{{ (bedrijfsnaam or "H")[0] | upper }}' };
+  const USER_AVATAR = { type: 'initial', value: '?' };
 
   const API_BASE    = '';
   const STORAGE_KEY = 'tuinchat_' + TENANT_SLUG;
@@ -505,14 +505,7 @@
   function makeAvatar(cfg) {
     const el = document.createElement('div');
     el.className = 'avatar';
-    if (cfg.type === 'img') {
-      const img = document.createElement('img');
-      img.src = cfg.value;
-      img.alt = '';
-      el.appendChild(img);
-    } else {
-      el.textContent = cfg.value;
-    }
+    el.textContent = cfg.value;
     return el;
   }
 
