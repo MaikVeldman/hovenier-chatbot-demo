@@ -22,7 +22,7 @@ except Exception:
 
 BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN", "")
 BREVO_SMTP_KEY   = os.getenv("BREVO_SMTP_KEY", "")
-BREVO_FROM       = os.getenv("BREVO_FROM", "Veldman Hoveniers <noreply@indiqa.nl>")
+BREVO_FROM       = os.getenv("BREVO_FROM", "Indiqa <noreply@indiqa.nl>")
 NOTIFY_TO        = os.getenv("NOTIFY_TO", "info@veldmanhoveniers.nl")
 
 _BREVO_HOST = "smtp-relay.brevo.com"
