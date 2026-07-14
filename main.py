@@ -1,11 +1,11 @@
 # main.py — command-line interface voor lokaal testen
-from core.controllers.chat_controller import ChatController, INITIAL_GREETING
+from core.controllers.chat_controller import ChatController, build_greeting
 from core.models.chat_state import make_initial_state
 
 state = make_initial_state()
 
 print("🤖 Hovenier-chatbot gestart (typ 'stop' om te stoppen)\n")
-print(f"Chatbot: {INITIAL_GREETING}\n")
+print(f"Chatbot: {build_greeting()}\n")
 
 while True:
     user_input = input("U: ").strip()

@@ -4,7 +4,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO, CONTACT_EMAIL, CONTACT_TELEFOON
-from core.controllers.chat_controller import ChatController, INITIAL_GREETING
+from core.controllers.chat_controller import ChatController, build_greeting
 from core.models.chat_state import make_initial_state
 
 # =====================
@@ -21,7 +21,7 @@ def render_text(text: str) -> None:
 
 
 def _initial_messages():
-    return [{"role": "assistant", "content": INITIAL_GREETING}]
+    return [{"role": "assistant", "content": build_greeting()}]
 
 
 # =====================

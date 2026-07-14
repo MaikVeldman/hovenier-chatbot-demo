@@ -17,7 +17,7 @@ from flask import (
 from flask_cors import CORS
 
 from infrastructure.config.bedrijf import BEDRIJFSNAAM, REGIO
-from core.controllers.chat_controller import ChatController, INITIAL_GREETING
+from core.controllers.chat_controller import ChatController, build_greeting
 from core.models.chat_state import make_initial_state
 from core.models.tenant_context import TenantContext
 from core.pricing.price_table import PriceTable
@@ -212,12 +212,18 @@ def reset():
     old_sid = data.get("session_id")
     if old_sid and old_sid in _sessions:
         del _sessions[old_sid]
+
+    slug = request.headers.get("X-Tenant-Slug", "")
+    tenant_cfg = TenantRepository().get_or_default(slug) if slug else None
+    inst = (tenant_cfg.instellingen or {}) if tenant_cfg else {}
+    actieve_flows = inst.get("actieve_flows") or ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
+
     sid = str(uuid.uuid4())
-    state = make_initial_state(session_id=sid)
+    state = make_initial_state(session_id=sid, actieve_flows=actieve_flows)
     _sessions[sid] = state
+
     if _DB:
         ua = request.headers.get("User-Agent", "")
-        slug = request.headers.get("X-Tenant-Slug", "")
         tenant_id = None
         if slug:
             try:
@@ -230,9 +236,10 @@ def reset():
             except Exception:
                 pass
         log_session_created(sid, user_agent=ua, tenant_id=tenant_id)
+
     return jsonify({
         "session_id": sid,
-        "messages": [{"role": "bot", "text": INITIAL_GREETING}],
+        "messages": [{"role": "bot", "text": build_greeting(actieve_flows)}],
     })
 
 
@@ -828,6 +835,12 @@ def admin_instellingen():
                 _tr = _TR()
                 inst = _tr.get_instellingen(tenant_id)
                 inst["avatar_letter"] = avatar_letter
+
+                # Flows: minstens 1 vereist, anders alle 3 behouden
+                _alle = ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
+                _gekozen = [f for f in request.form.getlist("actieve_flows") if f in _alle]
+                inst["actieve_flows"] = _gekozen if _gekozen else _alle
+
                 _tr.save_instellingen(tenant_id, inst)
                 success_huisstijl = True
 
@@ -868,11 +881,14 @@ def admin_instellingen():
                     regio: str
                     primaire_kleur: str
                     avatar_letter: str
+                    actieve_flows: list
+                _alle_flows = ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
                 cfg_obj = _Cfg(
                     bedrijfsnaam=_naam_laden,
                     regio=cfg_obj.regio or "",
                     primaire_kleur=cfg_obj.primaire_kleur or "#5c6b1e",
                     avatar_letter=_inst_laden.get("avatar_letter") or _default_letter,
+                    actieve_flows=_inst_laden.get("actieve_flows") or _alle_flows,
                 )
 
     return render_template(

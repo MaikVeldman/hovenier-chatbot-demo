@@ -147,6 +147,25 @@
       </div>
 
       <div class="field">
+        <label>Beschikbare flows in de rekentool</label>
+        {% set actief = cfg.actieve_flows if cfg else ["tuinaanleg","losse_onderdelen","tuinontwerp"] %}
+        {% for flow_key, flow_label in [
+            ("tuinaanleg",       "Gehele tuin aanleggen"),
+            ("losse_onderdelen", "Losse onderdelen"),
+            ("tuinontwerp",      "Tuinontwerp (3D visualisatie)")
+        ] %}
+        <label style="display:flex;align-items:center;gap:10px;font-weight:400;font-size:14px;
+                       color:var(--text);cursor:pointer;margin-bottom:10px;">
+          <input type="checkbox" name="actieve_flows" value="{{ flow_key }}"
+                 {% if flow_key in actief %}checked{% endif %}
+                 style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+          {{ flow_label }}
+        </label>
+        {% endfor %}
+        <div class="field-hint">Minstens één flow is verplicht. Niet-aangevinkte opties verdwijnen uit de rekentool.</div>
+      </div>
+
+      <div class="field">
         <label for="avatar_letter">Avatar letter</label>
         <div style="display:flex;align-items:center;gap:14px;">
           <input type="text" id="avatar_letter" name="avatar_letter"

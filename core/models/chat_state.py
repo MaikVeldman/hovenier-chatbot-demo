@@ -1,8 +1,8 @@
 # core/models/chat_state.py
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from flow_tuinaanleg import TuinaanlegFlowV2
@@ -38,7 +38,14 @@ class ChatState:
     # Leadscore-signalen
     prijs_gezien_en_doorgegaan: bool = False
     heeft_herberekend: bool = False
+    # Actieve flows voor deze sessie
+    actieve_flows: List[str] = field(
+        default_factory=lambda: ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
+    )
 
 
-def make_initial_state(session_id: str = None) -> ChatState:
-    return ChatState(session_id=session_id)
+def make_initial_state(session_id: str = None, actieve_flows: List[str] = None) -> ChatState:
+    return ChatState(
+        session_id=session_id,
+        actieve_flows=actieve_flows or ["tuinaanleg", "losse_onderdelen", "tuinontwerp"],
+    )

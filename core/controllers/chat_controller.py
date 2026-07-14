@@ -26,14 +26,37 @@ from core.pricing.pricing import (
     format_tuinontwerp_costs_as_chat_html,
 )
 
-INITIAL_GREETING = (
-    "Bereken in 2 minuten wat uw tuin kost 👇\n\n"
-    "1) De gehele tuin aanleggen – ik stel een paar vragen en reken de totale tuin door\n"
-    "2) Losse onderdelen – kies zelf wat u wilt laten aanleggen (bijv. alleen een terras of gazon)\n"
-    "3) Tuinontwerp – ik wil eerst een professioneel ontwerp met 3D visualisatie\n\n"
-    "Reageer met 1, 2 of 3.\n\n"
-    "_Door verder te gaan gaat u akkoord met onze [privacyverklaring](https://www.veldmanhoveniers.nl/privacybeleid/)._"
-)
+_ALLE_FLOWS = [
+    ("tuinaanleg",       "De gehele tuin aanleggen – ik stel een paar vragen en reken de totale tuin door"),
+    ("losse_onderdelen", "Losse onderdelen – kies zelf wat u wilt laten aanleggen (bijv. alleen een terras of gazon)"),
+    ("tuinontwerp",      "Tuinontwerp – ik wil eerst een professioneel ontwerp met 3D visualisatie"),
+]
+
+_PRIVACY_LINK = "_Door verder te gaan gaat u akkoord met onze [privacyverklaring](https://www.veldmanhoveniers.nl/privacybeleid/)._"
+
+
+def build_greeting(actieve_flows=None) -> str:
+    actief = [f for f in _ALLE_FLOWS if actieve_flows is None or f[0] in actieve_flows]
+    if not actief:
+        actief = list(_ALLE_FLOWS)
+
+    if len(actief) == 1:
+        _, label = actief[0]
+        return (
+            f"Bereken in 2 minuten wat uw tuin kost 👇\n\n"
+            f"{label}\n\n"
+            f"Typ iets om te beginnen.\n\n"
+            f"{_PRIVACY_LINK}"
+        )
+
+    opties = "\n".join(f"{i + 1}) {label}" for i, (_, label) in enumerate(actief))
+    nummers = " of ".join(str(i + 1) for i in range(len(actief)))
+    return (
+        f"Bereken in 2 minuten wat uw tuin kost 👇\n\n"
+        f"{opties}\n\n"
+        f"Reageer met {nummers}.\n\n"
+        f"{_PRIVACY_LINK}"
+    )
 
 
 class ChatController:
@@ -78,32 +101,55 @@ class ChatController:
     # ----------------------------------------------------------
 
     def _handle_flow_keuze(self, t_raw: str) -> Tuple[ChatState, List[str]]:
+        actief = [f for f in _ALLE_FLOWS if f[0] in (self.state.actieve_flows or [])]
+        if not actief:
+            actief = list(_ALLE_FLOWS)
+
+        # Eén flow actief → direct starten, ongeacht wat de gebruiker typt
+        if len(actief) == 1:
+            return self._start_flow(actief[0][0])
+
+        # Meerdere flows → numerieke keuze
+        try:
+            idx = int(t_raw) - 1
+            if 0 <= idx < len(actief):
+                return self._start_flow(actief[idx][0])
+        except (ValueError, TypeError):
+            pass
+
+        nummers = " of ".join(f"**{i + 1}**" for i in range(len(actief)))
+        return self.state, [f"Typ {nummers} om een keuze te maken."]
+
+    def _start_flow(self, flow_key: str) -> Tuple[ChatState, List[str]]:
         from core.flows.tuinaanleg import TuinaanlegFlowV2
         from core.flows.losse_onderdelen import LosseOnderdelenFlow
         from core.flows.tuinontwerp import TuinontWerpFlow
 
-        if t_raw == "1":
+        if flow_key == "tuinaanleg":
             self.state.flow_type = "gehele_tuin"
             self.state.flow = TuinaanlegFlowV2()
             if _DB and self.state.session_id:
                 update_session_flow(self.state.session_id, "gehele_tuin")
                 log_event(self.state.session_id, "flow_started", {"flow": "gehele_tuin"})
             return self.state, [self.state.flow.get_question()]
-        if t_raw == "2":
+
+        if flow_key == "losse_onderdelen":
             self.state.flow_type = "losse_onderdelen"
             self.state.losse_flow = LosseOnderdelenFlow()
             if _DB and self.state.session_id:
                 update_session_flow(self.state.session_id, "losse_onderdelen")
                 log_event(self.state.session_id, "flow_started", {"flow": "losse_onderdelen"})
             return self.state, [self.state.losse_flow.start_question()]
-        if t_raw == "3":
+
+        if flow_key == "tuinontwerp":
             self.state.flow_type = "tuinontwerp"
             self.state.tuinontwerp_flow = TuinontWerpFlow()
             if _DB and self.state.session_id:
                 update_session_flow(self.state.session_id, "tuinontwerp")
                 log_event(self.state.session_id, "flow_started", {"flow": "tuinontwerp"})
             return self.state, [self.state.tuinontwerp_flow.get_question()]
-        return self.state, ["Typ **1**, **2** of **3** om een keuze te maken."]
+
+        return self.state, []
 
     # ----------------------------------------------------------
     # Intake flows
