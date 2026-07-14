@@ -199,22 +199,38 @@
     </p>
     <form method="POST" action="/beheer/instellingen">
       <input type="hidden" name="actie" value="flows"/>
-      {% set actief = cfg.actieve_flows if cfg else ["tuinaanleg","losse_onderdelen","tuinontwerp"] %}
-      {% for flow_key, flow_label, flow_hint in [
-          ("tuinaanleg",       "Gehele tuin aanleggen",          "Berekent de totale tuin stap voor stap"),
-          ("losse_onderdelen", "Losse onderdelen",               "Klant kiest zelf wat er aangelegd wordt"),
-          ("tuinontwerp",      "Tuinontwerp (3D visualisatie)",  "Geeft een indicatie van ontwerp- en projectkosten")
-      ] %}
+      {% set actief = (cfg.actieve_flows if cfg else []) or ["tuinaanleg","losse_onderdelen","tuinontwerp"] %}
+
       <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
-        <input type="checkbox" name="actieve_flows" value="{{ flow_key }}"
-               {% if flow_key in actief %}checked{% endif %}
+        <input type="checkbox" name="actieve_flows" value="tuinaanleg"
+               {% if "tuinaanleg" in actief %}checked{% endif %}
                style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
         <span>
-          <span style="font-size:14px;font-weight:500;color:var(--text);">{{ flow_label }}</span>
-          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">{{ flow_hint }}</span>
+          <span style="font-size:14px;font-weight:500;color:var(--text);">Gehele tuin aanleggen</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">Berekent de totale tuin stap voor stap</span>
         </span>
       </label>
-      {% endfor %}
+
+      <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
+        <input type="checkbox" name="actieve_flows" value="losse_onderdelen"
+               {% if "losse_onderdelen" in actief %}checked{% endif %}
+               style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+        <span>
+          <span style="font-size:14px;font-weight:500;color:var(--text);">Losse onderdelen</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">Klant kiest zelf wat er aangelegd wordt</span>
+        </span>
+      </label>
+
+      <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
+        <input type="checkbox" name="actieve_flows" value="tuinontwerp"
+               {% if "tuinontwerp" in actief %}checked{% endif %}
+               style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+        <span>
+          <span style="font-size:14px;font-weight:500;color:var(--text);">Tuinontwerp (3D visualisatie)</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">Geeft een indicatie van ontwerp- en projectkosten</span>
+        </span>
+      </label>
+
       <div class="field-hint" style="margin-bottom:16px;">Minstens één flow moet aan staan.</div>
       <button type="submit" class="btn-save">Opslaan</button>
     </form>
