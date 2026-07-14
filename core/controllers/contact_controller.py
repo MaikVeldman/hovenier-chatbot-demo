@@ -95,6 +95,8 @@ class ContactController:
                     lead_label=label,
                     score_breakdown=breakdown,
                     bekijk_token=bekijk_token,
+                    notify_to=self.state.tenant_notify_email or None,
+                    bedrijfsnaam=self.state.tenant_bedrijfsnaam or None,
                 )
                 from datetime import datetime as _dt, timezone as _tz
                 email_sent_at = _dt.now(_tz.utc)
@@ -216,7 +218,8 @@ class ContactController:
         self.state.post_offer_stage = "end"
         self.state.ended = True
         self.state.end_reason = "contact_submitted"
+        _naam_bedrijf = self.state.tenant_bedrijfsnaam or "ons bedrijf"
         return self.state, [
-            "✅ Aanvraag ontvangen! We nemen zo snel mogelijk contact met u op.\n\n"
-            "Bedankt voor uw interesse in Veldman Hoveniers!"
+            f"✅ Aanvraag ontvangen! We nemen zo snel mogelijk contact met u op.\n\n"
+            f"Bedankt voor uw interesse in {_naam_bedrijf}!"
         ]

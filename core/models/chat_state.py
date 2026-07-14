@@ -42,6 +42,9 @@ class ChatState:
     actieve_flows: List[str] = field(
         default_factory=lambda: ["tuinaanleg", "losse_onderdelen", "tuinontwerp"]
     )
+    # Tenant-context voor e-mail routing
+    tenant_notify_email: Optional[str] = None
+    tenant_bedrijfsnaam: Optional[str] = None
 
 
 def make_initial_state(session_id: str = None, actieve_flows: List[str] = None) -> ChatState:

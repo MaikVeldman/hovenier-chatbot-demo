@@ -475,6 +475,7 @@ def _build_owner_html(
     opmerking: Optional[str],
     costs: Optional[Dict[str, Any]], flow_type: Optional[str],
     leadscore: int = 0, lead_label: str = "", score_breakdown: Optional[Dict[str, int]] = None,
+    bedrijfsnaam: str = "Uw hoveniersbedrijf",
 ) -> str:
     adres_row = f"""
       <tr>
@@ -538,7 +539,7 @@ def _build_owner_html(
     content = f"""
     <h2 style="margin:0 0 4px;font-size:20px;color:{_TEXT};">Nieuwe offerte aanvraag</h2>
     <p style="margin:0 0 24px;color:{_MUTED};font-size:14px;">
-      Via de chatbot op veldmanhoveniers.nl
+      Via de rekentool van {bedrijfsnaam}
     </p>
 
     {_section("Contactgegevens", contact_block)}
@@ -565,6 +566,7 @@ def _build_customer_html(
     costs: Optional[Dict[str, Any]],
     flow_type: Optional[str],
     bekijk_token: Optional[str] = None,
+    bedrijfsnaam: str = "Uw hoveniersbedrijf",
 ) -> str:
     price_block = ""
     if costs:
@@ -609,7 +611,7 @@ def _build_customer_html(
     content = f"""
     <h2 style="margin:0 0 4px;font-size:20px;color:{_TEXT};">Goed nieuws, {naam}! Uw aanvraag is ontvangen.</h2>
     <p style="margin:0 0 20px;color:{_MUTED};font-size:14px;">
-      Bedankt voor uw interesse in Veldman Hoveniers. We nemen zo snel mogelijk contact met u op.
+      Bedankt voor uw interesse in {bedrijfsnaam}. We nemen zo snel mogelijk contact met u op.
     </p>
 
     <p style="margin:0 0 16px;color:{_TEXT};">
@@ -877,14 +879,20 @@ def send_contact_email(
     lead_label: str = "",
     score_breakdown: Optional[Dict[str, int]] = None,
     bekijk_token: Optional[str] = None,
+    notify_to: Optional[str] = None,
+    bedrijfsnaam: Optional[str] = None,
 ) -> None:
+    ontvanger = notify_to or NOTIFY_TO
+    naam_bedrijf = bedrijfsnaam or "Uw hoveniersbedrijf"
+
     # Mail 1 — notificatie aan hovenier
     _send_mail(
-        to=NOTIFY_TO,
+        to=ontvanger,
         subject=f"Offerte aanvraag – {naam}",
         html=_build_owner_html(
             naam, telefoon, email, adres, woonplaats, opmerking, costs, flow_type,
             leadscore=leadscore, lead_label=lead_label, score_breakdown=score_breakdown,
+            bedrijfsnaam=naam_bedrijf,
         ),
         reply_to=email if email and "@" in email else None,
     )
@@ -893,8 +901,9 @@ def send_contact_email(
     try:
         _send_mail(
             to=email,
-            subject="Uw aanvraag bij Veldman Hoveniers",
-            html=_build_customer_html(naam, costs, flow_type, bekijk_token=bekijk_token),
+            subject=f"Uw aanvraag bij {naam_bedrijf}",
+            html=_build_customer_html(naam, costs, flow_type, bekijk_token=bekijk_token,
+                                      bedrijfsnaam=naam_bedrijf),
         )
     except Exception as exc:
         print(f"[mailer] Klantbevestiging niet verstuurd: {exc}")

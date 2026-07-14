@@ -62,6 +62,12 @@ class ChatController:
     def __init__(self, state: ChatState, tenant_ctx=None):
         self.state = state
         self.tenant_ctx = tenant_ctx
+        if tenant_ctx and tenant_ctx.config:
+            cfg = tenant_ctx.config
+            if not self.state.tenant_notify_email:
+                self.state.tenant_notify_email = cfg.contact_email or None
+            if not self.state.tenant_bedrijfsnaam:
+                self.state.tenant_bedrijfsnaam = cfg.bedrijfsnaam or None
 
     def handle(self, user_text: str) -> Tuple[ChatState, List[str]]:
         if self.state.ended:
