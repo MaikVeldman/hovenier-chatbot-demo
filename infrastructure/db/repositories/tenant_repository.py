@@ -115,6 +115,33 @@ class TenantRepository:
             print(f"[TenantRepository] get_prijzen_overrides fout: {e}")
             return {}
 
+    def get_instellingen(self, tenant_id: int) -> Dict:
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenantConfig
+            with SessionLocal() as db:
+                cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                return dict(cfg.instellingen or {}) if cfg else {}
+        except Exception as e:
+            print(f"[TenantRepository] get_instellingen fout: {e}")
+            return {}
+
+    def save_instellingen(self, tenant_id: int, inst: Dict) -> None:
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenantConfig
+            from datetime import datetime, timezone
+            from sqlalchemy.orm.attributes import flag_modified
+            with SessionLocal() as db:
+                cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                if cfg:
+                    cfg.instellingen = dict(inst) or None
+                    flag_modified(cfg, "instellingen")
+                    cfg.bijgewerkt_op = datetime.now(timezone.utc)
+                    db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] save_instellingen fout: {e}")
+
     def get_volume_kortingen(self, tenant_id: int) -> Dict:
         """Laadt huidige volume korting overrides uit DbTenantConfig.volume_kortingen."""
         try:
@@ -203,6 +230,7 @@ class TenantRepository:
                     primaire_kleur=cfg.primaire_kleur or "#5c6b1e",
                     prijzen=prijzen,
                     volume_kortingen=volume_kortingen,
+                    instellingen=dict(cfg.instellingen or {}),
                 )
         except Exception as e:
             print(f"[TenantRepository] Fout bij laden tenant '{slug}': {e}")

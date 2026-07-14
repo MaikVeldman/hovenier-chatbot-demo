@@ -52,11 +52,15 @@ def _migrate_db() -> None:
         from sqlalchemy import text
         from infrastructure.db.database import engine
         with engine.connect() as conn:
-            try:
-                conn.execute(text("ALTER TABLE tenant_configs ADD COLUMN volume_kortingen JSON"))
-                conn.commit()
-            except Exception:
-                pass  # kolom bestaat al
+            for sql in [
+                "ALTER TABLE tenant_configs ADD COLUMN volume_kortingen JSON",
+                "ALTER TABLE tenant_configs ADD COLUMN instellingen JSON",
+            ]:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except Exception:
+                    pass  # kolom bestaat al
     except Exception as e:
         print(f"[server] DB migratie mislukt: {e}")
 
@@ -663,12 +667,21 @@ def admin_tarieven():
                 vk_new[cat] = sorted(rows, key=lambda x: -x[0])
         repo.save_volume_kortingen(tenant_id, vk_new)
 
+        try:
+            zaag_pct = int(request.form.get("zaagwerk_pct", 35))
+            zaag_pct = max(1, min(100, zaag_pct))
+        except (ValueError, TypeError):
+            zaag_pct = 35
+        repo.save_instellingen(tenant_id, {"zaagwerk_pct": zaag_pct})
+
         _refresh_price_table()
         return redirect(url_for("admin_tarieven", opgeslagen=1))
 
     overrides = repo.get_prijzen_overrides(tenant_id) if repo else {}
-    vk_overrides = repo.get_volume_kortingen(tenant_id) if repo else {}
-    opgeslagen = request.args.get("opgeslagen") == "1"
+    vk_overrides   = repo.get_volume_kortingen(tenant_id) if repo else {}
+    instellingen   = repo.get_instellingen(tenant_id) if repo else {}
+    zaagwerk_pct   = int(instellingen.get("zaagwerk_pct", 35))
+    opgeslagen     = request.args.get("opgeslagen") == "1"
 
     categorieen = []
     for cat_naam, items in _PRIJS_CATEGORIEEN:
@@ -710,6 +723,7 @@ def admin_tarieven():
         active="tarieven",
         categorieen=categorieen,
         vk_categorieen=vk_categorieen,
+        zaagwerk_pct=zaagwerk_pct,
         opgeslagen=opgeslagen,
         db_actief=bool(repo),
     )
@@ -724,6 +738,7 @@ def admin_tarieven_reset():
         repo = TenantRepository()
         repo.save_prijzen(tenant_id, {})
         repo.save_volume_kortingen(tenant_id, {})
+        repo.save_instellingen(tenant_id, {})
         _refresh_price_table()
     return redirect(url_for("admin_tarieven", opgeslagen=1))
 

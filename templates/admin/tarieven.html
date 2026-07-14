@@ -300,6 +300,26 @@
   </div>
   {% endfor %}
 
+  <div class="card" style="margin-bottom:14px;">
+    <div class="cat-header">Zaagwerk</div>
+    <div style="padding:14px 18px 18px;">
+      <p class="vk-hint">Gemiddeld percentage van het straatwerk dat gezaagd moet worden (randen, hoeken, obstakels). Standaard: 35%.</p>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <label style="font-size:13px;color:var(--text);font-weight:500;">Zaagwerk per m² straatwerk</label>
+        <div class="vk-stepper">
+          <button type="button" class="step-btn" onclick="stepVk('zaagwerk_pct', -1)">−</button>
+          <input class="vk-input" type="number" min="1" max="100" step="1"
+                 name="zaagwerk_pct" id="zaagwerk_pct"
+                 value="{{ zaagwerk_pct }}"
+                 style="width:52px;"
+                 {% if not db_actief %}disabled{% endif %}>
+          <button type="button" class="step-btn" onclick="stepVk('zaagwerk_pct', 1)">+</button>
+        </div>
+        <span style="font-size:13px;color:var(--text-3);">%</span>
+      </div>
+    </div>
+  </div>
+
   {% if vk_categorieen %}
   <div class="card" style="margin-bottom:14px;">
     <div class="cat-header">Volume kortingen</div>

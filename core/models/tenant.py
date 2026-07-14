@@ -16,3 +16,4 @@ class TenantConfig:
     primaire_kleur:   str
     prijzen:          Dict[str, Tuple[int, int]] = field(default_factory=dict)
     volume_kortingen: Dict[str, List] = field(default_factory=dict)
+    instellingen:     Dict = field(default_factory=dict)

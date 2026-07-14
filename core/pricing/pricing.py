@@ -1045,7 +1045,7 @@ def estimate_tuinaanleg_costs(answers: Dict[str, Any], price_table=None) -> Dict
         zaag_key = "zaagwerk_per_m1"
         zaag_unit_range = PRIJZEN.get(zaag_key, (35, 65))
 
-        zaag_m1 = straatwerk_m2 * 0.35
+        zaag_m1 = straatwerk_m2 * p.zaagwerk_pct
 
         zaag_range = (
             float(zaag_unit_range[0]) * zaag_m1,
@@ -1844,7 +1844,7 @@ def estimate_losse_onderdelen_costs(answers: Dict[str, Any], price_table=None) -
     if straatwerk_m2 > 0.01:
         zaag_key = "zaagwerk_per_m1"
         zur = PRIJZEN.get(zaag_key, (35, 65))
-        z_m1 = straatwerk_m2 * 0.35
+        z_m1 = straatwerk_m2 * p.zaagwerk_pct
         zaag_rng = (float(zur[0]) * z_m1, float(zur[1]) * z_m1)
         total = _range_add(total, zaag_rng)
         breakdown.append({
