@@ -237,9 +237,22 @@ def reset():
                 pass
         log_session_created(sid, user_agent=ua, tenant_id=tenant_id)
 
+    greeting = build_greeting(actieve_flows)
+    berichten = [{"role": "bot", "text": greeting}]
+
+    # Bij één actieve flow: direct de eerste vraag tonen zonder extra stap
+    if len(actieve_flows) == 1:
+        tenant_cfg2 = TenantRepository().get_or_default(slug) if slug else None
+        tenant_ctx2 = TenantContext(config=tenant_cfg2, price_table=PriceTable(tenant_cfg2)) if tenant_cfg2 else None
+        ctrl = ChatController(state, tenant_ctx2)
+        state, flow_msgs = ctrl.handle("_auto_")
+        _sessions[sid] = state
+        for m in flow_msgs:
+            berichten.append({"role": "bot", "text": m})
+
     return jsonify({
         "session_id": sid,
-        "messages": [{"role": "bot", "text": build_greeting(actieve_flows)}],
+        "messages": berichten,
     })
 
 

@@ -41,13 +41,7 @@ def build_greeting(actieve_flows=None) -> str:
         actief = list(_ALLE_FLOWS)
 
     if len(actief) == 1:
-        _, label = actief[0]
-        return (
-            f"Bereken in 2 minuten wat uw tuin kost 👇\n\n"
-            f"{label}\n\n"
-            f"Typ iets om te beginnen.\n\n"
-            f"{_PRIVACY_LINK}"
-        )
+        return f"Bereken in 2 minuten wat uw tuin kost 👇\n\n{_PRIVACY_LINK}"
 
     opties = "\n".join(f"{i + 1}) {label}" for i, (_, label) in enumerate(actief))
     nummers = " of ".join(str(i + 1) for i in range(len(actief)))
