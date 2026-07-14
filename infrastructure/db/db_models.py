@@ -56,8 +56,9 @@ class DbTenantConfig(Base):
     contact_telefoon = Column(String(50),  nullable=True)
     begroeting       = Column(Text, nullable=True)
     primaire_kleur   = Column(String(20),  default="#5c6b1e", nullable=False)
-    prijzen          = Column(JSON, nullable=True)
-    bijgewerkt_op    = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    prijzen           = Column(JSON, nullable=True)
+    volume_kortingen  = Column(JSON, nullable=True)
+    bijgewerkt_op     = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     tenant = relationship("DbTenant", back_populates="config")
 

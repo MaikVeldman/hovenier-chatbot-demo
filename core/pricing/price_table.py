@@ -20,6 +20,10 @@ class PriceTable:
         overrides = (tenant_config.prijzen or {}) if tenant_config else {}
         self._data: Dict[str, Tuple[int, int]] = {**PRIJZEN, **overrides}
         self.volume_kortingen: Dict[str, List[Tuple[float, float]]] = dict(VOLUME_KORTINGEN)
+        vk_overrides = (tenant_config.volume_kortingen or {}) if tenant_config else {}
+        for cat, rows in vk_overrides.items():
+            if rows:
+                self.volume_kortingen[cat] = [(float(r[0]), float(r[1])) for r in rows]
         self.grondwerk_dieptes: Dict[str, float] = dict(GRONDWERK_DIEPTES)
 
     def get(self, key: str, default: Any = (0, 0)) -> Tuple[int, int]:

@@ -44,6 +44,23 @@ try:
 except Exception:
     _DB = False
 
+def _migrate_db() -> None:
+    """Voeg ontbrekende kolommen toe aan bestaande tabellen."""
+    if not _DB:
+        return
+    try:
+        from sqlalchemy import text
+        from infrastructure.db.database import engine
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE tenant_configs ADD COLUMN volume_kortingen JSON"))
+                conn.commit()
+            except Exception:
+                pass  # kolom bestaat al
+    except Exception as e:
+        print(f"[server] DB migratie mislukt: {e}")
+
+
 def _refresh_price_table() -> None:
     if not _DB:
         return
@@ -82,7 +99,8 @@ if DEMO_MODE:
     _origins += ["https://demo.indiqa.nl"]
 CORS(app, origins=_origins)
 
-# Laad tenant-prijzen bij opstart
+# DB migraties + laad tenant-prijzen bij opstart
+_migrate_db()
 _refresh_price_table()
 
 # ============================================================
@@ -596,12 +614,20 @@ _PRIJS_CATEGORIEEN = [
     ]),
 ]
 
+# (cat_key, label, eenheid, n_rows, drempel_stap)
+_VK_CATEGORIEEN = [
+    ("groen",      "Groen",      "m²", 3, 25),
+    ("bestrating", "Bestrating", "m²", 3, 25),
+    ("grondwerk",  "Grondwerk",  "m³", 3,  5),
+    ("vlonder",    "Vlonder",    "m²", 2, 10),
+]
+
 
 @app.route("/beheer/tarieven", methods=["GET", "POST"])
 @_admin_required
 def admin_tarieven():
     import core.pricing.pricing as _p
-    from core.pricing.constants import PRIJZEN as _BASE_PRIJZEN
+    from core.pricing.constants import PRIJZEN as _BASE_PRIJZEN, VOLUME_KORTINGEN as _BASE_VK
     tenant_id = flask_session.get("tenant_id") if _DB else None
     repo = None
     if _DB and tenant_id:
@@ -621,10 +647,27 @@ def admin_tarieven():
                 except (ValueError, TypeError):
                     pass
         repo.save_prijzen(tenant_id, overrides)
+
+        vk_new = {}
+        for cat, _, _, n_rows, _ in _VK_CATEGORIEEN:
+            rows = []
+            for i in range(n_rows):
+                try:
+                    d = float(request.form.get(f"vk_{cat}_{i}_drempel", 0))
+                    f = float(request.form.get(f"vk_{cat}_{i}_factor", 1.0))
+                    f = max(0.01, min(1.0, round(f, 2)))
+                    rows.append((d, f))
+                except (ValueError, TypeError):
+                    pass
+            if rows:
+                vk_new[cat] = sorted(rows, key=lambda x: -x[0])
+        repo.save_volume_kortingen(tenant_id, vk_new)
+
         _refresh_price_table()
         return redirect(url_for("admin_tarieven", opgeslagen=1))
 
     overrides = repo.get_prijzen_overrides(tenant_id) if repo else {}
+    vk_overrides = repo.get_volume_kortingen(tenant_id) if repo else {}
     opgeslagen = request.args.get("opgeslagen") == "1"
 
     categorieen = []
@@ -643,10 +686,30 @@ def admin_tarieven():
             })
         categorieen.append({"naam": cat_naam, "rijen": rijen})
 
+    vk_categorieen = []
+    for cat, label, eenheid, n_rows, stap in _VK_CATEGORIEEN:
+        base_rows  = _BASE_VK.get(cat, [])
+        cur_rows   = vk_overrides.get(cat) if cat in vk_overrides else base_rows
+        rijen = []
+        for i in range(n_rows):
+            if i < len(cur_rows):
+                d, f = cur_rows[i]
+            elif i < len(base_rows):
+                d, f = base_rows[i]
+            else:
+                d, f = 0, 1.0
+            rijen.append({"drempel": d, "factor": round(f, 2)})
+        vk_categorieen.append({
+            "cat": cat, "label": label, "eenheid": eenheid,
+            "rijen": rijen, "stap": stap,
+            "is_override": cat in vk_overrides,
+        })
+
     return render_template(
         "admin/tarieven.html",
         active="tarieven",
         categorieen=categorieen,
+        vk_categorieen=vk_categorieen,
         opgeslagen=opgeslagen,
         db_actief=bool(repo),
     )
@@ -658,7 +721,9 @@ def admin_tarieven_reset():
     tenant_id = flask_session.get("tenant_id") if _DB else None
     if _DB and tenant_id:
         from infrastructure.db.repositories.tenant_repository import TenantRepository
-        TenantRepository().save_prijzen(tenant_id, {})
+        repo = TenantRepository()
+        repo.save_prijzen(tenant_id, {})
+        repo.save_volume_kortingen(tenant_id, {})
         _refresh_price_table()
     return redirect(url_for("admin_tarieven", opgeslagen=1))
 

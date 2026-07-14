@@ -115,6 +115,42 @@ class TenantRepository:
             print(f"[TenantRepository] get_prijzen_overrides fout: {e}")
             return {}
 
+    def get_volume_kortingen(self, tenant_id: int) -> Dict:
+        """Laadt huidige volume korting overrides uit DbTenantConfig.volume_kortingen."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenantConfig
+            with SessionLocal() as db:
+                cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                if not cfg or not cfg.volume_kortingen:
+                    return {}
+                result = {}
+                for cat, rows in cfg.volume_kortingen.items():
+                    parsed = [(float(r[0]), float(r[1])) for r in rows if len(r) == 2]
+                    if parsed:
+                        result[cat] = parsed
+                return result
+        except Exception as e:
+            print(f"[TenantRepository] get_volume_kortingen fout: {e}")
+            return {}
+
+    def save_volume_kortingen(self, tenant_id: int, vk: Dict) -> None:
+        """Slaat volume korting instellingen op in DbTenantConfig.volume_kortingen."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenantConfig
+            from datetime import datetime, timezone
+            from sqlalchemy.orm.attributes import flag_modified
+            with SessionLocal() as db:
+                cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
+                if cfg:
+                    cfg.volume_kortingen = {k: [[r[0], r[1]] for r in v] for k, v in vk.items()} or None
+                    flag_modified(cfg, "volume_kortingen")
+                    cfg.bijgewerkt_op = datetime.now(timezone.utc)
+                    db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] save_volume_kortingen fout: {e}")
+
     def save_prijzen(self, tenant_id: int, overrides: Dict[str, Tuple[int, int]]) -> None:
         """Slaat prijsoverrides op in DbTenantConfig.prijzen."""
         try:
@@ -151,6 +187,12 @@ class TenantRepository:
                     if isinstance(v, (list, tuple)) and len(v) == 2:
                         prijzen[k] = (int(v[0]), int(v[1]))
 
+                volume_kortingen = {}
+                for cat, rows in (cfg.volume_kortingen or {}).items():
+                    parsed = [(float(r[0]), float(r[1])) for r in rows if len(r) == 2]
+                    if parsed:
+                        volume_kortingen[cat] = parsed
+
                 return TenantConfig(
                     slug=slug,
                     bedrijfsnaam=cfg.bedrijfsnaam,
@@ -160,6 +202,7 @@ class TenantRepository:
                     begroeting=cfg.begroeting,
                     primaire_kleur=cfg.primaire_kleur or "#5c6b1e",
                     prijzen=prijzen,
+                    volume_kortingen=volume_kortingen,
                 )
         except Exception as e:
             print(f"[TenantRepository] Fout bij laden tenant '{slug}': {e}")

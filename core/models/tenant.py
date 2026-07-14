@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -15,3 +15,4 @@ class TenantConfig:
     begroeting:       Optional[str]
     primaire_kleur:   str
     prijzen:          Dict[str, Tuple[int, int]] = field(default_factory=dict)
+    volume_kortingen: Dict[str, List] = field(default_factory=dict)

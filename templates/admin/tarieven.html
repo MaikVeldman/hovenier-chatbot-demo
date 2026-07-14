@@ -122,7 +122,124 @@
   margin-bottom: 20px;
 }
 
+/* ── Volume kortingen ───────────────────────────── */
+.vk-hint {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.vk-cat { margin-bottom: 20px; }
+.vk-cat:last-child { margin-bottom: 0; }
+
+.vk-cat-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vk-col-hdr {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-3);
+  padding: 0 0 4px 0;
+}
+
+.vk-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.vk-row:last-child { border-bottom: none; }
+
+.vk-gte {
+  font-size: 13px;
+  color: var(--text-3);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.vk-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.step-btn {
+  width: 28px;
+  height: 32px;
+  background: var(--surface-2);
+  border: none;
+  border-radius: 0;
+  font-size: 15px;
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .1s;
+}
+.step-btn:hover { background: var(--border); color: var(--text); }
+
+.vk-input {
+  width: 70px;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  text-align: center;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.vk-input:focus { background: var(--accent-bg); }
+
+.vk-arrow {
+  font-size: 13px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.vk-korting {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.badge-override {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
 @media (max-width: 600px) {
+  .vk-input { width: 56px; font-size: 16px; }
+  .step-btn { width: 24px; }
   .tarief-grid { grid-template-columns: 1fr 76px 76px; }
   .col-eenheid, .tarief-eenheid { display: none; }
   .tarief-input { width: 68px; font-size: 16px; padding: 5px 4px; }
@@ -183,6 +300,67 @@
   </div>
   {% endfor %}
 
+  {% if vk_categorieen %}
+  <div class="card" style="margin-bottom:14px;">
+    <div class="cat-header">Volume kortingen</div>
+    <div style="padding:14px 18px 18px;">
+      <p class="vk-hint">
+        Hoe groter de tuin, hoe meer korting de klant krijgt. Stel per categorie in
+        <strong>vanaf hoeveel m² (of m³)</strong> de korting ingaat en <strong>hoe hoog</strong> die is.
+        Factor 0,90 = 10% korting, 0,85 = 15% korting, enzovoort.
+        Wil je een rij niet gebruiken? Zet de drempel op 0 en factor op 1,00.
+      </p>
+      {% for vk in vk_categorieen %}
+      <div class="vk-cat">
+        <div class="vk-cat-title">
+          {{ vk.label }} ({{ vk.eenheid }})
+          {% if vk.is_override %}<span class="badge-override">aangepast</span>{% endif %}
+        </div>
+        <div style="display:flex;gap:8px;padding:0 0 4px 22px;">
+          <span class="vk-col-hdr" style="width:113px;">Drempel</span>
+          <span style="width:14px;"></span>
+          <span class="vk-col-hdr" style="width:113px;">Factor</span>
+          <span class="vk-col-hdr" style="min-width:80px;">Korting</span>
+        </div>
+        {% for rij in vk.rijen %}{% set i = loop.index0 %}
+        <div class="vk-row">
+          <span class="vk-gte">≥</span>
+          <div class="vk-stepper">
+            <button type="button" class="step-btn"
+                    onclick="stepVk('vk_{{ vk.cat }}_{{ i }}_drempel', -{{ vk.stap }})">−</button>
+            <input class="vk-input" type="number" min="0" step="{{ vk.stap }}"
+                   name="vk_{{ vk.cat }}_{{ i }}_drempel"
+                   id="vk_{{ vk.cat }}_{{ i }}_drempel"
+                   value="{{ rij.drempel|int }}"
+                   oninput="calcKorting('{{ vk.cat }}', {{ i }})"
+                   {% if not db_actief %}disabled{% endif %}>
+            <button type="button" class="step-btn"
+                    onclick="stepVk('vk_{{ vk.cat }}_{{ i }}_drempel', {{ vk.stap }})">+</button>
+          </div>
+          <span class="vk-arrow">→</span>
+          <div class="vk-stepper">
+            <button type="button" class="step-btn"
+                    onclick="stepFactor('vk_{{ vk.cat }}_{{ i }}_factor', -0.01)">−</button>
+            <input class="vk-input" type="number" min="0.01" max="1.00" step="0.01"
+                   name="vk_{{ vk.cat }}_{{ i }}_factor"
+                   id="vk_{{ vk.cat }}_{{ i }}_factor"
+                   value="{{ '%.2f'|format(rij.factor) }}"
+                   oninput="calcKorting('{{ vk.cat }}', {{ i }})"
+                   {% if not db_actief %}disabled{% endif %}>
+            <button type="button" class="step-btn"
+                    onclick="stepFactor('vk_{{ vk.cat }}_{{ i }}_factor', 0.01)">+</button>
+          </div>
+          <span class="vk-korting" id="korting_{{ vk.cat }}_{{ i }}">
+            ~{{ ((1 - rij.factor) * 100)|round|int }}% korting
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   {% if db_actief %}
   <div class="save-bar">
     <button type="submit" class="btn-save">Opslaan</button>
@@ -199,5 +377,34 @@
 </form>
 
 <form id="reset-standaard-form" method="POST" action="/beheer/tarieven/reset" style="display:none;"></form>
+
+<script>
+function stepVk(id, delta) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var v = parseFloat(el.value) || 0;
+  el.value = Math.max(0, v + delta);
+  el.dispatchEvent(new Event('input'));
+}
+
+function stepFactor(id, delta) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var v = parseFloat(el.value) || 1.0;
+  v = Math.round((v + delta) * 100) / 100;
+  v = Math.max(0.01, Math.min(1.0, v));
+  el.value = v.toFixed(2);
+  el.dispatchEvent(new Event('input'));
+}
+
+function calcKorting(cat, i) {
+  var fEl = document.getElementById('vk_' + cat + '_' + i + '_factor');
+  var kEl = document.getElementById('korting_' + cat + '_' + i);
+  if (!fEl || !kEl) return;
+  var f = parseFloat(fEl.value) || 1.0;
+  var pct = Math.round((1 - f) * 100);
+  kEl.textContent = (pct > 0 ? '~' + pct + '% korting' : 'geen korting');
+}
+</script>
 
 {% endblock %}
