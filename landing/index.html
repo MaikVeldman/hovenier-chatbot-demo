@@ -32,7 +32,26 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0
   background:var(--leaf);border-radius:0 100% 60% 100%/0 100% 100% 60%;
   transform:rotate(8deg);
 }
+.nav-actions{display:flex;align-items:center;gap:10px;}
+.nav-login{color:var(--ink);text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:600;font-size:15px;border:1.5px solid var(--line);background:#fff;transition:background .15s;}
+.nav-login:hover{background:var(--mist);}
 .nav-cta{background:var(--ink);color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:600;font-size:15px;}
+
+/* pricing */
+.pricing{padding:80px 0;background:var(--paper);}
+.pricing>.wrap>h2{text-align:center;margin-bottom:10px;}
+.pricing .lead{text-align:center;color:#44534A;max-width:52ch;margin:0 auto 48px;}
+.price-card{max-width:480px;margin:0 auto;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:40px;box-shadow:0 8px 32px -12px rgba(28,43,35,.12);}
+.price-top{display:flex;align-items:baseline;gap:6px;margin-bottom:6px;}
+.price-amount{font-family:'Sora',sans-serif;font-size:52px;font-weight:800;color:var(--ink);letter-spacing:-2px;}
+.price-per{font-size:17px;color:#6b6b50;}
+.price-note{font-size:13px;color:#6b6b50;margin-bottom:28px;}
+.price-items{list-style:none;display:flex;flex-direction:column;gap:13px;margin-bottom:32px;padding:0;}
+.price-items li{display:flex;align-items:flex-start;gap:10px;font-size:15px;line-height:1.45;}
+.price-items li::before{content:"✓";color:var(--leaf);font-weight:700;flex-shrink:0;margin-top:1px;}
+.price-cta{display:block;background:var(--leaf);color:#fff;text-align:center;text-decoration:none;padding:15px 28px;border-radius:10px;font-weight:600;font-size:16px;transition:background .2s;}
+.price-cta:hover{background:var(--leaf-bright);}
+.price-sub{text-align:center;margin-top:14px;font-size:13px;color:#6b6b50;}
 
 /* hero */
 .hero{padding:72px 0 64px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;}
@@ -144,7 +163,10 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
 <div class="wrap">
   <nav>
     <img src="logo.png" alt="Indiqa" class="nav-logo">
-    <a class="nav-cta" href="https://demo.indiqa.nl">Probeer de demo</a>
+    <div class="nav-actions">
+      <a class="nav-login" href="https://indiqa.nl/beheer/login">Inloggen</a>
+      <a class="nav-cta" href="https://demo.indiqa.nl">Probeer de demo</a>
+    </div>
   </nav>
 
   <section class="hero">
@@ -338,6 +360,30 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
       <div class="feat"><div class="check">✓</div><div><b>Jouw huisstijl</b><span>Bedrijfsnaam, regio en kleuren. Jouw klant ziet jouw merk, niet het onze.</span></div></div>
       <div class="feat"><div class="check">✓</div><div><b>Eigen portaal</b><span>Inzicht in wat klanten kiezen en waar ze afhaken. Zo leer je je markt kennen.</span></div></div>
       <div class="feat"><div class="check">✓</div><div><b>Privacyvriendelijk</b><span>Alleen contactgegevens en tuinwensen. Geen tracking, geen gedoe.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <h2>Wat kost Indiqa?</h2>
+    <p class="lead">Geen ingewikkelde tiers. Eén abonnement, volledig ingericht op jouw bedrijf.</p>
+    <div class="price-card">
+      <div class="price-top">
+        <span class="price-amount">€79</span>
+        <span class="price-per">/mnd excl. btw</span>
+      </div>
+      <p class="price-note">Opzegbaar per maand</p>
+      <ul class="price-items">
+        <li>Rekentool op maat met jouw eigen tarieven</li>
+        <li>In jouw huisstijl — bedrijfsnaam, kleuren en logo</li>
+        <li>Aan tafel bij de klant én inzetbaar op je website</li>
+        <li>Klantportaal met inzicht in leads en aanvragen</li>
+        <li>E-mailmelding bij elke nieuwe aanvraag</li>
+        <li>Persoonlijke onboarding en inrichting</li>
+      </ul>
+      <a href="mailto:info@veldmanhoveniers.nl" class="price-cta">Plan een demo &rarr;</a>
+      <p class="price-sub">Geen verborgen kosten. Geen langlopend contract.</p>
     </div>
   </div>
 </section>
