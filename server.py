@@ -657,6 +657,15 @@ _VK_CATEGORIEEN = [
     ("vlonder",    "Vlonder",    "m²", 2, 10),
 ]
 
+# (key, label, standaard in cm)
+_GRONDWERK_DIEPTE_VELDEN = [
+    ("paden_terras_afvoer", "Paden & terras — ontgraven diepte", 20),
+    ("paden_terras_zand",   "Paden & terras — zandbed",          15),
+    ("oprit_afvoer",        "Oprit — ontgraven diepte",          35),
+    ("oprit_puin",          "Oprit — puinbed",                   25),
+    ("oprit_zand",          "Oprit — zandbed",                    5),
+]
+
 
 @app.route("/beheer/tarieven", methods=["GET", "POST"])
 @_admin_required
@@ -703,7 +712,19 @@ def admin_tarieven():
             zaag_pct = max(1, min(100, zaag_pct))
         except (ValueError, TypeError):
             zaag_pct = 35
-        repo.save_instellingen(tenant_id, {"zaagwerk_pct": zaag_pct})
+
+        inst = repo.get_instellingen(tenant_id)
+        inst["zaagwerk_pct"] = zaag_pct
+        gd_save = {}
+        for key, _, standaard in _GRONDWERK_DIEPTE_VELDEN:
+            try:
+                val = int(request.form.get(f"diepte_{key}", standaard))
+                val = max(1, min(200, val))
+            except (ValueError, TypeError):
+                val = standaard
+            gd_save[key] = val
+        inst["grondwerk_dieptes"] = gd_save
+        repo.save_instellingen(tenant_id, inst)
 
         _refresh_price_table()
         return redirect(url_for("admin_tarieven", opgeslagen=1))
@@ -712,6 +733,11 @@ def admin_tarieven():
     vk_overrides   = repo.get_volume_kortingen(tenant_id) if repo else {}
     instellingen   = repo.get_instellingen(tenant_id) if repo else {}
     zaagwerk_pct   = int(instellingen.get("zaagwerk_pct", 35))
+    _gd_inst = instellingen.get("grondwerk_dieptes", {})
+    grondwerk_dieptes_cm = {
+        key: int(_gd_inst.get(key, standaard))
+        for key, _, standaard in _GRONDWERK_DIEPTE_VELDEN
+    }
     opgeslagen     = request.args.get("opgeslagen") == "1"
 
     categorieen = []
@@ -755,6 +781,8 @@ def admin_tarieven():
         categorieen=categorieen,
         vk_categorieen=vk_categorieen,
         zaagwerk_pct=zaagwerk_pct,
+        grondwerk_dieptes_cm=grondwerk_dieptes_cm,
+        diepte_velden=_GRONDWERK_DIEPTE_VELDEN,
         opgeslagen=opgeslagen,
         db_actief=bool(repo),
     )

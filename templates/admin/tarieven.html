@@ -288,6 +288,28 @@
 
 <form method="POST" action="{{ url_for('admin_tarieven') }}">
 
+  <div class="card" style="margin-bottom:14px;">
+    <div class="cat-header">Grondwerk dieptes</div>
+    <div style="padding:14px 18px 18px;">
+      <p class="vk-hint">Hoe diep wordt er per onderdeel gegraven of aangevuld? Deze dieptes bepalen direct hoeveel grondwerk er berekend wordt. Pas ze aan op jouw werkwijze.</p>
+      {% for key, label, standaard in diepte_velden %}
+      <div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <span style="flex:1;font-size:13px;color:var(--text);">{{ label }}</span>
+        <div class="vk-stepper">
+          <button type="button" class="step-btn" onclick="stepVk('diepte_{{ key }}', -1)">−</button>
+          <input class="vk-input" type="number" min="1" max="200" step="1"
+                 name="diepte_{{ key }}" id="diepte_{{ key }}"
+                 value="{{ grondwerk_dieptes_cm[key] }}"
+                 style="width:52px;"
+                 {% if not db_actief %}disabled{% endif %}>
+          <button type="button" class="step-btn" onclick="stepVk('diepte_{{ key }}', 1)">+</button>
+        </div>
+        <span style="font-size:13px;color:var(--text-3);width:24px;">cm</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
   {% set geavanceerd_cats = ["Vlonders", "Beregening", "Overkapping & verlichting", "Erfafscheiding", "3D Tuinontwerp"] %}
 
   {% for cat in categorieen %}

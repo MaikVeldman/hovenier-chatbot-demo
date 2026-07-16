@@ -27,6 +27,9 @@ class PriceTable:
         self.grondwerk_dieptes: Dict[str, float] = dict(GRONDWERK_DIEPTES)
         inst = (tenant_config.instellingen or {}) if tenant_config else {}
         self.zaagwerk_pct: float = float(inst.get("zaagwerk_pct", 35)) / 100.0
+        for k, v_cm in (inst.get("grondwerk_dieptes") or {}).items():
+            if k in self.grondwerk_dieptes:
+                self.grondwerk_dieptes[k] = float(v_cm) / 100.0
 
     def get(self, key: str, default: Any = (0, 0)) -> Tuple[int, int]:
         return self._data.get(key, default)
