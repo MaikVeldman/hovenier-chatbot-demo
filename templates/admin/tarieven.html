@@ -278,17 +278,23 @@
 .meer-tarieven-btn:hover { background: var(--border); }
 .meer-tarieven-btn svg { transition: transform .2s; flex-shrink: 0; }
 .meer-tarieven-btn.open svg { transform: rotate(180deg); }
+.diepte-grid {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+}
 .diepte-rij {
+  display: contents;
+}
+.diepte-rij > * {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--border);
-  border-radius: 4px;
   transition: background .1s;
 }
-.diepte-rij:hover { background: var(--surface-2); }
-.diepte-rij:last-child { border-bottom: none; }
+.diepte-rij:last-child > * { border-bottom: none; }
+.diepte-rij:hover > * { background: var(--surface-2); }
 </style>
 
 {% if not db_actief %}
@@ -303,21 +309,25 @@
     <div class="cat-header">Grondwerk dieptes</div>
     <div style="padding:14px 18px 18px;">
       <p class="vk-hint">Hoe diep wordt er per onderdeel gegraven of aangevuld? Deze dieptes bepalen direct hoeveel grondwerk er berekend wordt. Pas ze aan op jouw werkwijze.</p>
-      {% for key, label, standaard in diepte_velden %}
-      <div class="diepte-rij">
-        <span style="flex:1;font-size:13px;color:var(--text);">{{ label }}</span>
-        <div class="vk-stepper">
-          <button type="button" class="step-btn" onclick="stepVk('diepte_{{ key }}', -1)">−</button>
-          <input class="vk-input" type="number" min="1" max="200" step="1"
-                 name="diepte_{{ key }}" id="diepte_{{ key }}"
-                 value="{{ grondwerk_dieptes_cm[key] }}"
-                 style="width:52px;"
-                 {% if not db_actief %}disabled{% endif %}>
-          <button type="button" class="step-btn" onclick="stepVk('diepte_{{ key }}', 1)">+</button>
+      <div class="diepte-grid">
+        {% for key, label, standaard in diepte_velden %}
+        <div class="diepte-rij">
+          <div style="color:var(--text);">{{ label }}</div>
+          <div>
+            <div class="vk-stepper">
+              <button type="button" class="step-btn" onclick="stepVk('diepte_{{ key }}', -1)">−</button>
+              <input class="vk-input" type="number" min="1" max="200" step="1"
+                     name="diepte_{{ key }}" id="diepte_{{ key }}"
+                     value="{{ grondwerk_dieptes_cm[key] }}"
+                     style="width:52px;"
+                     {% if not db_actief %}disabled{% endif %}>
+              <button type="button" class="step-btn" onclick="stepVk('diepte_{{ key }}', 1)">+</button>
+            </div>
+          </div>
+          <div style="color:var(--text-3);">cm</div>
         </div>
-        <span style="font-size:13px;color:var(--text-3);width:24px;">cm</span>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
   </div>
 
