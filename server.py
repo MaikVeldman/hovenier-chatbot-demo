@@ -616,10 +616,6 @@ _PRIJS_CATEGORIEEN = [
     ("Groen", [
         ("graszoden_per_m2",                        "Graszoden",                           "€/m²"),
         ("beplanting_border_per_m2",                "Beplanting border",                   "€/m²"),
-        ("beplanting_haag_voordelig_laag_per_m1",   "Haag voordelig laag (0,5–1m)",        "€/m¹"),
-        ("beplanting_haag_voordelig_hoog_per_m1",   "Haag voordelig hoog (1,5–2m)",        "€/m¹"),
-        ("beplanting_haag_premium_laag_per_m1",     "Haag premium laag (0,5–1m)",          "€/m¹"),
-        ("beplanting_haag_premium_hoog_per_m1",     "Haag premium hoog (1,5–2m)",          "€/m¹"),
     ]),
     ("Beregening", [
         ("beregening_installatie_basis",            "Installatie basis (handmatig)",       "€ vast"),
@@ -637,6 +633,10 @@ _PRIJS_CATEGORIEEN = [
         ("verlichting_basis_per_stuk",              "Verlichting (spot/paal)",             "€/stuk"),
     ]),
     ("Erfafscheiding", [
+        ("beplanting_haag_voordelig_laag_per_m1",   "Haag voordelig laag (0,5–1m)",        "€/m¹"),
+        ("beplanting_haag_voordelig_hoog_per_m1",   "Haag voordelig hoog (1,5–2m)",        "€/m¹"),
+        ("beplanting_haag_premium_laag_per_m1",     "Haag premium laag (0,5–1m)",          "€/m¹"),
+        ("beplanting_haag_premium_hoog_per_m1",     "Haag premium hoog (1,5–2m)",          "€/m¹"),
         ("plaatsen_betonschutting_per_m1",          "Betonschutting",                      "€/m¹"),
         ("plaatsen_designschutting_per_m1",         "Designschutting",                     "€/m¹"),
         ("plaatsen_poortdeur_per_st",               "Poort/deur",                          "€/stuk"),
