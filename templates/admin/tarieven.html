@@ -291,7 +291,7 @@
   {% set geavanceerd_cats = ["Beregening", "Overkapping & verlichting", "Erfafscheiding", "3D Tuinontwerp"] %}
 
   {% for cat in categorieen %}
-  {% if cat.naam in geavanceerd_cats %}{% continue %}{% endif %}
+  {% if cat.naam not in geavanceerd_cats %}
   <div class="card" style="margin-bottom:14px;">
     <div class="cat-header">{{ cat.naam }}</div>
     <div class="tarief-grid">
@@ -326,6 +326,7 @@
       {% endfor %}
     </div>
   </div>
+  {% endif %}
   {% endfor %}
 
   <button type="button" class="meer-tarieven-btn" id="meer-btn" onclick="toggleGeavanceerd()">
@@ -335,7 +336,7 @@
 
   <div class="geavanceerd-sectie" id="geavanceerd-sectie">
     {% for cat in categorieen %}
-    {% if cat.naam not in geavanceerd_cats %}{% continue %}{% endif %}
+    {% if cat.naam in geavanceerd_cats %}
     <div class="card" style="margin-bottom:14px;">
       <div class="cat-header">{{ cat.naam }}</div>
       <div class="tarief-grid">
@@ -370,6 +371,7 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
     {% endfor %}
 
     <div class="card" style="margin-bottom:14px;">
