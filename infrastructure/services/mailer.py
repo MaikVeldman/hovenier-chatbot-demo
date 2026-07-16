@@ -837,8 +837,10 @@ def send_nieuwe_aanmelding_email(
               <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{regio or '—'}</td>
             </tr>
             <tr>
-              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Slug</td>
-              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">indiqa.nl/{slug}</td>
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Chatbot-URL</td>
+              <td style="padding:10px 16px;border-top:1px solid #DDE8DF;">
+                <a href="https://indiqa.nl/{slug}" style="color:#3E7C4F;font-weight:600;text-decoration:none;">indiqa.nl/{slug}</a>
+              </td>
             </tr>
             <tr style="background:#F0F4F1;">
               <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Abonnement</td>

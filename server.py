@@ -466,11 +466,17 @@ def aanmelden():
                 else:
                     # Notificatie aan superadmin + welkomstmail bij activatie
                     try:
-                        from infrastructure.services.mailer import send_nieuwe_aanmelding_email
+                        from infrastructure.services.mailer import send_nieuwe_aanmelding_email, send_welkom_email
                         send_nieuwe_aanmelding_email(
                             bedrijfsnaam=bedrijfsnaam,
                             email=email,
                             regio=regio,
+                            slug=slug,
+                            website_implementatie=website_impl,
+                        )
+                        send_welkom_email(
+                            bedrijfsnaam=bedrijfsnaam,
+                            email=email,
                             slug=slug,
                             website_implementatie=website_impl,
                         )
