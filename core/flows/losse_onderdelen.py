@@ -65,17 +65,17 @@ VLONDER_QUESTION = (
 MAT_QUESTION: Dict[str, str] = {
     "oprit": (
         "Welk materiaal wilt u voor de oprit?\n"
-        "1) **Grind** – €35–€60/m²\n2) **Beton klinkers** – €60–€90/m²\n3) **Gebakken klinkers** – €80–€130/m²\n4) **Keramische tegels** – €180–€220/m²\n\n_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"
+        "1) **Grind** – €35–€60/m²\n2) **Beton klinkers / tegels** – €60–€90/m²\n3) **Gebakken klinkers** – €80–€130/m²\n4) **Keramische tegels** – €180–€220/m²\n\n_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"
         "Reageer met 1, 2, 3 of 4."
     ),
     "paden": (
         "Welk materiaal wilt u voor de paden?\n"
-        "1) **Grind** – €35–€60/m²\n2) **Beton klinkers** – €60–€90/m²\n3) **Gebakken klinkers** – €80–€130/m²\n4) **Keramische tegels** – €180–€220/m²\n\n_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"
+        "1) **Grind** – €35–€60/m²\n2) **Beton klinkers / tegels** – €60–€90/m²\n3) **Gebakken klinkers** – €80–€130/m²\n4) **Keramische tegels** – €180–€220/m²\n\n_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"
         "Reageer met 1, 2, 3 of 4."
     ),
     "terras": (
         "Welk materiaal wilt u voor het terras?\n"
-        "1) **Grind** – €35–€60/m²\n2) **Beton klinkers** – €60–€90/m²\n3) **Gebakken klinkers** – €80–€130/m²\n4) **Keramische tegels** – €180–€220/m²\n\n_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"
+        "1) **Grind** – €35–€60/m²\n2) **Beton klinkers / tegels** – €60–€90/m²\n3) **Gebakken klinkers** – €80–€130/m²\n4) **Keramische tegels** – €180–€220/m²\n\n_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"
         "Reageer met 1, 2, 3 of 4."
     ),
 }
@@ -437,7 +437,7 @@ class LosseOnderdelenFlow(BaseFlow):
             lbl = LABEL.get(comp, comp).lower()
             return f"Geef een schatting in m², bijv. 25. Een ronde waarde is prima.\n\nHoeveel m² wordt {self._lidwoord(comp)}{lbl}?"
         if sub == "materiaal":
-            return f"Kies optie **2** (Beton klinkers) als gangbare standaardkeuze.\n\n{MAT_QUESTION.get(comp, 'Reageer met 1, 2, 3 of 4.')}"
+            return f"Kies optie **2** (Beton klinkers / tegels) als gangbare standaardkeuze.\n\n{MAT_QUESTION.get(comp, 'Reageer met 1, 2, 3 of 4.')}"
         if sub == "voegen_item":
             return "Twijfelt u? Typ **nee** als startpunt. Voegen kan altijd besproken worden."
         if sub == "vlonder_type":

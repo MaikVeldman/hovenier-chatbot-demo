@@ -346,7 +346,7 @@ class TuinaanlegFlowV2(BaseFlow):
         return (
             f"{prefix}Welk materiaal wilt u voor {part}?\n"
             f"1) **Grind** – {fmt('grind_per_m2')}\n"
-            f"2) **Beton klinkers** – {fmt('beton_straatwerk_per_m2')}\n"
+            f"2) **Beton klinkers / tegels** – {fmt('beton_straatwerk_per_m2')}\n"
             f"3) **Gebakken klinkers** – {fmt('gebakken_straatwerk_per_m2')}\n"
             f"4) **Keramische tegels** – {fmt('keramisch_straatwerk_per_m2')}\n\n"
             f"_Prijzen zijn inclusief materiaal, arbeid en btw._\n\n"

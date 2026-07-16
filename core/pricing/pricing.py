@@ -451,9 +451,9 @@ def _format_v2_choices(inputs: Dict[str, Any]) -> str:
 
     def _mat(m: Any) -> str:
         return {
-            "grind": "Grind", "beton": "Beton klinkers",
+            "grind": "Grind", "beton": "Beton klinkers / tegels",
             "gebakken": "Gebakken klinkers", "keramiek": "Keramische tegels",
-        }.get((m or "").strip().lower(), "Beton klinkers")
+        }.get((m or "").strip().lower(), "Beton klinkers / tegels")
 
     tuin_m2 = inputs.get("tuin_m2")
 
