@@ -256,6 +256,30 @@
   </div>
 </div>
 
+<style>
+.geavanceerd-sectie { display: none; }
+.geavanceerd-sectie.open { display: block; }
+.meer-tarieven-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 14px;
+  transition: border-color .12s, color .12s;
+}
+.meer-tarieven-btn:hover { border-color: var(--accent); color: var(--accent); }
+.meer-tarieven-btn svg { transition: transform .2s; }
+.meer-tarieven-btn.open svg { transform: rotate(180deg); }
+</style>
+
 {% if not db_actief %}
 <div class="no-db-notice">
   Database niet verbonden — tarieven zijn alleen-lezen. Log opnieuw in om wijzigingen op te slaan.
@@ -263,7 +287,11 @@
 {% endif %}
 
 <form method="POST" action="{{ url_for('admin_tarieven') }}">
+
+  {% set geavanceerd_cats = ["Beregening", "Overkapping & verlichting", "Erfafscheiding", "3D Tuinontwerp"] %}
+
   {% for cat in categorieen %}
+  {% if cat.naam in geavanceerd_cats %}{% continue %}{% endif %}
   <div class="card" style="margin-bottom:14px;">
     <div class="cat-header">{{ cat.naam }}</div>
     <div class="tarief-grid">
@@ -300,8 +328,52 @@
   </div>
   {% endfor %}
 
-  <div class="card" style="margin-bottom:14px;">
-    <div class="cat-header">Zaagwerk</div>
+  <button type="button" class="meer-tarieven-btn" id="meer-btn" onclick="toggleGeavanceerd()">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 5l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span id="meer-btn-tekst">Meer tarieven — beregening, erfafscheiding, overkapping, 3D ontwerp</span>
+  </button>
+
+  <div class="geavanceerd-sectie" id="geavanceerd-sectie">
+    {% for cat in categorieen %}
+    {% if cat.naam not in geavanceerd_cats %}{% continue %}{% endif %}
+    <div class="card" style="margin-bottom:14px;">
+      <div class="cat-header">{{ cat.naam }}</div>
+      <div class="tarief-grid">
+        <div class="tarief-header">
+          <span>Onderdeel</span>
+          <span style="text-align:right;">Min (€)</span>
+          <span style="text-align:right;">Max (€)</span>
+          <span class="col-eenheid">Eenheid</span>
+        </div>
+        {% for r in cat.rijen %}
+        <div class="tarief-row">
+          <div class="tarief-label {{ 'is-override' if r.is_override else '' }}">
+            {{ r.label }}
+            {% if r.is_override %}<span style="font-size:10px;margin-left:6px;opacity:.7;">aangepast</span>{% endif %}
+          </div>
+          <div>
+            <input class="tarief-input {{ 'is-override' if r.is_override else '' }}"
+                   type="number" min="0" step="1"
+                   name="min_{{ r.key }}"
+                   value="{{ r.min }}"
+                   {% if not db_actief %}disabled{% endif %}>
+          </div>
+          <div>
+            <input class="tarief-input {{ 'is-override' if r.is_override else '' }}"
+                   type="number" min="0" step="1"
+                   name="max_{{ r.key }}"
+                   value="{{ r.max }}"
+                   {% if not db_actief %}disabled{% endif %}>
+          </div>
+          <div class="tarief-eenheid">{{ r.eenheid }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="cat-header">Zaagwerk</div>
     <div style="padding:14px 18px 18px;">
       <p class="vk-hint">Gemiddeld percentage van het straatwerk dat gezaagd moet worden (randen, hoeken, obstakels). Standaard: 35%.</p>
       <div style="display:flex;align-items:center;gap:12px;">
@@ -380,6 +452,7 @@
     </div>
   </div>
   {% endif %}
+  </div><!-- /geavanceerd-sectie -->
 
   {% if db_actief %}
   <div class="save-bar">
@@ -399,6 +472,17 @@
 <form id="reset-standaard-form" method="POST" action="/beheer/tarieven/reset" style="display:none;"></form>
 
 <script>
+function toggleGeavanceerd() {
+  var sectie = document.getElementById('geavanceerd-sectie');
+  var btn    = document.getElementById('meer-btn');
+  var tekst  = document.getElementById('meer-btn-tekst');
+  sectie.classList.toggle('open');
+  btn.classList.toggle('open');
+  tekst.textContent = sectie.classList.contains('open')
+    ? 'Minder tarieven verbergen'
+    : 'Meer tarieven — beregening, erfafscheiding, overkapping, 3D ontwerp';
+}
+
 function stepVk(id, delta) {
   var el = document.getElementById(id);
   if (!el) return;

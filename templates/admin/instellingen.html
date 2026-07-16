@@ -195,15 +195,15 @@
 
 <div class="section-divider"></div>
 
-<!-- ── Rekentool flows ───────────────────────────── -->
+<!-- ── Rekentool diensten ─────────────────────────── -->
 {% if success_flows %}
-  <div class="alert alert-ok">Flows opgeslagen.</div>
+  <div class="alert alert-ok">Instellingen opgeslagen.</div>
 {% endif %}
 <div class="card form-section">
-  <div class="card-header">Rekentool — beschikbare flows</div>
+  <div class="card-header">Welke diensten bied je aan?</div>
   <div style="padding: 20px 22px 24px;">
     <p class="field-hint" style="margin-bottom:16px;">
-      Kies welke opties zichtbaar zijn in de rekentool. Staat er maar één aan, dan slaat de tool het keuzescherm over en begint direct.
+      Vink aan welke diensten zichtbaar zijn in jouw rekentool. Staat er maar één aan, dan begint de tool daar meteen mee — zonder keuzescherm.
     </p>
     <form method="POST" action="/beheer/instellingen">
       <input type="hidden" name="actie" value="flows"/>
@@ -212,34 +212,34 @@
       <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
         <input type="checkbox" name="actieve_flows" value="tuinaanleg"
                {% if "tuinaanleg" in actief %}checked{% endif %}
-               style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+               style="width:18px;height:18px;min-width:18px;margin-top:1px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
         <span>
-          <span style="font-size:14px;font-weight:500;color:var(--text);">Gehele tuin aanleggen</span>
-          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">Berekent de totale tuin stap voor stap</span>
+          <span style="font-size:14px;font-weight:600;color:var(--text);">Volledige tuinaanleg</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:2px;">Ik stel een paar vragen en bereken de hele tuin door — oprit, terras, paden, groen en meer</span>
         </span>
       </label>
 
       <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
         <input type="checkbox" name="actieve_flows" value="losse_onderdelen"
                {% if "losse_onderdelen" in actief %}checked{% endif %}
-               style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+               style="width:18px;height:18px;min-width:18px;margin-top:1px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
         <span>
-          <span style="font-size:14px;font-weight:500;color:var(--text);">Losse onderdelen</span>
-          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">Klant kiest zelf wat er aangelegd wordt</span>
+          <span style="font-size:14px;font-weight:600;color:var(--text);">Losse onderdelen</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:2px;">Klant kiest zelf wat er aangelegd wordt — bijv. alleen een pad, gazon of terras</span>
         </span>
       </label>
 
       <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin-bottom:14px;">
         <input type="checkbox" name="actieve_flows" value="tuinontwerp"
                {% if "tuinontwerp" in actief %}checked{% endif %}
-               style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+               style="width:18px;height:18px;min-width:18px;margin-top:1px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
         <span>
-          <span style="font-size:14px;font-weight:500;color:var(--text);">Tuinontwerp (3D visualisatie)</span>
-          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:1px;">Geeft een indicatie van ontwerp- en projectkosten</span>
+          <span style="font-size:14px;font-weight:600;color:var(--text);">3D tuinontwerp</span>
+          <span style="display:block;font-size:12px;color:var(--text-3);margin-top:2px;">Klant wil eerst een professioneel ontwerp — geeft een kostenschatting voor ontwerp en aanleg</span>
         </span>
       </label>
 
-      <div class="field-hint" style="margin-bottom:16px;">Minstens één flow moet aan staan.</div>
+      <div class="field-hint" style="margin-bottom:16px;">Minstens één dienst moet aan staan.</div>
       <button type="submit" class="btn-save">Opslaan</button>
     </form>
   </div>
