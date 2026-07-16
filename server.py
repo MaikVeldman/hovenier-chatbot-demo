@@ -113,7 +113,21 @@ _refresh_price_table()
 
 @app.context_processor
 def _inject_session():
-    return {"session": flask_session}
+    acting_id = flask_session.get("acting_as_tenant_id")
+    return {
+        "session": flask_session,
+        "acting_as_tenant_id": acting_id,
+        "acting_as_naam": flask_session.get("acting_as_naam") if acting_id else None,
+    }
+
+
+def _effective_tenant_id():
+    """Returns the active tenant ID — impersonated tenant when superadmin is acting as one."""
+    acting = flask_session.get("acting_as_tenant_id")
+    if acting and flask_session.get("is_superadmin"):
+        return acting
+    return flask_session.get("tenant_id")
+
 
 # ============================================================
 # Admin auth helper
@@ -505,7 +519,7 @@ def admin_overzicht():
     from infrastructure.db.db_models import DbSession, DbContactSubmission
     from sqlalchemy import func, or_
 
-    tenant_id = flask_session.get("tenant_id")
+    tenant_id = _effective_tenant_id()
     zeven_dagen_terug = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).replace(tzinfo=None) - __import__("datetime").timedelta(days=7)
@@ -551,7 +565,7 @@ def admin_sessie_detail(session_id: str):
     from infrastructure.db.database import SessionLocal
     from infrastructure.db.db_models import DbSession, DbMessage, DbFlowEvent, DbPriceCalculation, DbContactSubmission
 
-    tenant_id = flask_session.get("tenant_id")
+    tenant_id = _effective_tenant_id()
     with SessionLocal() as db:
         sessie = db.get(DbSession, session_id)
         if not sessie:
@@ -583,7 +597,7 @@ def admin_leads():
     from infrastructure.db.db_models import DbContactSubmission, DbSession
     from sqlalchemy import or_
 
-    tenant_id = flask_session.get("tenant_id")
+    tenant_id = _effective_tenant_id()
 
     with SessionLocal() as db:
         q = db.query(DbContactSubmission).join(DbSession, DbContactSubmission.session_id == DbSession.id)
@@ -672,7 +686,7 @@ _GRONDWERK_DIEPTE_VELDEN = [
 def admin_tarieven():
     import core.pricing.pricing as _p
     from core.pricing.constants import PRIJZEN as _BASE_PRIJZEN, VOLUME_KORTINGEN as _BASE_VK
-    tenant_id = flask_session.get("tenant_id") if _DB else None
+    tenant_id = _effective_tenant_id() if _DB else None
     repo = None
     if _DB and tenant_id:
         from infrastructure.db.repositories.tenant_repository import TenantRepository
@@ -791,7 +805,7 @@ def admin_tarieven():
 @app.route("/beheer/tarieven/reset", methods=["POST"])
 @_admin_required
 def admin_tarieven_reset():
-    tenant_id = flask_session.get("tenant_id") if _DB else None
+    tenant_id = _effective_tenant_id() if _DB else None
     if _DB and tenant_id:
         from infrastructure.db.repositories.tenant_repository import TenantRepository
         repo = TenantRepository()
@@ -832,6 +846,29 @@ def admin_tenant_verwijder(tenant_id: int):
     return redirect(url_for("admin_klanten"))
 
 
+@app.route("/beheer/klanten/<int:tid>/instappen", methods=["POST"])
+@_admin_required
+def admin_instappen(tid: int):
+    if not flask_session.get("is_superadmin"):
+        return redirect(url_for("admin_overzicht"))
+    from infrastructure.db.database import SessionLocal
+    from infrastructure.db.db_models import DbTenant
+    with SessionLocal() as db:
+        t = db.get(DbTenant, tid)
+        naam = (t.naam or t.slug) if t else str(tid)
+    flask_session["acting_as_tenant_id"] = tid
+    flask_session["acting_as_naam"] = naam
+    return redirect(url_for("admin_overzicht"))
+
+
+@app.route("/beheer/superadmin/verlaten", methods=["POST"])
+@_admin_required
+def admin_verlaten():
+    flask_session.pop("acting_as_tenant_id", None)
+    flask_session.pop("acting_as_naam", None)
+    return redirect(url_for("admin_klanten"))
+
+
 @app.route("/beheer/instellingen", methods=["GET", "POST"])
 @_admin_required
 def admin_instellingen():
@@ -841,7 +878,7 @@ def admin_instellingen():
     from infrastructure.db.database import SessionLocal
     from infrastructure.db.db_models import DbTenantConfig, DbUser
 
-    tenant_id = flask_session.get("tenant_id")
+    tenant_id = _effective_tenant_id()
     user_id   = flask_session.get("user_id")
 
     success_huisstijl  = False

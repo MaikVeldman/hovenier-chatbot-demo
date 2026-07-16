@@ -342,6 +342,38 @@ tbody tr:hover td { background: var(--surface-2); }
   color: var(--text-3);
   font-size: 13px;
 }
+
+/* ── Superadmin impersonatie banner ──────────────── */
+.impersonation-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a3a5c;
+  color: #fff;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 9999;
+  font-size: 13px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,.25);
+}
+.impersonation-verlaten {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.35);
+  color: #fff;
+  border-radius: 5px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background .12s;
+}
+.impersonation-verlaten:hover { background: rgba(255,255,255,.28); }
   </style>
 </head>
 <body>
@@ -426,9 +458,18 @@ tbody tr:hover td { background: var(--surface-2); }
   </div>
 </nav>
 
-<main class="main">
+<main class="main" style="{% if acting_as_tenant_id %}padding-bottom: 52px;{% endif %}">
   {% block content %}{% endblock %}
 </main>
+
+{% if acting_as_tenant_id %}
+<div class="impersonation-banner">
+  <span>Je beheert nu namens <strong>{{ acting_as_naam }}</strong></span>
+  <form method="POST" action="{{ url_for('admin_verlaten') }}" style="display:inline;">
+    <button type="submit" class="impersonation-verlaten">Terug naar overzicht</button>
+  </form>
+</div>
+{% endif %}
 
 <script>
 (function() {

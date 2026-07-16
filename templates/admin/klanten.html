@@ -45,6 +45,15 @@
             {% endif %}
           </td>
           <td style="text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+            <form method="POST" action="/beheer/klanten/{{ t.id }}/instappen"
+                  style="display:inline;">
+              <button type="submit"
+                      style="background:var(--accent);border:none;border-radius:5px;
+                             padding:5px 12px;font-size:12px;cursor:pointer;color:#fff;
+                             font-weight:600;font-family:inherit;">
+                Beheer
+              </button>
+            </form>
             <form method="POST" action="/beheer/klanten/{{ t.id }}/activeer"
                   style="display:inline;">
               {% if t.actief %}
