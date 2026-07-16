@@ -288,7 +288,7 @@
 
 <form method="POST" action="{{ url_for('admin_tarieven') }}">
 
-  {% set geavanceerd_cats = ["Beregening", "Overkapping & verlichting", "Erfafscheiding", "3D Tuinontwerp"] %}
+  {% set geavanceerd_cats = ["Vlonders", "Beregening", "Overkapping & verlichting", "Erfafscheiding", "3D Tuinontwerp"] %}
 
   {% for cat in categorieen %}
   {% if cat.naam not in geavanceerd_cats %}
