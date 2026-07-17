@@ -346,34 +346,45 @@ tbody tr:hover td { background: var(--surface-2); }
 /* ── Superadmin impersonatie banner ──────────────── */
 .impersonation-banner {
   position: fixed;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
-  background: #1a3a5c;
+  background: #7c3700;
   color: #fff;
-  padding: 10px 20px;
+  padding: 11px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  z-index: 9999;
-  font-size: 13px;
-  box-shadow: 0 -2px 8px rgba(0,0,0,.25);
+  z-index: 250;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0,0,0,.28);
+}
+.impersonation-banner strong { font-weight: 700; }
+.impersonation-banner-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 .impersonation-verlaten {
-  background: rgba(255,255,255,.15);
-  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.4);
   color: #fff;
   border-radius: 5px;
-  padding: 5px 14px;
-  font-size: 12px;
+  padding: 6px 16px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   white-space: nowrap;
   transition: background .12s;
 }
-.impersonation-verlaten:hover { background: rgba(255,255,255,.28); }
+.impersonation-verlaten:hover { background: rgba(255,255,255,.3); }
+@media (max-width: 767px) {
+  .impersonation-banner { top: 52px; }
+}
   </style>
 </head>
 <body>
@@ -458,18 +469,20 @@ tbody tr:hover td { background: var(--surface-2); }
   </div>
 </nav>
 
-<main class="main" style="{% if acting_as_tenant_id %}padding-bottom: 52px;{% endif %}">
-  {% block content %}{% endblock %}
-</main>
-
 {% if acting_as_tenant_id %}
 <div class="impersonation-banner">
-  <span>Je beheert nu namens <strong>{{ acting_as_naam }}</strong></span>
-  <form method="POST" action="{{ url_for('admin_verlaten') }}" style="display:inline;">
-    <button type="submit" class="impersonation-verlaten">Terug naar overzicht</button>
-  </form>
+  <span>⚠ Je beheert nu namens <strong>{{ acting_as_naam }}</strong> — wijzigingen gaan direct in voor deze klant</span>
+  <div class="impersonation-banner-links">
+    <form method="POST" action="{{ url_for('admin_verlaten') }}" style="display:inline;">
+      <button type="submit" class="impersonation-verlaten">Verlaten</button>
+    </form>
+  </div>
 </div>
 {% endif %}
+
+<main class="main" style="{% if acting_as_tenant_id %}padding-top: 46px;{% endif %}">
+  {% block content %}{% endblock %}
+</main>
 
 <script>
 (function() {
