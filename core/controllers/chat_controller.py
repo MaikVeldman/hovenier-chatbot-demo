@@ -62,6 +62,7 @@ class ChatController:
     def __init__(self, state: ChatState, tenant_ctx=None):
         self.state = state
         self.tenant_ctx = tenant_ctx
+        self.price_table = tenant_ctx.price_table if tenant_ctx else None
         if tenant_ctx and tenant_ctx.config:
             cfg = tenant_ctx.config
             if not self.state.tenant_notify_email:
@@ -84,7 +85,7 @@ class ChatController:
 
         if self.state.post_offer_mode:
             from core.controllers.post_offer_controller import PostOfferController
-            ctrl = PostOfferController(self.state)
+            ctrl = PostOfferController(self.state, self.price_table)
             return ctrl.handle(t_raw)
 
         if self.state.flow_type is None:
@@ -170,7 +171,7 @@ class ChatController:
 
         if done:
             answers_for_pricing = flow.to_answers()
-            costs = estimate_tuinaanleg_costs(answers_for_pricing)
+            costs = estimate_tuinaanleg_costs(answers_for_pricing, price_table=self.price_table)
             msgs.append(self._format_costs(answers_for_pricing, costs))
             self.state.last_answers = dict(answers_for_pricing)
             self.state.last_costs = dict(costs)
@@ -201,7 +202,7 @@ class ChatController:
 
         if done:
             answers = flow.to_answers()
-            costs = estimate_losse_onderdelen_costs(answers)
+            costs = estimate_losse_onderdelen_costs(answers, price_table=self.price_table)
             msgs.append(self._format_costs(answers, costs))
             self.state.last_answers = answers
             self.state.last_costs = dict(costs)
@@ -230,7 +231,7 @@ class ChatController:
 
         if done:
             answers = flow.to_answers()
-            costs = estimate_tuinontwerp_costs(answers)
+            costs = estimate_tuinontwerp_costs(answers, price_table=self.price_table)
             msgs.append(format_tuinontwerp_costs_as_chat_html(costs))
             self.state.last_answers = answers
             self.state.last_costs = dict(costs)

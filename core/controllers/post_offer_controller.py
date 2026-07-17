@@ -75,8 +75,9 @@ _EXIT_MSG = (
 
 
 class PostOfferController:
-    def __init__(self, state: ChatState):
+    def __init__(self, state: ChatState, price_table=None):
         self.state = state
+        self.price_table = price_table
 
     # ----------------------------------------------------------
     # Shared helpers
@@ -96,10 +97,10 @@ class PostOfferController:
     def _estimate_costs(self, answers: dict) -> dict:
         ft = (answers or {}).get("_flow_type")
         if ft == "losse_onderdelen":
-            return estimate_losse_onderdelen_costs(answers)
+            return estimate_losse_onderdelen_costs(answers, price_table=self.price_table)
         if ft == "tuinontwerp":
-            return estimate_tuinontwerp_costs(answers)
-        return estimate_tuinaanleg_costs(answers)
+            return estimate_tuinontwerp_costs(answers, price_table=self.price_table)
+        return estimate_tuinaanleg_costs(answers, price_table=self.price_table)
 
     def _format_costs(self, answers: dict, costs: dict) -> str:
         ft = (answers or {}).get("_flow_type")
