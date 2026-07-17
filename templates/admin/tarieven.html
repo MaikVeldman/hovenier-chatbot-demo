@@ -300,6 +300,18 @@
 
 <form method="POST" action="{{ url_for('admin_tarieven') }}">
 
+  {% if startwaarden %}
+  <div style="background:#FFF8EC;border:1px solid #F5D78E;border-radius:8px;padding:13px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;">
+    <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+    <div>
+      <div style="font-size:13.5px;font-weight:700;color:#7c4a00;margin-bottom:3px;">Dit zijn startwaarden — pas ze aan voordat je de tool deelt</div>
+      <div style="font-size:12.5px;color:#9a6010;line-height:1.5;">
+        De tool werkt direct met deze prijzen, maar ze zijn gebaseerd op marktgemiddelden. Vul jouw eigen tarieven in zodat klanten een indicatie krijgen die aansluit bij jouw werkwijze.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="card" style="margin-bottom:14px;">
     <div class="cat-header">Grondwerk dieptes</div>
     <div style="padding:14px 18px 18px;">

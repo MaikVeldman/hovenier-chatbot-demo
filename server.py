@@ -799,6 +799,7 @@ def admin_tarieven():
         diepte_velden=_GRONDWERK_DIEPTE_VELDEN,
         opgeslagen=opgeslagen,
         db_actief=bool(repo),
+        startwaarden=bool(repo) and not overrides,
     )
 
 

@@ -4,56 +4,65 @@ from __future__ import annotations
 from typing import Dict, List, Tuple
 
 PRIJZEN: Dict[str, Tuple[int, int]] = {
-    "onderhoud_aanleg_uurtarief": (65, 75),
-    "voorjaar_najaarsbeurt": (290, 580),
-    "gazon_maaien": (75, 200),
-    "haag_snoeien": (75, 350),
+    # Onderhoud (−10%)
+    "onderhoud_aanleg_uurtarief": (58, 68),
+    "voorjaar_najaarsbeurt": (260, 520),
+    "gazon_maaien": (68, 180),
+    "haag_snoeien": (68, 315),
 
-    "bestrating_verwijderen_per_m3": (95, 150),
-    "bestrating_afvoer_per_m3": (95, 150),
-    "bouw_sloop_afval_afvoer_per_m3": (95, 150),
+    # Grondwerk & afvoer (−10% → vaste marktprijzen)
+    "bestrating_verwijderen_per_m3": (85, 135),
+    "bestrating_afvoer_per_m3": (85, 135),
+    "bouw_sloop_afval_afvoer_per_m3": (85, 135),
 
-    "grond_afvoer_per_m3": (95, 150),
-    "zand_aanvoer_per_m3": (95, 150),
-    "puin_aanvoer_per_m3": (95, 150),
+    "grond_afvoer_per_m3": (85, 135),
+    "zand_aanvoer_per_m3": (85, 135),
+    "puin_aanvoer_per_m3": (85, 135),
 
-    "keramisch_straatwerk_per_m2": (180, 220),
-    "beton_straatwerk_per_m2": (60, 90),
-    "gebakken_straatwerk_per_m2": (80, 130),
-    "grind_per_m2": (35, 60),
-    "plaatsen_betonband_per_m1": (14, 28),
-    "zaagwerk_per_m1": (20, 35),
-    "voegen_straatwerk_per_m2": (15, 20),
+    # Bestrating (−20%)
+    "keramisch_straatwerk_per_m2": (145, 175),
+    "beton_straatwerk_per_m2": (50, 70),
+    "gebakken_straatwerk_per_m2": (65, 105),
+    "grind_per_m2": (30, 50),
+    "plaatsen_betonband_per_m1": (11, 22),
+    "zaagwerk_per_m1": (16, 28),
+    "voegen_straatwerk_per_m2": (12, 16),
 
-    "vlonder_zachthout_per_m2": (200, 250),
-    "vlonder_hardhout_per_m2": (280, 420),
-    "vlonder_composiet_per_m2": (350, 520),
+    # Vlonders (−20%)
+    "vlonder_zachthout_per_m2": (160, 200),
+    "vlonder_hardhout_per_m2": (225, 335),
+    "vlonder_composiet_per_m2": (280, 415),
 
-    "graszoden_per_m2": (12, 22),
-    "beplanting_border_per_m2": (25, 40),
-    "beplanting_haag_voordelig_laag_per_m1": (20, 40),
-    "beplanting_haag_voordelig_hoog_per_m1": (45, 75),
-    "beplanting_haag_premium_laag_per_m1": (75, 120),
-    "beplanting_haag_premium_hoog_per_m1": (120, 180),
-    "beplanting_boom_per_stuk": (220, 600),
+    # Groen (−20%)
+    "graszoden_per_m2": (10, 18),
+    "beplanting_border_per_m2": (20, 32),
+    "beplanting_haag_voordelig_laag_per_m1": (16, 32),
+    "beplanting_haag_voordelig_hoog_per_m1": (36, 60),
+    "beplanting_haag_premium_laag_per_m1": (60, 95),
+    "beplanting_haag_premium_hoog_per_m1": (95, 145),
+    "beplanting_boom_per_stuk": (175, 480),
 
-    "overkapping_per_m2": (650, 1000),
-    "verlichting_basis_per_stuk": (1000, 1500),
+    # Overkapping & verlichting (−20%)
+    "overkapping_per_m2": (520, 800),
+    "verlichting_basis_per_stuk": (800, 1200),
 
-    "beregening_installatie_basis":               (600, 900),
-    "beregening_installatie_volautomatisch":      (1000, 1500),
-    "beregening_installatie_highend":             (1800, 2500),
-    "beregening_gazon_basis_per_m2":              (5, 9),
-    "beregening_gazon_volautomatisch_per_m2":     (8, 13),
-    "beregening_gazon_highend_per_m2":            (12, 18),
-    "beregening_beplanting_basis_per_m2":         (7, 12),
-    "beregening_beplanting_volautomatisch_per_m2":(12, 18),
-    "beregening_beplanting_highend_per_m2":       (18, 28),
+    # Beregening (−20%)
+    "beregening_installatie_basis":               (480, 720),
+    "beregening_installatie_volautomatisch":      (800, 1200),
+    "beregening_installatie_highend":             (1440, 2000),
+    "beregening_gazon_basis_per_m2":              (4, 7),
+    "beregening_gazon_volautomatisch_per_m2":     (6, 10),
+    "beregening_gazon_highend_per_m2":            (10, 14),
+    "beregening_beplanting_basis_per_m2":         (6, 10),
+    "beregening_beplanting_volautomatisch_per_m2":(10, 14),
+    "beregening_beplanting_highend_per_m2":       (14, 22),
 
-    "plaatsen_betonschutting_per_m1": (200, 300),
-    "plaatsen_poortdeur_per_st": (750, 1500),
-    "plaatsen_designschutting_per_m1": (300, 400),
+    # Erfafscheiding (−20%)
+    "plaatsen_betonschutting_per_m1": (160, 240),
+    "plaatsen_poortdeur_per_st": (600, 1200),
+    "plaatsen_designschutting_per_m1": (240, 320),
 
+    # 3D Tuinontwerp (ongewijzigd — breed en bedrijfsspecifiek)
     "3d_tuinontwerp_<100m2":    (500, 1000),
     "3d_tuinontwerp_100-500m2": (1000, 1500),
     "3d_tuinontwerp_500-1000m2":(1500, 2000),
