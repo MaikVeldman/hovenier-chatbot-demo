@@ -632,9 +632,9 @@ _PRIJS_CATEGORIEEN = [
         ("beplanting_border_per_m2",                "Beplanting border",                   "€/m²"),
     ]),
     ("Beregening", [
-        ("beregening_installatie_basis",            "Installatie – Basis (deels handmatig)",        "€ vast"),
-        ("beregening_installatie_volautomatisch",   "Installatie – Volautomatisch (tijdschema)",    "€ vast"),
-        ("beregening_installatie_highend",          "Installatie – Smart (app/wifi/weer-gestuurd)", "€ vast"),
+        ("beregening_installatie_basis",            "Technische installatie & opstartkosten – Basis (deels handmatig)",        "€ vast"),
+        ("beregening_installatie_volautomatisch",   "Technische installatie & opstartkosten – Volautomatisch (tijdschema)",    "€ vast"),
+        ("beregening_installatie_highend",          "Technische installatie & opstartkosten – Smart (app/wifi/weer-gestuurd)", "€ vast"),
         ("beregening_gazon_basis_per_m2",           "Gazon – Basis (deels handmatig)",             "€/m²"),
         ("beregening_gazon_volautomatisch_per_m2",  "Gazon – Volautomatisch (tijdschema)",         "€/m²"),
         ("beregening_gazon_highend_per_m2",         "Gazon – Smart (app/wifi/weer-gestuurd)",      "€/m²"),
