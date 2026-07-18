@@ -133,7 +133,7 @@ class ChatController:
 
         if flow_key == "tuinaanleg":
             self.state.flow_type = "gehele_tuin"
-            self.state.flow = TuinaanlegFlowV2()
+            self.state.flow = TuinaanlegFlowV2(price_table=self.price_table)
             if _DB and self.state.session_id:
                 update_session_flow(self.state.session_id, "gehele_tuin")
                 log_event(self.state.session_id, "flow_started", {"flow": "gehele_tuin"})

@@ -98,6 +98,7 @@ class TuinaanlegFlowV2(BaseFlow):
     """Verbeterde gehele-tuin flow: stelt directe m²-vragen per onderdeel."""
     step_index: int = 0
     answers: Dict[str, Any] = field(default_factory=dict)
+    price_table: Any = None
 
     def __post_init__(self):
         self.steps = self._build_steps()
@@ -340,7 +341,8 @@ class TuinaanlegFlowV2(BaseFlow):
         prefix = prefix_map.get(step_key, "")
 
         def fmt(key: str) -> str:
-            lo, hi = PRIJZEN.get(key, (0, 0))
+            p = self.price_table if self.price_table is not None else None
+            lo, hi = (p.get(key, (0, 0)) if p else PRIJZEN.get(key, (0, 0)))
             return f"€{lo}–€{hi}/m²"
 
         return (

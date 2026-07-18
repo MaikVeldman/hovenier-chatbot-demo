@@ -737,6 +737,7 @@ def format_tuinaanleg_choices_for_customer(costs: Dict[str, Any]) -> str:
 def estimate_tuinaanleg_costs(answers: Dict[str, Any], price_table=None) -> Dict[str, Any]:
     from core.pricing.price_table import DEFAULT_PRICE_TABLE
     p = price_table or DEFAULT_PRICE_TABLE
+    PRIJZEN = p  # shadow module-level PRIJZEN so all nested closures use the per-tenant table
     """
     Rekent met:
     - tuin_m2
@@ -1655,6 +1656,7 @@ def format_costs_as_chat_html(costs: Dict[str, Any], flow_type: str = "gehele_tu
 def estimate_losse_onderdelen_costs(answers: Dict[str, Any], price_table=None) -> Dict[str, Any]:
     from core.pricing.price_table import DEFAULT_PRICE_TABLE
     p = price_table or DEFAULT_PRICE_TABLE
+    PRIJZEN = p  # shadow module-level PRIJZEN so all nested closures use the per-tenant table
     """
     Rekent op basis van directe m² per onderdeel (geen percentages).
     Gebruikt dezelfde PRIJZEN als estimate_tuinaanleg_costs.
