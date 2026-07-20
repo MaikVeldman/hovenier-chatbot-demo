@@ -600,12 +600,12 @@ def _build_customer_html(
         portaal_blok = (
             f'<div style="margin-top:20px;padding:16px 20px;background:{_BG};'
             f'border-radius:8px;border-left:4px solid {_GREEN};">'
-            f'<p style="margin:0 0 8px;font-size:14px;font-weight:700;color:{_TEXT};">Uw offerte online bekijken?</p>'
+            f'<p style="margin:0 0 8px;font-size:14px;font-weight:700;color:{_TEXT};">Uw prijsindicatie online bekijken?</p>'
             f'<p style="margin:0 0 12px;font-size:13px;color:{_MUTED};">'
-            'Via onderstaande link kunt u uw offerte-indicatie altijd terugvinden en bewaren.</p>'
+            'Via onderstaande link kunt u uw prijsindicatie altijd terugvinden en bewaren.</p>'
             f'<a href="{_url}" style="display:inline-block;background:{_GREEN};color:{_WHITE};'
             'padding:10px 20px;border-radius:7px;text-decoration:none;font-weight:600;font-size:13px;">'
-            'Bekijk uw offerte &rarr;</a></div>'
+            'Bekijk uw prijsindicatie &rarr;</a></div>'
         )
 
     content = f"""
