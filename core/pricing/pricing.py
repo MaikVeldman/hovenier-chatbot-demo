@@ -409,7 +409,7 @@ def format_breakdown_grouped(breakdown: List[Dict[str, Any]]) -> str:
     if groen:
         lines.append("")
         lines.append("**Groen:**")
-        lines.append("_Varieert door: soort, staat van de bodem en egaliseerwerk._")
+        lines.append("_Varieert door: soort, staat van de bodem en egaliseerwerk. Bodemverbetering (compost, zand, grondverbeteraar) wordt indien nodig apart begroot na inspectie._")
         lines.append("")
         for item in groen:
             lines.append(_fmt_item(item))
@@ -1596,7 +1596,7 @@ def _cp_breakdown_html(breakdown: List[Dict[str, Any]]) -> str:
     if groen:
         html += _section(
             "Groen:",
-            "Varieert door: soort, staat van de bodem en egaliseerwerk.",
+            "Varieert door: soort, staat van de bodem en egaliseerwerk. Bodemverbetering (compost, zand, grondverbeteraar) wordt indien nodig apart begroot na inspectie.",
             groen,
         )
     for group_name, items in extras.items():
