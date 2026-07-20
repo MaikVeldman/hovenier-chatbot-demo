@@ -143,16 +143,61 @@ def _admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-# In-memory session store — prima voor demo/productie op één server
+# Session store: in-memory cache + disk-backed pickle voor persistentie over herstarts
 _sessions: Dict[str, object] = {}
+
+import pickle as _pickle
+
+_SESSION_DIR = os.path.join(os.path.expanduser("~"), "chatbot-sessions")
+os.makedirs(_SESSION_DIR, exist_ok=True)
+
+
+def _session_path(sid: str) -> str:
+    return os.path.join(_SESSION_DIR, f"{sid}.pkl")
+
+
+def _save_session(sid: str, state) -> None:
+    try:
+        with open(_session_path(sid), "wb") as _f:
+            _pickle.dump(state, _f, protocol=_pickle.HIGHEST_PROTOCOL)
+    except Exception as _e:
+        print(f"[session] opslaan mislukt: {_e}")
+
+
+def _load_session(sid: str):
+    path = _session_path(sid)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "rb") as _f:
+            return _pickle.load(_f)
+    except Exception as _e:
+        print(f"[session] laden mislukt: {_e}")
+        return None
+
+
+def _delete_session(sid: str) -> None:
+    try:
+        path = _session_path(sid)
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        pass
 
 
 def _get_or_create(session_id: str | None):
     if session_id and session_id in _sessions:
         return session_id, _sessions[session_id]
+    # Probeer van schijf te laden na een gunicorn herstart
+    if session_id:
+        state = _load_session(session_id)
+        if state is not None:
+            _sessions[session_id] = state
+            return session_id, state
     sid = str(uuid.uuid4())
     state = make_initial_state(session_id=sid)
     _sessions[sid] = state
+    _save_session(sid, state)
     if _DB:
         ua = request.headers.get("User-Agent", "")
         log_session_created(sid, user_agent=ua)
@@ -228,6 +273,8 @@ def reset():
     old_sid = data.get("session_id")
     if old_sid and old_sid in _sessions:
         del _sessions[old_sid]
+    if old_sid:
+        _delete_session(old_sid)
 
     slug = request.headers.get("X-Tenant-Slug", "")
     tenant_cfg = TenantRepository().get_or_default(slug) if slug else None
@@ -238,6 +285,7 @@ def reset():
     sid = str(uuid.uuid4())
     state = make_initial_state(session_id=sid, actieve_flows=actieve_flows)
     _sessions[sid] = state
+    _save_session(sid, state)
 
     if _DB:
         ua = request.headers.get("User-Agent", "")
@@ -264,6 +312,7 @@ def reset():
         ctrl = ChatController(state, tenant_ctx2)
         state, flow_msgs = ctrl.handle("_auto_")
         _sessions[sid] = state
+        _save_session(sid, state)
         for m in flow_msgs:
             berichten.append({"role": "bot", "text": m})
 
@@ -290,6 +339,7 @@ def chat():
     ctrl = ChatController(state, tenant_ctx)
     state, new_messages = ctrl.handle(message)
     _sessions[sid] = state
+    _save_session(sid, state)
 
     if _DB:
         log_message(sid, "user", message)
