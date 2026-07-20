@@ -8,8 +8,8 @@ inschrijving (nog geen aparte KVK-registratie voor Indiqa). Zodra dat
 wel gebeurt, deze gegevens bijwerken en TERMS_VERSION ophogen — bestaande
 klanten hebben dan de oude versie geaccepteerd, nieuwe klanten de nieuwe.
 
-LET OP: HOSTING_PARTIJ staat nog op een placeholder. Laat de teksten
-sowieso door een jurist controleren voordat je hier commercieel op leunt.
+LET OP: laat de teksten sowieso door een jurist controleren voordat je
+hier commercieel op leunt.
 """
 
 INDIQA_BEDRIJFSNAAM      = "Veldman Hoveniers"
@@ -18,7 +18,7 @@ INDIQA_VESTIGINGSPLAATS   = "Balkbrug"
 INDIQA_ADRES              = "Boslaan 27, 7707 AX Balkbrug"
 INDIQA_CONTACT_EMAIL      = "info@indiqa.nl"
 
-HOSTING_PARTIJ            = "[hostingpartij, bijv. Hetzner Online GmbH — Duitsland]"
+HOSTING_PARTIJ            = "Hetzner Online GmbH — Finland (HEL1-DC8)"
 EMAIL_PARTIJ              = "Brevo SAS — Frankrijk (EU)"
 
 # Versiedatum van de juridische documenten. Wordt getoond in de teksten en
