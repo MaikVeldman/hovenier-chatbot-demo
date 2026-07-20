@@ -938,17 +938,23 @@ def admin_instellingen():
             _tr.save_instellingen(tenant_id, inst)
             success_flows = True
 
-        elif actie == "wachtwoord" and user_id:
+        elif actie == "wachtwoord":
             oud       = request.form.get("oud_wachtwoord") or ""
             nieuw     = request.form.get("nieuw_wachtwoord") or ""
             nieuw2    = request.form.get("nieuw_wachtwoord2") or ""
 
             from infrastructure.db.repositories.user_repository import UserRepository
             repo = UserRepository()
-            user = repo.find_by_id(user_id) if hasattr(repo, "find_by_id") else None
+            user = None
+            if user_id and hasattr(repo, "find_by_id"):
+                user = repo.find_by_id(user_id)
+            if user is None:
+                user_email_sess = flask_session.get("user_email") or ""
+                if user_email_sess:
+                    user = repo.find_by_email(user_email_sess)
 
             if not user:
-                error_wachtwoord = "Gebruiker niet gevonden."
+                error_wachtwoord = "Gebruiker niet gevonden. Wachtwoord wijzigen is alleen mogelijk voor accounts die via e-mail zijn aangemeld."
             elif not repo.verify_password(user, oud):
                 error_wachtwoord = "Huidig wachtwoord is onjuist."
             elif len(nieuw) < 8:
@@ -956,7 +962,7 @@ def admin_instellingen():
             elif nieuw != nieuw2:
                 error_wachtwoord = "Wachtwoorden komen niet overeen."
             else:
-                repo.update_password(user_id, nieuw)
+                repo.update_password(user.id, nieuw)
                 success_wachtwoord = True
 
     # Laad huidige config voor formulier
