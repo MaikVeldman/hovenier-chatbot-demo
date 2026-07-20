@@ -186,6 +186,25 @@ input:focus { border-color: var(--accent); }
   color: var(--text-3);
 }
 .card-footer a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.consent input[type="checkbox"] {
+  margin-top: 2px;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.consent a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.consent a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -251,13 +270,19 @@ input:focus { border-color: var(--accent); }
         <div class="abo-blok">
           <div>
             <div class="abo-naam">Indiqa — alles inbegrepen</div>
-            <div class="abo-sub">Introductieprijs · Maandelijks opzegbaar · Ex. btw</div>
+            <div class="abo-sub">Maandelijks opzegbaar · Ex. btw</div>
           </div>
           <div>
             <span class="abo-prijs">€ 69</span>
             <span class="abo-per">/mnd</span>
           </div>
         </div>
+
+        <label class="consent">
+          <input type="checkbox" name="akkoord_voorwaarden" required/>
+          <span>Ik ga akkoord met de <a href="/juridisch/algemene-voorwaarden" target="_blank" rel="noopener">algemene voorwaarden</a>
+          en de <a href="/juridisch/verwerkersovereenkomst" target="_blank" rel="noopener">verwerkersovereenkomst</a>.</span>
+        </label>
 
         <button class="btn" type="submit">Account aanmaken</button>
       </form>

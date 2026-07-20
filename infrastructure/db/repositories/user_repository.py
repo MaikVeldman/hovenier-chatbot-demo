@@ -40,8 +40,10 @@ class UserRepository:
         email: str,
         plain_password: str,
         is_superadmin: bool = False,
+        voorwaarden_versie: str | None = None,
     ) -> Optional[int]:
         try:
+            from datetime import datetime, timezone
             from infrastructure.db.database import SessionLocal
             from infrastructure.db.db_models import DbUser
             with SessionLocal() as db:
@@ -50,6 +52,10 @@ class UserRepository:
                     email=email.lower().strip(),
                     wachtwoord_hash=generate_password_hash(plain_password),
                     is_superadmin=is_superadmin,
+                    voorwaarden_geaccepteerd_op=(
+                        datetime.now(timezone.utc) if voorwaarden_versie else None
+                    ),
+                    voorwaarden_versie=voorwaarden_versie,
                 )
                 db.add(user)
                 db.commit()

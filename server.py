@@ -55,6 +55,8 @@ def _migrate_db() -> None:
             for sql in [
                 "ALTER TABLE tenant_configs ADD COLUMN volume_kortingen JSON",
                 "ALTER TABLE tenant_configs ADD COLUMN instellingen JSON",
+                "ALTER TABLE users ADD COLUMN voorwaarden_geaccepteerd_op TIMESTAMP",
+                "ALTER TABLE users ADD COLUMN voorwaarden_versie VARCHAR(20)",
             ]:
                 try:
                     conn.execute(text(sql))
@@ -366,6 +368,43 @@ def admin_logout():
 
 
 # ============================================================
+# Juridische documenten
+# ============================================================
+
+@app.route("/juridisch/algemene-voorwaarden")
+def algemene_voorwaarden():
+    from infrastructure.config.legal import (
+        INDIQA_BEDRIJFSNAAM, INDIQA_KVK, INDIQA_VESTIGINGSPLAATS,
+        INDIQA_CONTACT_EMAIL, TERMS_VERSION,
+    )
+    return render_template(
+        "juridisch/algemene_voorwaarden.html",
+        bedrijfsnaam=INDIQA_BEDRIJFSNAAM,
+        kvk=INDIQA_KVK,
+        vestigingsplaats=INDIQA_VESTIGINGSPLAATS,
+        contact_email=INDIQA_CONTACT_EMAIL,
+        terms_version=TERMS_VERSION,
+    )
+
+
+@app.route("/juridisch/verwerkersovereenkomst")
+def verwerkersovereenkomst():
+    from infrastructure.config.legal import (
+        INDIQA_BEDRIJFSNAAM, INDIQA_KVK, INDIQA_VESTIGINGSPLAATS,
+        HOSTING_PARTIJ, EMAIL_PARTIJ, TERMS_VERSION,
+    )
+    return render_template(
+        "juridisch/verwerkersovereenkomst.html",
+        bedrijfsnaam=INDIQA_BEDRIJFSNAAM,
+        kvk=INDIQA_KVK,
+        vestigingsplaats=INDIQA_VESTIGINGSPLAATS,
+        hosting_partij=HOSTING_PARTIJ,
+        email_partij=EMAIL_PARTIJ,
+        terms_version=TERMS_VERSION,
+    )
+
+
+# ============================================================
 # Registratie nieuwe Indiqa klant
 # ============================================================
 
@@ -439,6 +478,7 @@ def aanmelden():
         wachtwoord          = request.form.get("wachtwoord") or ""
         wachtwoord2         = request.form.get("wachtwoord2") or ""
         website_impl        = bool(request.form.get("website_implementatie"))
+        akkoord_voorwaarden = bool(request.form.get("akkoord_voorwaarden"))
 
         form = dict(bedrijfsnaam=bedrijfsnaam, regio=regio, email=email,
                     website_implementatie=website_impl)
@@ -452,6 +492,8 @@ def aanmelden():
             error = "Wachtwoord moet minimaal 8 tekens bevatten."
         elif wachtwoord != wachtwoord2:
             error = "Wachtwoorden komen niet overeen."
+        elif not akkoord_voorwaarden:
+            error = "Je moet akkoord gaan met de algemene voorwaarden en de verwerkersovereenkomst om door te gaan."
         else:
             from infrastructure.db.repositories.user_repository import UserRepository
             from infrastructure.db.repositories.tenant_repository import TenantRepository
@@ -469,10 +511,12 @@ def aanmelden():
                     contact_email=email,
                     actief=False,
                 )
+                from infrastructure.config.legal import TERMS_VERSION
                 user_id = UserRepository().create(
                     tenant_id=tenant_id,
                     email=email,
                     plain_password=wachtwoord,
+                    voorwaarden_versie=TERMS_VERSION,
                 )
 
                 if not user_id:

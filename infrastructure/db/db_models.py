@@ -41,6 +41,8 @@ class DbUser(Base):
     wachtwoord_hash = Column(String(256), nullable=False)
     is_superadmin   = Column(Boolean, default=False, nullable=False)
     aangemaakt_op   = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    voorwaarden_geaccepteerd_op = Column(DateTime, nullable=True)
+    voorwaarden_versie         = Column(String(20), nullable=True)
 
     tenant = relationship("DbTenant", back_populates="users")
 
