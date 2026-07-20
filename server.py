@@ -953,17 +953,21 @@ def admin_instellingen():
                 if user_email_sess:
                     user = repo.find_by_email(user_email_sess)
 
-            if not user:
-                error_wachtwoord = "Gebruiker niet gevonden. Wachtwoord wijzigen is alleen mogelijk voor accounts die via e-mail zijn aangemeld."
-            elif not repo.verify_password(user, oud):
-                error_wachtwoord = "Huidig wachtwoord is onjuist."
-            elif len(nieuw) < 8:
-                error_wachtwoord = "Nieuw wachtwoord moet minimaal 8 tekens bevatten."
-            elif nieuw != nieuw2:
-                error_wachtwoord = "Wachtwoorden komen niet overeen."
-            else:
-                repo.update_password(user.id, nieuw)
-                success_wachtwoord = True
+            try:
+                if not user:
+                    error_wachtwoord = "Geen account gevonden. Log opnieuw in of neem contact op met support."
+                elif not repo.verify_password(user, oud):
+                    error_wachtwoord = "Huidig wachtwoord is onjuist."
+                elif len(nieuw) < 8:
+                    error_wachtwoord = "Nieuw wachtwoord moet minimaal 8 tekens bevatten."
+                elif nieuw != nieuw2:
+                    error_wachtwoord = "Wachtwoorden komen niet overeen."
+                else:
+                    repo.update_password(user.id, nieuw)
+                    success_wachtwoord = True
+            except Exception as _e:
+                print(f"[wachtwoord_wijzigen] fout: {_e}")
+                error_wachtwoord = f"Er ging iets mis: {_e}"
 
     # Laad huidige config voor formulier
     cfg_obj = None

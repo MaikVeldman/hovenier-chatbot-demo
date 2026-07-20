@@ -118,12 +118,6 @@
 {% if error_huisstijl %}
   <div class="alert alert-error">{{ error_huisstijl }}</div>
 {% endif %}
-{% if success_wachtwoord %}
-  <div class="alert alert-ok">Wachtwoord gewijzigd.</div>
-{% endif %}
-{% if error_wachtwoord %}
-  <div class="alert alert-error">{{ error_wachtwoord }}</div>
-{% endif %}
 
 <!-- ── Huisstijl ─────────────────────────────────── -->
 <div class="card form-section">
@@ -249,10 +243,18 @@
 
 <!-- ── Wachtwoord ────────────────────────────────── -->
 {% if not acting_as_tenant_id %}
-<div class="card form-section">
+<div class="card form-section" id="wachtwoord-sectie">
   <div class="card-header">Wachtwoord wijzigen</div>
   <div style="padding: 20px 22px 24px;">
-    <form method="POST" action="/beheer/instellingen">
+
+    {% if success_wachtwoord %}
+      <div class="alert alert-ok" style="margin-bottom:16px;">✓ Wachtwoord gewijzigd.</div>
+    {% endif %}
+    {% if error_wachtwoord %}
+      <div class="alert alert-error" style="margin-bottom:16px;">{{ error_wachtwoord }}</div>
+    {% endif %}
+
+    <form method="POST" action="/beheer/instellingen#wachtwoord-sectie">
       <input type="hidden" name="actie" value="wachtwoord"/>
 
       <div class="field">
