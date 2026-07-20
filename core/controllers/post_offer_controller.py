@@ -67,11 +67,15 @@ from core.pricing.savings import (
     is_cancel,
 )
 
-_EXIT_MSG = (
-    "Helemaal goed. Fijn dat u even heeft gekeken. 👋\n\n"
-    "Heeft u later nog vragen of wilt u alsnog een offerte? U kunt altijd een nieuwe berekening starten "
-    "of ons direct bereiken via [veldmanhoveniers.nl](https://www.veldmanhoveniers.nl)."
-)
+def _exit_msg(state: "ChatState") -> str:
+    email = state.tenant_notify_email or ""
+    naam  = state.tenant_bedrijfsnaam or ""
+    contact = f" of ons bereiken via [{email}](mailto:{email})" if email else ""
+    wie = f" bij {naam}" if naam else ""
+    return (
+        f"Helemaal goed. Fijn dat u even heeft gekeken. 👋\n\n"
+        f"Heeft u later nog vragen of wilt u alsnog een offerte? U kunt altijd een nieuwe berekening starten{contact}."
+    )
 
 
 class PostOfferController:
@@ -315,7 +319,7 @@ class PostOfferController:
             log_event(self.state.session_id, "session_ended", {"reason": "no_contact"})
             log_drop_off(self.state.session_id, "na_prijs_gezien")
             self._bereken_en_sla_leadscore(sessie_volledig=True, offerte_aangevraagd=False, drop_off=True)
-        return self.state, [_EXIT_MSG]
+        return self.state, [_exit_msg(self.state)]
 
     # ----------------------------------------------------------
     # Lower-costs menu routing
