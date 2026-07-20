@@ -3,16 +3,19 @@
 Bedrijfsgegevens van de Indiqa-aanbieder zelf (niet van een hovenier-tenant).
 Gebruikt in de Algemene Voorwaarden en de Verwerkersovereenkomst.
 
-LET OP: onderstaande waarden zijn placeholders. Vul ze in met de echte
-gegevens van de entiteit waaronder Indiqa wordt verkocht voordat een
-betalende klant zich hierop kan beroepen, en laat de teksten door een
-jurist controleren.
+Indiqa wordt vooralsnog verkocht onder de bestaande Veldman Hoveniers-
+inschrijving (nog geen aparte KVK-registratie voor Indiqa). Zodra dat
+wel gebeurt, deze gegevens bijwerken en TERMS_VERSION ophogen — bestaande
+klanten hebben dan de oude versie geaccepteerd, nieuwe klanten de nieuwe.
+
+LET OP: HOSTING_PARTIJ staat nog op een placeholder. Laat de teksten
+sowieso door een jurist controleren voordat je hier commercieel op leunt.
 """
 
-INDIQA_BEDRIJFSNAAM      = "[bedrijfsnaam Indiqa-aanbieder]"
-INDIQA_KVK                = "[KVK-nummer]"
-INDIQA_VESTIGINGSPLAATS   = "[vestigingsplaats]"
-INDIQA_ADRES              = "[straat, postcode en plaats]"
+INDIQA_BEDRIJFSNAAM      = "Veldman Hoveniers"
+INDIQA_KVK                = "76946320"
+INDIQA_VESTIGINGSPLAATS   = "Balkbrug"
+INDIQA_ADRES              = "Boslaan 27, 7707 AX Balkbrug"
 INDIQA_CONTACT_EMAIL      = "info@indiqa.nl"
 
 HOSTING_PARTIJ            = "[hostingpartij, bijv. Hetzner Online GmbH — Duitsland]"
