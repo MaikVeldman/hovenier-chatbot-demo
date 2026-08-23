@@ -1061,7 +1061,7 @@ def send_gedeactiveerd_email(bedrijfsnaam: str, email: str, slug: str) -> None:
     login_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/login"
     titel = "Je Indiqa-rekentool is gepauzeerd vanwege een achterstallige betaling"
     intro = (
-        f"Hoi {bedrijfsnaam}, je account is tijdelijk gepauzeerd — de rekentool is op dit moment "
+        f"Hoi {bedrijfsnaam}, je account is tijdelijk gepauzeerd. De rekentool is op dit moment "
         "niet bereikbaar. Je beheerpaneel blijft gewoon toegankelijk."
     )
 
