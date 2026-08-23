@@ -123,17 +123,22 @@ class TenantRepository:
             print(f"[TenantRepository] start_trial fout: {e}")
             return None
 
-    def mark_betalend(self, tenant_id: int, betalend: bool = True) -> None:
-        """Markeert tenant als (niet-)betalend. Betalend maken heractiveert de tenant meteen."""
+    def mark_betalend(self, tenant_id: int) -> None:
+        """
+        Markeert tenant als betalend en heractiveert 'm meteen.
+        Eenrichtingsactie (geen 'terugzetten naar trial'): is_betalend blijft
+        daarna een blijvend feit, ook als een klant later stopt met betalen.
+        Toegang blokkeren voor zo'n klant doe je met de bestaande
+        Activeer/Deactiveer-knop (set_actief) — niet door deze vlag terug te zetten.
+        """
         try:
             from infrastructure.db.database import SessionLocal
             from infrastructure.db.db_models import DbTenant
             with SessionLocal() as db:
                 t = db.get(DbTenant, tenant_id)
                 if t:
-                    t.is_betalend = betalend
-                    if betalend:
-                        t.actief = True
+                    t.is_betalend = True
+                    t.actief = True
                     db.commit()
         except Exception as e:
             print(f"[TenantRepository] mark_betalend fout: {e}")

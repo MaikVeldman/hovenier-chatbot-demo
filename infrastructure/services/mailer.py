@@ -882,7 +882,7 @@ def send_nieuwe_aanmelding_email(
 # Proefperiode
 # ============================================================
 
-def _trial_mail_wrapper(header_sub: str, body_html: str) -> str:
+def _account_mail_wrapper(header_sub: str, body_html: str) -> str:
     """Gedeelde HTML-wrapper voor de trial-mails, zelfde stijl als de rest van deze module."""
     return f"""<!DOCTYPE html>
 <html lang="nl">
@@ -931,7 +931,7 @@ def send_trial_herinnering_email(bedrijfsnaam: str, email: str, slug: str,
         Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
         style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
       </p>"""
-    html = _trial_mail_wrapper("Proefperiode loopt af", body)
+    html = _account_mail_wrapper("Proefperiode loopt af", body)
     _send_mail(to=email, subject=f"Je proefperiode loopt over {dagen_resterend} {dag_txt} af — Indiqa", html=html)
 
 
@@ -966,7 +966,7 @@ def send_trial_herinnering_admin_email(bedrijfsnaam: str, email: str, slug: str,
           Bekijk in klantenoverzicht →
         </a>
       </div>"""
-    html = _trial_mail_wrapper("Trial loopt bijna af", body)
+    html = _account_mail_wrapper("Trial loopt bijna af", body)
     _send_mail(to=NOTIFY_TO, subject=f"Trial loopt bijna af: {bedrijfsnaam}", html=html)
 
 
@@ -995,7 +995,7 @@ def send_trial_verlopen_email(bedrijfsnaam: str, email: str, slug: str) -> None:
         Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
         style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
       </p>"""
-    html = _trial_mail_wrapper("Proefperiode afgelopen", body)
+    html = _account_mail_wrapper("Proefperiode afgelopen", body)
     _send_mail(to=email, subject="Je proefperiode is afgelopen — Indiqa", html=html)
 
 
@@ -1027,8 +1027,33 @@ def send_trial_verlopen_admin_email(bedrijfsnaam: str, email: str, slug: str) ->
           Bekijk in klantenoverzicht →
         </a>
       </div>"""
-    html = _trial_mail_wrapper("Trial verlopen", body)
+    html = _account_mail_wrapper("Trial verlopen", body)
     _send_mail(to=NOTIFY_TO, subject=f"Trial verlopen (gedeactiveerd): {bedrijfsnaam}", html=html)
+
+
+def send_betalend_bevestiging_email(bedrijfsnaam: str, email: str, slug: str) -> None:
+    """Bevestiging aan de klant dat het abonnement is bevestigd (geen proefperiode meer)."""
+    login_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/login"
+    body = f"""
+      <h2 style="margin:0 0 6px;font-size:20px;color:{_INDIQA_GREEN};font-weight:800;">
+        Je abonnement is bevestigd
+      </h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Hoi {bedrijfsnaam}, bedankt! Je Indiqa-abonnement is nu actief — geen proefperiode meer,
+        je rekentool blijft gewoon beschikbaar voor je klanten.
+      </p>
+      <a href="{login_url}"
+         style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                padding:12px 24px;border-radius:7px;text-decoration:none;
+                font-weight:600;font-size:14px;">
+        Naar het beheerpaneel →
+      </a>
+      <p style="margin-top:24px;font-size:13px;color:#7A9882;">
+        Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
+        style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
+      </p>"""
+    html = _account_mail_wrapper("Abonnement bevestigd", body)
+    _send_mail(to=email, subject="Je Indiqa-abonnement is bevestigd", html=html)
 
 
 # ============================================================

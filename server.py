@@ -945,8 +945,17 @@ def admin_tenant_activeer(tenant_id: int):
 def admin_tenant_betalend(tenant_id: int):
     if not flask_session.get("is_superadmin"):
         return redirect(url_for("admin_overzicht"))
-    betalend = request.form.get("betalend") == "1"
-    TenantRepository().mark_betalend(tenant_id, betalend)
+    TenantRepository().mark_betalend(tenant_id)
+    try:
+        from infrastructure.db.database import SessionLocal as _SL
+        from infrastructure.db.db_models import DbTenant as _DbT
+        from infrastructure.services.mailer import send_betalend_bevestiging_email
+        with _SL() as _db:
+            _t = _db.query(_DbT).filter_by(id=tenant_id).first()
+            if _t and _t.config and _t.config.contact_email:
+                send_betalend_bevestiging_email(_t.naam, _t.config.contact_email, _t.slug)
+    except Exception as e:
+        print(f"[admin_tenant_betalend] Bevestigingsmail mislukt: {e}")
     return redirect(url_for("admin_klanten"))
 
 

@@ -38,8 +38,10 @@
             {% else %}—{% endif %}
           </td>
           <td>
-            {% if t.is_betalend %}
+            {% if t.is_betalend and t.actief %}
               <span class="badge badge-offerte">Betalend</span>
+            {% elif t.is_betalend and not t.actief %}
+              <span class="badge badge-verlopen">Betalend · gedeactiveerd</span>
             {% elif t.trial_eindigt_op and t.actief %}
               <span class="badge badge-trial">
                 Trial · {% if t.trial_dagen_resterend is not none and t.trial_dagen_resterend > 0 %}
@@ -85,21 +87,14 @@
                 </button>
               {% endif %}
             </form>
+            {% if not t.is_betalend %}
             <form method="POST" action="/beheer/klanten/{{ t.id }}/betalend" style="display:inline;">
-              {% if t.is_betalend %}
-                <input type="hidden" name="betalend" value="0"/>
-                <button type="submit" style="background:none;border:1px solid var(--border);border-radius:5px;
-                        padding:5px 12px;font-size:12px;cursor:pointer;color:var(--text-3);font-family:inherit;">
-                  Zet terug op trial
-                </button>
-              {% else %}
-                <input type="hidden" name="betalend" value="1"/>
-                <button type="submit" style="background:var(--accent);border:none;border-radius:5px;
-                        padding:5px 12px;font-size:12px;cursor:pointer;color:#fff;font-weight:600;font-family:inherit;">
-                  Markeer als betalend
-                </button>
-              {% endif %}
+              <button type="submit" style="background:var(--accent);border:none;border-radius:5px;
+                      padding:5px 12px;font-size:12px;cursor:pointer;color:#fff;font-weight:600;font-family:inherit;">
+                Markeer als betalend
+              </button>
             </form>
+            {% endif %}
             <form method="POST" action="/beheer/klanten/{{ t.id }}/verwijder"
                   style="display:inline;"
                   onsubmit="return confirm('{{ t.naam }} permanent verwijderen? Dit kan niet ongedaan worden.')">
