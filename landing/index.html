@@ -32,10 +32,15 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0
   background:var(--leaf);border-radius:0 100% 60% 100%/0 100% 100% 60%;
   transform:rotate(8deg);
 }
-.nav-actions{display:flex;align-items:center;gap:10px;}
+.nav-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
 .nav-login{color:var(--ink);text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:600;font-size:15px;border:1.5px solid var(--line);background:#fff;transition:background .15s;}
 .nav-login:hover{background:var(--mist);}
 .nav-cta{background:var(--ink);color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:600;font-size:15px;}
+.nav-trial{background:var(--leaf);color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-weight:600;font-size:15px;transition:background .15s;}
+.nav-trial:hover{background:var(--leaf-bright);}
+@media(max-width:520px){
+  .nav-login,.nav-cta,.nav-trial{padding:9px 14px;font-size:13.5px;}
+}
 
 /* pricing */
 .pricing{padding:80px 0;background:var(--paper);}
@@ -166,6 +171,7 @@ footer{border-top:1px solid var(--line);padding:28px 0;font-size:14px;color:#667
     <div class="nav-actions">
       <a class="nav-login" href="https://indiqa.nl/beheer/login">Inloggen</a>
       <a class="nav-cta" href="https://demo.indiqa.nl">Probeer de demo</a>
+      <a class="nav-trial" href="https://indiqa.nl/aanmelden">1 maand gratis proberen</a>
     </div>
   </nav>
 
