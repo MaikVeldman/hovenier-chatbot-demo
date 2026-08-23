@@ -1089,6 +1089,32 @@ def send_gedeactiveerd_email(bedrijfsnaam: str, email: str, slug: str) -> None:
     _send_mail(to=email, subject=titel, html=html)
 
 
+def send_gereactiveerd_email(bedrijfsnaam: str, email: str, slug: str) -> None:
+    """Melding aan de klant dat het account weer is geactiveerd na een pauze."""
+    login_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/login"
+    titel = "Je Indiqa-rekentool is weer actief"
+    body = f"""
+      <h2 style="margin:0 0 6px;font-size:20px;color:{_INDIQA_GREEN};font-weight:800;">
+        {titel}
+      </h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Hoi {bedrijfsnaam}, goed nieuws: je account is weer actief. De rekentool is weer
+        bereikbaar voor je klanten.
+      </p>
+      <a href="{login_url}"
+         style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                padding:12px 24px;border-radius:7px;text-decoration:none;
+                font-weight:600;font-size:14px;">
+        Naar het beheerpaneel →
+      </a>
+      <p style="margin-top:24px;font-size:13px;color:#7A9882;">
+        Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
+        style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
+      </p>"""
+    html = _account_mail_wrapper(titel, body)
+    _send_mail(to=email, subject=titel, html=html)
+
+
 # ============================================================
 # Publieke functie
 # ============================================================
