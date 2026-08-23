@@ -937,6 +937,17 @@ def admin_tenant_activeer(tenant_id: int):
         return redirect(url_for("admin_overzicht"))
     actief = request.form.get("actief") == "1"
     TenantRepository().set_actief(tenant_id, actief)
+    if not actief:
+        try:
+            from infrastructure.db.database import SessionLocal as _SL
+            from infrastructure.db.db_models import DbTenant as _DbT
+            from infrastructure.services.mailer import send_gedeactiveerd_email
+            with _SL() as _db:
+                _t = _db.query(_DbT).filter_by(id=tenant_id).first()
+                if _t and _t.config and _t.config.contact_email:
+                    send_gedeactiveerd_email(_t.naam, _t.config.contact_email, _t.slug)
+        except Exception as e:
+            print(f"[admin_tenant_activeer] Deactivatiemail mislukt: {e}")
     return redirect(url_for("admin_klanten"))
 
 

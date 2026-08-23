@@ -1056,6 +1056,38 @@ def send_betalend_bevestiging_email(bedrijfsnaam: str, email: str, slug: str) ->
     _send_mail(to=email, subject="Je Indiqa-abonnement is bevestigd", html=html)
 
 
+def send_gedeactiveerd_email(bedrijfsnaam: str, email: str, slug: str) -> None:
+    """
+    Melding aan de klant dat het account handmatig is gepauzeerd door de beheerder.
+    Neutraal geformuleerd (geen aanname over de reden, bv. niet-betaling specifiek) —
+    deze mail hoort bij de generieke Activeer/Deactiveer-knop in het klantenoverzicht.
+    """
+    login_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/login"
+    body = f"""
+      <h2 style="margin:0 0 6px;font-size:20px;color:{_INDIQA_GREEN};font-weight:800;">
+        Je Indiqa-rekentool is gepauzeerd
+      </h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Hoi {bedrijfsnaam}, je account is tijdelijk gepauzeerd — de rekentool is op dit moment
+        niet bereikbaar voor je klanten. Je beheerpaneel blijft gewoon toegankelijk.
+      </p>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Heb je hier vragen over, of wil je dat we dit weer aanzetten? Neem gerust contact met ons op.
+      </p>
+      <a href="{login_url}"
+         style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                padding:12px 24px;border-radius:7px;text-decoration:none;
+                font-weight:600;font-size:14px;">
+        Naar het beheerpaneel →
+      </a>
+      <p style="margin-top:24px;font-size:13px;color:#7A9882;">
+        Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
+        style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
+      </p>"""
+    html = _account_mail_wrapper("Account gepauzeerd", body)
+    _send_mail(to=email, subject="Je Indiqa-rekentool is gepauzeerd", html=html)
+
+
 # ============================================================
 # Publieke functie
 # ============================================================
