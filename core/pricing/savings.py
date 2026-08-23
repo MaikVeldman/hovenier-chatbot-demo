@@ -219,6 +219,16 @@ def saving_text_from_delta(base_costs: dict, preview_costs: dict, *, keys: Tuple
     save_min = bmin - pmin
     save_max = bmax - pmax
 
+    # Cap door het werkelijke verschil in het totaal: het projectminimum
+    # (zie _MIN_PROJECT in pricing.py) kan de besparing beperken als het
+    # totaal daardoor niet net zo hard mag zakken als de losse posten
+    # suggereren (bijv. het laatste dure onderdeel verwijderen).
+    bt = _total_range(base_costs)
+    pt = _total_range(preview_costs)
+    if bt and pt:
+        save_min = min(save_min, max(0, bt[0] - pt[0]))
+        save_max = min(save_max, max(0, bt[1] - pt[1]))
+
     if save_max <= 0:
         return ""
 
@@ -261,6 +271,12 @@ MATERIAL_LINKED_KEYS = (
     "grind_per_m2",
     "voegen_straatwerk_per_m2",
     "zaagwerk_per_m1",
+    # Keramiek heeft een andere grondwerkdiepte dan de overige materialen
+    # (zie _gd["...afvoer_keramiek"] in pricing.py); zonder deze keys klopt
+    # de geadverteerde besparing niet met wat na toepassen echt verandert.
+    "grond_afvoer_per_m3",
+    "zand_aanvoer_per_m3",
+    "puin_aanvoer_per_m3",
 )
 
 EXTRA_KEYS = {
@@ -991,57 +1007,92 @@ def material_choice_menu_text_cheaper(
 # =====================
 # (4) Vlonder goedkoper (renummerd vanaf 1 + 'verwijderen' kan)
 # =====================
+def _vlonder_item_list(a: dict) -> List[Tuple[str, str]]:
+    """Alle vlonder-items op volgorde: item 0 = vlonder_type, 1+ = vlonder_extra_items."""
+    main_type = (a.get("vlonder_type") or "composiet").strip().lower()
+    extra_items = list(a.get("vlonder_extra_items") or [])
+    items = [main_type] + [(ex.get("type") or "composiet").strip().lower() for ex in extra_items]
+    return list(enumerate(items))
+
+
+def _preview_vlonder_item_set(a: dict, item_idx: int, new_type: str) -> dict:
+    p = dict(a)
+    if item_idx == 0:
+        p["vlonder_type"] = new_type
+    else:
+        extra_items = list(p.get("vlonder_extra_items") or [])
+        pos = item_idx - 1
+        if pos < len(extra_items):
+            extra_items[pos] = dict(extra_items[pos], type=new_type)
+            p["vlonder_extra_items"] = extra_items
+    return p
+
+
 def vlonder_choice_menu_text(ans: dict, base_costs: dict) -> Tuple[str, Dict[str, str]]:
+    """
+    Toont per vlonder-item (item 1 + eventuele extra vlonders) goedkopere opties.
+    Bij meerdere vlonders (vlonder_extra_items) wordt elk item apart beoordeeld,
+    zodat een goedkoop item 1 een duurder item 2/3 niet verbergt.
+    """
     a = dict(ans or {})
     if not has_vlonder(a):
         return ("Vlonder is niet gekozen. Typ 'nee' om terug te gaan.", {})
 
-    cur = (a.get("vlonder_type") or "composiet").strip().lower()
-    cur_rank = _vlonder_rank(cur)
+    items = _vlonder_item_list(a)
+    multi = len(items) > 1
 
     candidates: List[Tuple[str, str]] = [
         ("hardhout", "Hardhout"),
         ("zachthout", "Zachthout"),
     ]
 
-    options: List[Tuple[str, str, str]] = []
+    mapping: Dict[str, str] = {}
+    if multi:
+        lines = ["Uw huidige vlonder(s):"]
+        for item_idx, cur_type in items:
+            lines.append(f"- Vlonder {item_idx + 1}: {_nice_vlonder(cur_type)}")
+        lines.append("")
+        lines.append("Kies een goedkopere optie, of verwijder alle vlonders:")
+    else:
+        cur_type = items[0][1]
+        lines = [
+            f"U heeft nu gekozen voor **{_nice_vlonder(cur_type)}**.",
+            "Kies een goedkopere optie of verwijder de vlonder:",
+        ]
 
-    for opt, label in candidates:
-        if _vlonder_rank(opt) <= cur_rank:
-            continue
-        preview = dict(a)
-        preview["vlonder_type"] = opt
-        preview_costs = _estimate(preview)
-        s = saving_text_from_delta(base_costs, preview_costs, keys=VLONDER_KEYS)
-        if s:
-            options.append((opt, label, s))
+    idx = 1
+    for item_idx, cur_type in items:
+        cur_rank = _vlonder_rank(cur_type)
+        for opt, opt_label in candidates:
+            if _vlonder_rank(opt) <= cur_rank:
+                continue
+            preview = _preview_vlonder_item_set(a, item_idx, opt)
+            s = saving_text_from_delta(base_costs, _estimate(preview), keys=VLONDER_KEYS)
+            if not s:
+                continue
+            mapping[str(idx)] = f"set_{item_idx}_{opt}"
+            suffix = f" {item_idx + 1}" if multi else ""
+            lines.append(f"{idx}) Vlonder{suffix} naar {opt_label} {s}")
+            idx += 1
 
-    preview = dict(a)
-    ov = _overige_clean(preview)
-    preview["vlonder_type"] = None
-    preview["overige_wensen"] = [x for x in ov if x != "vlonder"]
-    preview_costs = _estimate(preview)
-    s_remove = saving_text_from_delta(base_costs, preview_costs, keys=VLONDER_KEYS)
+    preview_rm = dict(a)
+    ov = _overige_clean(preview_rm)
+    preview_rm["vlonder_type"] = None
+    preview_rm["vlonder_extra_items"] = []
+    preview_rm["overige_wensen"] = [x for x in ov if x != "vlonder"]
+    s_remove = saving_text_from_delta(base_costs, _estimate(preview_rm), keys=VLONDER_KEYS)
     if s_remove:
-        options.append(("remove", "Vlonder verwijderen", s_remove))
+        mapping[str(idx)] = "remove"
+        rm_label = "Alle vlonders verwijderen" if multi else "Vlonder verwijderen"
+        lines.append(f"{idx}) {rm_label} {s_remove}")
+        idx += 1
 
-    if not options:
+    if not mapping:
         return (
             "Ik zie geen vlonder-optie die op basis van uw invoer duidelijk goedkoper uitpakt.\n"
             "Typ 'nee' om terug te gaan.",
             {}
         )
-
-    mapping: Dict[str, str] = {}
-    lines = [
-        f"U heeft nu gekozen voor **{_nice_vlonder(cur)}**.",
-        "Kies een goedkopere optie of verwijder de vlonder:",
-    ]
-
-    for i, (opt, label, s) in enumerate(options, start=1):
-        digit = str(i)
-        mapping[digit] = opt
-        lines.append(f"{digit}) {label} {s}")
 
     lines.append("\nReageer met het nummer, of typ **nee** om terug te gaan.")
     return "\n".join(lines), mapping
@@ -1656,6 +1707,10 @@ def apply_material_change(answers: dict, part: Any, choice_digit: str) -> Tuple[
 
 
 def apply_vlonder_change(answers: dict, action: str) -> Tuple[dict, str]:
+    """
+    action is 'remove', 'set_{item_idx}_{type}' (nieuw, per-item), of een kale
+    type-string ('hardhout'/'zachthout', legacy — werkt op item 0/vlonder_type).
+    """
     a = dict(answers or {})
     overige = _overige_clean(a)
 
@@ -1664,15 +1719,23 @@ def apply_vlonder_change(answers: dict, action: str) -> Tuple[dict, str]:
 
     if action == "remove":
         a["vlonder_type"] = None
+        a["vlonder_extra_items"] = []
         a["overige_wensen"] = [x for x in overige if x != "vlonder"]
         return a, _explain_saving("vlonder verwijderd")
 
-    cur = (a.get("vlonder_type") or "composiet").strip().lower()
-    if _vlonder_rank(action) <= _vlonder_rank(cur):
+    m = re.match(r"^set_(\d+)_([a-z]+)$", action)
+    item_idx, new_type = (int(m.group(1)), m.group(2)) if m else (0, action)
+
+    items = _vlonder_item_list(a)
+    if item_idx >= len(items):
+        return a, "Item niet gevonden (geen wijziging)."
+    cur_type = items[item_idx][1]
+    if _vlonder_rank(new_type) <= _vlonder_rank(cur_type):
         return a, "Dit is niet goedkoper dan uw huidige vlonderkeuze (geen wijziging)."
 
-    a["vlonder_type"] = action
-    return a, _explain_saving(f"vlonder aangepast naar {_nice_vlonder(action)} (goedkoper)")
+    a = _preview_vlonder_item_set(a, item_idx, new_type)
+    label = f"Vlonder {item_idx + 1}" if len(items) > 1 else "vlonder"
+    return a, _explain_saving(f"{label} aangepast naar {_nice_vlonder(new_type)} (goedkoper)")
 
 
 def voegen_choice_menu_text(ans: dict, base_costs: dict) -> Tuple[str, Dict[str, str]]:

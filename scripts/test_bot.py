@@ -1,9 +1,11 @@
 """
 test_bot.py — handmatige smoke test voor alle drie flows.
-Gebruik: python test_bot.py
+Gebruik: python scripts/test_bot.py
 Verwacht: geen crashes, elke flow eindigt met een prijs of bevestiging.
 """
+import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.stdout.reconfigure(encoding="utf-8")
 
 from core.controllers.chat_controller import ChatController
