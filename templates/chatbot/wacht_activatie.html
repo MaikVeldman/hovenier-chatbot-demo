@@ -91,6 +91,19 @@ p {
           <polyline points="12 6 12 12 16 14"/>
         </svg>
       </div>
+      {% if trial_verlopen %}
+      <h1>Je proefperiode is afgelopen</h1>
+      <p>
+        Bedankt dat je Indiqa hebt uitgeprobeerd{% if bedrijfsnaam %}, <strong>{{ bedrijfsnaam }}</strong>{% endif %}.
+        Je gratis proefperiode van 30 dagen is verlopen en de rekentool voor je klanten is tijdelijk gepauzeerd.
+      </p>
+      <p>
+        Neem contact met ons op om door te gaan — dan zetten we je account weer aan.
+      </p>
+      <div class="info-blok">
+        Je beheerpaneel blijft gewoon bereikbaar, dus je kunt inloggen om je gegevens en instellingen te bekijken.
+      </div>
+      {% else %}
       <h1>Jouw rekentool wordt zo snel mogelijk geactiveerd</h1>
       <p>
         Bedankt voor je aanmelding{% if bedrijfsnaam %}, <strong>{{ bedrijfsnaam }}</strong>{% endif %}.
@@ -103,6 +116,7 @@ p {
         Je beheerpaneel is al beschikbaar — je kunt alvast je tarieven instellen en verkennen.
         De rekentool voor klanten gaat live zodra we je account hebben geactiveerd.
       </div>
+      {% endif %}
       <a href="{{ url_for('admin_login') }}"
          style="display:inline-block;margin-top:20px;padding:11px 24px;
                 background:#3E7C4F;color:#fff;border-radius:7px;

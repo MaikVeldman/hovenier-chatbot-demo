@@ -38,7 +38,18 @@
             {% else %}—{% endif %}
           </td>
           <td>
-            {% if t.actief %}
+            {% if t.is_betalend %}
+              <span class="badge badge-offerte">Betalend</span>
+            {% elif t.trial_eindigt_op and t.actief %}
+              <span class="badge badge-trial">
+                Trial · {% if t.trial_dagen_resterend is not none and t.trial_dagen_resterend > 0 %}
+                  nog {{ t.trial_dagen_resterend }} dag{{ 'en' if t.trial_dagen_resterend != 1 else '' }}
+                {% else %}verloopt vandaag{% endif %}
+              </span>
+              <div style="font-size:11px;color:var(--text-3);margin-top:3px;">tot {{ t.trial_eindigt_op.strftime('%d-%m-%Y') }}</div>
+            {% elif t.trial_eindigt_op and not t.actief %}
+              <span class="badge badge-verlopen">Trial verlopen</span>
+            {% elif t.actief %}
               <span class="badge badge-offerte">Actief</span>
             {% else %}
               <span class="badge badge-geen">Wacht op activatie</span>
@@ -71,6 +82,21 @@
                                padding:5px 12px;font-size:12px;cursor:pointer;color:#fff;
                                font-weight:600;font-family:inherit;">
                   Activeer
+                </button>
+              {% endif %}
+            </form>
+            <form method="POST" action="/beheer/klanten/{{ t.id }}/betalend" style="display:inline;">
+              {% if t.is_betalend %}
+                <input type="hidden" name="betalend" value="0"/>
+                <button type="submit" style="background:none;border:1px solid var(--border);border-radius:5px;
+                        padding:5px 12px;font-size:12px;cursor:pointer;color:var(--text-3);font-family:inherit;">
+                  Zet terug op trial
+                </button>
+              {% else %}
+                <input type="hidden" name="betalend" value="1"/>
+                <button type="submit" style="background:var(--accent);border:none;border-radius:5px;
+                        padding:5px 12px;font-size:12px;cursor:pointer;color:#fff;font-weight:600;font-family:inherit;">
+                  Markeer als betalend
                 </button>
               {% endif %}
             </form>

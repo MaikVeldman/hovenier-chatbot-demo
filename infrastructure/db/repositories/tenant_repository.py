@@ -77,11 +77,14 @@ class TenantRepository:
         try:
             from infrastructure.db.database import SessionLocal
             from infrastructure.db.db_models import DbTenant, DbTenantConfig
+            from datetime import datetime, timezone
+            nu = datetime.now(timezone.utc).replace(tzinfo=None)
             with SessionLocal() as db:
                 tenants = db.query(DbTenant).order_by(DbTenant.aangemaakt_op.desc()).all()
                 result = []
                 for t in tenants:
                     cfg = t.config
+                    dagen_resterend = (t.trial_eindigt_op - nu).days if t.trial_eindigt_op else None
                     result.append({
                         "id":           t.id,
                         "slug":         t.slug,
@@ -90,10 +93,117 @@ class TenantRepository:
                         "aangemaakt_op": t.aangemaakt_op,
                         "email":        cfg.contact_email if cfg else "",
                         "regio":        cfg.regio if cfg else "",
+                        "trial_eindigt_op":      t.trial_eindigt_op,
+                        "is_betalend":           t.is_betalend,
+                        "trial_dagen_resterend": dagen_resterend,
                     })
                 return result
         except Exception as e:
             print(f"[TenantRepository] list_all fout: {e}")
+            return []
+
+    # ── Proefperiode ──────────────────────────────────────────
+
+    def start_trial(self, tenant_id: int, dagen: int = 30):
+        """Start een proefperiode van `dagen` dagen vanaf nu. Retourneert de einddatum, of None bij fout."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant
+            from datetime import datetime, timezone, timedelta
+            with SessionLocal() as db:
+                t = db.get(DbTenant, tenant_id)
+                if not t:
+                    return None
+                eindigt_op = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=dagen)
+                t.trial_eindigt_op = eindigt_op
+                t.trial_herinnering_verzonden = False
+                db.commit()
+                return eindigt_op
+        except Exception as e:
+            print(f"[TenantRepository] start_trial fout: {e}")
+            return None
+
+    def mark_betalend(self, tenant_id: int, betalend: bool = True) -> None:
+        """Markeert tenant als (niet-)betalend. Betalend maken heractiveert de tenant meteen."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant
+            with SessionLocal() as db:
+                t = db.get(DbTenant, tenant_id)
+                if t:
+                    t.is_betalend = betalend
+                    if betalend:
+                        t.actief = True
+                    db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] mark_betalend fout: {e}")
+
+    def mark_herinnering_verzonden(self, tenant_id: int) -> None:
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant
+            with SessionLocal() as db:
+                t = db.get(DbTenant, tenant_id)
+                if t:
+                    t.trial_herinnering_verzonden = True
+                    db.commit()
+        except Exception as e:
+            print(f"[TenantRepository] mark_herinnering_verzonden fout: {e}")
+
+    def _tenant_trial_dict(self, t) -> Dict:
+        cfg = t.config
+        return {
+            "id": t.id, "slug": t.slug, "naam": t.naam,
+            "email": cfg.contact_email if cfg else "",
+            "trial_eindigt_op": t.trial_eindigt_op,
+        }
+
+    def list_trials_binnenkort_verlopen(self, dagen: int = 5):
+        """Trials die binnen `dagen` dagen aflopen, nog actief, niet betalend, nog geen herinnering gehad."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant
+            from datetime import datetime, timezone, timedelta
+            nu = datetime.now(timezone.utc).replace(tzinfo=None)
+            with SessionLocal() as db:
+                rows = (
+                    db.query(DbTenant)
+                    .filter(
+                        DbTenant.actief == True,                       # noqa: E712
+                        DbTenant.is_betalend == False,                 # noqa: E712
+                        DbTenant.trial_herinnering_verzonden == False,  # noqa: E712
+                        DbTenant.trial_eindigt_op.isnot(None),
+                        DbTenant.trial_eindigt_op > nu,
+                        DbTenant.trial_eindigt_op <= nu + timedelta(days=dagen),
+                    )
+                    .all()
+                )
+                return [self._tenant_trial_dict(t) for t in rows]
+        except Exception as e:
+            print(f"[TenantRepository] list_trials_binnenkort_verlopen fout: {e}")
+            return []
+
+    def list_trials_verlopen(self):
+        """Trials waarvan de einddatum al gepasseerd is, nog actief=True en niet betalend."""
+        try:
+            from infrastructure.db.database import SessionLocal
+            from infrastructure.db.db_models import DbTenant
+            from datetime import datetime, timezone
+            nu = datetime.now(timezone.utc).replace(tzinfo=None)
+            with SessionLocal() as db:
+                rows = (
+                    db.query(DbTenant)
+                    .filter(
+                        DbTenant.actief == True,        # noqa: E712
+                        DbTenant.is_betalend == False,   # noqa: E712
+                        DbTenant.trial_eindigt_op.isnot(None),
+                        DbTenant.trial_eindigt_op <= nu,
+                    )
+                    .all()
+                )
+                return [self._tenant_trial_dict(t) for t in rows]
+        except Exception as e:
+            print(f"[TenantRepository] list_trials_verlopen fout: {e}")
             return []
 
     def get_prijzen_overrides(self, tenant_id: int) -> Dict[str, Tuple[int, int]]:

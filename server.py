@@ -93,6 +93,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
 TENANT_SLUG    = os.getenv("TENANT_SLUG", "veldmanhoveniers")
 BASE_URL       = os.getenv("BASE_URL", "http://localhost:5000")
+TRIAL_DAGEN    = 30  # lengte van de gratis proefperiode bij zelf-registratie via /aanmelden
 
 app = Flask(__name__, static_folder="static", static_url_path="", template_folder="templates")
 app.secret_key = SECRET_KEY
@@ -249,7 +250,12 @@ def chatbot_tenant(slug: str):
         with _SL() as _db:
             _t = _db.query(_DbT).filter_by(slug=slug).first()
             if _t and not _t.actief:
-                return render_template("chatbot/wacht_activatie.html", bedrijfsnaam=_t.naam), 202
+                trial_verlopen = bool(_t.trial_eindigt_op) and not _t.is_betalend
+                return render_template(
+                    "chatbot/wacht_activatie.html",
+                    bedrijfsnaam=_t.naam,
+                    trial_verlopen=trial_verlopen,
+                ), 202
         return "Onbekende URL.", 404
 
     primaire_kleur = tenant_cfg.primaire_kleur or "#5c6b1e"
@@ -552,15 +558,17 @@ def aanmelden():
             if UserRepository().find_by_email(email):
                 error = "Dit e-mailadres is al geregistreerd."
             else:
-                # Tenant + user aanmaken (inactief tot superadmin activeert)
+                # Tenant + user aanmaken: direct actief, met gratis proefperiode van TRIAL_DAGEN dagen
                 slug = _unique_slug(_make_slug(bedrijfsnaam))
-                tenant_id = TenantRepository().get_or_create_id(
+                tenant_repo = TenantRepository()
+                tenant_id = tenant_repo.get_or_create_id(
                     slug=slug,
                     bedrijfsnaam=bedrijfsnaam,
                     regio=regio,
                     contact_email=email,
-                    actief=False,
+                    actief=True,
                 )
+                trial_eindigt_op = tenant_repo.start_trial(tenant_id, dagen=TRIAL_DAGEN)
                 from infrastructure.config.legal import TERMS_VERSION
                 user_id = UserRepository().create(
                     tenant_id=tenant_id,
@@ -572,7 +580,7 @@ def aanmelden():
                 if not user_id:
                     error = "Er ging iets mis bij het aanmaken van je account. Probeer het opnieuw."
                 else:
-                    # Notificatie aan superadmin + welkomstmail bij activatie
+                    # Notificatie aan superadmin + welkomstmail
                     try:
                         from infrastructure.services.mailer import send_nieuwe_aanmelding_email, send_welkom_email
                         send_nieuwe_aanmelding_email(
@@ -581,12 +589,14 @@ def aanmelden():
                             regio=regio,
                             slug=slug,
                             website_implementatie=website_impl,
+                            trial_eindigt_op=trial_eindigt_op,
                         )
                         send_welkom_email(
                             bedrijfsnaam=bedrijfsnaam,
                             email=email,
                             slug=slug,
                             website_implementatie=website_impl,
+                            trial_eindigt_op=trial_eindigt_op,
                         )
                     except Exception as e:
                         print(f"[aanmelden] Notificatiemail mislukt: {e}")
@@ -927,6 +937,16 @@ def admin_tenant_activeer(tenant_id: int):
         return redirect(url_for("admin_overzicht"))
     actief = request.form.get("actief") == "1"
     TenantRepository().set_actief(tenant_id, actief)
+    return redirect(url_for("admin_klanten"))
+
+
+@app.route("/beheer/klanten/<int:tenant_id>/betalend", methods=["POST"])
+@_admin_required
+def admin_tenant_betalend(tenant_id: int):
+    if not flask_session.get("is_superadmin"):
+        return redirect(url_for("admin_overzicht"))
+    betalend = request.form.get("betalend") == "1"
+    TenantRepository().mark_betalend(tenant_id, betalend)
     return redirect(url_for("admin_klanten"))
 
 

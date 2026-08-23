@@ -654,6 +654,7 @@ def send_welkom_email(
     email: str,
     slug: str,
     website_implementatie: bool = False,
+    trial_eindigt_op: Optional[datetime] = None,
 ) -> None:
     base = os.getenv("BASE_URL", "https://indiqa.nl")
     tool_url  = f"https://indiqa.nl/{slug}"
@@ -668,6 +669,15 @@ def send_welkom_email(
           <span style="color:#4A6655;">We nemen binnen 2 werkdagen contact met je op om de planning te bespreken.</span>
         </div>"""
 
+    trial_blok = ""
+    if trial_eindigt_op:
+        trial_blok = f"""
+        <div style="margin-bottom:20px;padding:14px 18px;background:{_INDIQA_GREEN_LT};
+                    border-radius:8px;border-left:4px solid {_INDIQA_GREEN};font-size:14px;">
+          <strong>Gratis proefperiode tot {trial_eindigt_op.strftime('%d-%m-%Y')}</strong><br>
+          <span style="color:#4A6655;">Daarna vragen we je om je abonnement te bevestigen — je hoort dat op tijd van ons.</span>
+        </div>"""
+
     content = f"""
     <h2 style="margin:0 0 6px;font-size:22px;color:{_INDIQA_GREEN};font-weight:800;">
       Welkom bij Indiqa, {bedrijfsnaam}!
@@ -675,6 +685,8 @@ def send_welkom_email(
     <p style="margin:0 0 24px;font-size:14px;color:#4A6655;">
       Je account is aangemaakt. Hieronder vind je alles wat je nodig hebt om te starten.
     </p>
+
+    {trial_blok}
 
     <div style="margin-bottom:20px;padding:16px 20px;background:{_INDIQA_GREEN_LT};border-radius:8px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
@@ -802,10 +814,12 @@ def send_nieuwe_aanmelding_email(
     regio: str,
     slug: str,
     website_implementatie: bool = False,
+    trial_eindigt_op: Optional[datetime] = None,
 ) -> None:
     """Notificatie aan de Indiqa-beheerder bij elke nieuwe aanmelding."""
-    activeer_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/klanten"
+    klanten_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/klanten"
     addon_txt = " + website-implementatie" if website_implementatie else ""
+    trial_txt = trial_eindigt_op.strftime("%d-%m-%Y") if trial_eindigt_op else "—"
     html = f"""<!DOCTYPE html>
 <html lang="nl">
 <head><meta charset="UTF-8"/></head>
@@ -822,7 +836,7 @@ def send_nieuwe_aanmelding_email(
           </td>
         </tr>
         <tr><td style="padding:32px;">
-          <h2 style="margin:0 0 20px;font-size:20px;color:#1C2B23;">Nieuwe aanmelding wacht op activatie</h2>
+          <h2 style="margin:0 0 20px;font-size:20px;color:#1C2B23;">Nieuwe aanmelding — account is direct actief</h2>
           <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #DDE8DF;border-radius:8px;overflow:hidden;font-size:14px;">
             <tr style="background:#F0F4F1;">
               <td style="padding:10px 16px;color:#7A9882;font-weight:600;width:40%;">Bedrijfsnaam</td>
@@ -843,16 +857,16 @@ def send_nieuwe_aanmelding_email(
               </td>
             </tr>
             <tr style="background:#F0F4F1;">
-              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Abonnement</td>
-              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">€69/mnd{addon_txt}</td>
+              <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Proefperiode tot</td>
+              <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{trial_txt}{addon_txt}</td>
             </tr>
           </table>
           <div style="margin-top:24px;">
-            <a href="{activeer_url}"
+            <a href="{klanten_url}"
                style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
                       padding:12px 24px;border-radius:7px;text-decoration:none;
                       font-weight:600;font-size:14px;">
-              Activeer dit account →
+              Bekijk in klantenoverzicht →
             </a>
           </div>
         </td></tr>
@@ -862,6 +876,159 @@ def send_nieuwe_aanmelding_email(
 </body>
 </html>"""
     _send_mail(to=NOTIFY_TO, subject=f"Nieuwe aanmelding: {bedrijfsnaam}", html=html)
+
+
+# ============================================================
+# Proefperiode
+# ============================================================
+
+def _trial_mail_wrapper(header_sub: str, body_html: str) -> str:
+    """Gedeelde HTML-wrapper voor de trial-mails, zelfde stijl als de rest van deze module."""
+    return f"""<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#F0F4F1;font-family:'Segoe UI',Arial,sans-serif;font-size:15px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F1;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0"
+             style="max-width:600px;width:100%;background:#fff;border-radius:12px;
+                    overflow:hidden;border:1px solid #DDE8DF;">
+        <tr>
+          <td style="background:{_INDIQA_GREEN};padding:24px 32px;">
+            <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-.03em;">indiqa.</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px;">{header_sub}</div>
+          </td>
+        </tr>
+        <tr><td style="padding:32px;">{body_html}</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def send_trial_herinnering_email(bedrijfsnaam: str, email: str, slug: str,
+                                  verloopt_op: datetime, dagen_resterend: int) -> None:
+    """Herinnering aan de klant dat de proefperiode bijna afloopt."""
+    login_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/login"
+    dag_txt = "dag" if dagen_resterend == 1 else "dagen"
+    body = f"""
+      <h2 style="margin:0 0 6px;font-size:20px;color:{_INDIQA_GREEN};font-weight:800;">
+        Je proefperiode loopt over {dagen_resterend} {dag_txt} af
+      </h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Hoi {bedrijfsnaam}, je gratis proefperiode van Indiqa eindigt op
+        <strong>{verloopt_op.strftime('%d-%m-%Y')}</strong>. Wil je blijven gebruiken? Neem contact met ons op
+        om je abonnement te bevestigen, dan zorgen wij dat je zonder onderbreking door kunt.
+      </p>
+      <a href="{login_url}"
+         style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                padding:12px 24px;border-radius:7px;text-decoration:none;
+                font-weight:600;font-size:14px;">
+        Naar het beheerpaneel →
+      </a>
+      <p style="margin-top:24px;font-size:13px;color:#7A9882;">
+        Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
+        style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
+      </p>"""
+    html = _trial_mail_wrapper("Proefperiode loopt af", body)
+    _send_mail(to=email, subject=f"Je proefperiode loopt over {dagen_resterend} {dag_txt} af — Indiqa", html=html)
+
+
+def send_trial_herinnering_admin_email(bedrijfsnaam: str, email: str, slug: str,
+                                        verloopt_op: datetime) -> None:
+    """Notificatie aan de Indiqa-beheerder: trial loopt bijna af, actie nodig voor betaling."""
+    klanten_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/klanten"
+    body = f"""
+      <h2 style="margin:0 0 20px;font-size:20px;color:#1C2B23;">Trial loopt bijna af</h2>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #DDE8DF;border-radius:8px;overflow:hidden;font-size:14px;">
+        <tr style="background:#F0F4F1;">
+          <td style="padding:10px 16px;color:#7A9882;font-weight:600;width:40%;">Bedrijfsnaam</td>
+          <td style="padding:10px 16px;color:#1C2B23;font-weight:700;">{bedrijfsnaam}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">E-mail</td>
+          <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{email}</td>
+        </tr>
+        <tr style="background:#F0F4F1;">
+          <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">Proefperiode tot</td>
+          <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{verloopt_op.strftime('%d-%m-%Y')}</td>
+        </tr>
+      </table>
+      <p style="margin-top:20px;font-size:14px;color:#4A6655;">
+        Neem contact op voor de betaling, of markeer als betalend in het klantenoverzicht zodra dat geregeld is.
+      </p>
+      <div style="margin-top:16px;">
+        <a href="{klanten_url}"
+           style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                  padding:12px 24px;border-radius:7px;text-decoration:none;
+                  font-weight:600;font-size:14px;">
+          Bekijk in klantenoverzicht →
+        </a>
+      </div>"""
+    html = _trial_mail_wrapper("Trial loopt bijna af", body)
+    _send_mail(to=NOTIFY_TO, subject=f"Trial loopt bijna af: {bedrijfsnaam}", html=html)
+
+
+def send_trial_verlopen_email(bedrijfsnaam: str, email: str, slug: str) -> None:
+    """Melding aan de klant dat de proefperiode voorbij is en de rekentool gepauzeerd is."""
+    login_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/login"
+    body = f"""
+      <h2 style="margin:0 0 6px;font-size:20px;color:{_INDIQA_GREEN};font-weight:800;">
+        Je proefperiode is afgelopen
+      </h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Hoi {bedrijfsnaam}, bedankt dat je Indiqa hebt uitgeprobeerd. Je gratis proefperiode van 30 dagen
+        is verlopen en de rekentool voor je klanten is tijdelijk gepauzeerd. Neem contact met ons op om
+        door te gaan, dan zetten we je account weer aan.
+      </p>
+      <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
+        Je beheerpaneel blijft gewoon bereikbaar, dus je kunt inloggen om je gegevens en instellingen te bekijken.
+      </p>
+      <a href="{login_url}"
+         style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                padding:12px 24px;border-radius:7px;text-decoration:none;
+                font-weight:600;font-size:14px;">
+        Naar het beheerpaneel →
+      </a>
+      <p style="margin-top:24px;font-size:13px;color:#7A9882;">
+        Vragen? Stuur een mail naar <a href="mailto:info@veldmanhoveniers.nl"
+        style="color:{_INDIQA_GREEN};">info@veldmanhoveniers.nl</a>
+      </p>"""
+    html = _trial_mail_wrapper("Proefperiode afgelopen", body)
+    _send_mail(to=email, subject="Je proefperiode is afgelopen — Indiqa", html=html)
+
+
+def send_trial_verlopen_admin_email(bedrijfsnaam: str, email: str, slug: str) -> None:
+    """Notificatie aan de Indiqa-beheerder: trial verlopen, tenant automatisch gedeactiveerd."""
+    klanten_url = f"{os.getenv('BASE_URL', 'https://indiqa.nl')}/beheer/klanten"
+    body = f"""
+      <h2 style="margin:0 0 20px;font-size:20px;color:#1C2B23;">Trial verlopen — account gedeactiveerd</h2>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #DDE8DF;border-radius:8px;overflow:hidden;font-size:14px;">
+        <tr style="background:#F0F4F1;">
+          <td style="padding:10px 16px;color:#7A9882;font-weight:600;width:40%;">Bedrijfsnaam</td>
+          <td style="padding:10px 16px;color:#1C2B23;font-weight:700;">{bedrijfsnaam}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 16px;color:#7A9882;font-weight:600;border-top:1px solid #DDE8DF;">E-mail</td>
+          <td style="padding:10px 16px;color:#1C2B23;border-top:1px solid #DDE8DF;">{email}</td>
+        </tr>
+      </table>
+      <p style="margin-top:20px;font-size:14px;color:#4A6655;">
+        De rekentool van deze klant is automatisch gepauzeerd omdat de proefperiode is verlopen zonder
+        dat er betaald is. Markeer de klant als betalend in het klantenoverzicht zodra de betaling geregeld is —
+        dat heractiveert het account meteen.
+      </p>
+      <div style="margin-top:16px;">
+        <a href="{klanten_url}"
+           style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
+                  padding:12px 24px;border-radius:7px;text-decoration:none;
+                  font-weight:600;font-size:14px;">
+          Bekijk in klantenoverzicht →
+        </a>
+      </div>"""
+    html = _trial_mail_wrapper("Trial verlopen", body)
+    _send_mail(to=NOTIFY_TO, subject=f"Trial verlopen (gedeactiveerd): {bedrijfsnaam}", html=html)
 
 
 # ============================================================

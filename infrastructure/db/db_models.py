@@ -27,6 +27,10 @@ class DbTenant(Base):
     actief        = Column(Boolean, default=True, nullable=False)
     aangemaakt_op = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
+    trial_eindigt_op            = Column(DateTime, nullable=True)
+    is_betalend                 = Column(Boolean, default=False, nullable=False)
+    trial_herinnering_verzonden = Column(Boolean, default=False, nullable=False)
+
     users    = relationship("DbUser",         back_populates="tenant", cascade="all, delete-orphan")
     config   = relationship("DbTenantConfig", back_populates="tenant", uselist=False, cascade="all, delete-orphan")
     sessions = relationship("DbSession",      back_populates="tenant")
