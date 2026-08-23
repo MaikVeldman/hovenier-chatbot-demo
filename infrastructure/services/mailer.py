@@ -1099,7 +1099,7 @@ def send_gereactiveerd_email(bedrijfsnaam: str, email: str, slug: str) -> None:
       </h2>
       <p style="margin:0 0 20px;font-size:14px;color:#4A6655;">
         Hoi {bedrijfsnaam}, goed nieuws: je account is weer actief. De rekentool is weer
-        bereikbaar voor je klanten.
+        bereikbaar.
       </p>
       <a href="{login_url}"
          style="display:inline-block;background:{_INDIQA_GREEN};color:#fff;
