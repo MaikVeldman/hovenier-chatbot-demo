@@ -708,8 +708,15 @@ def _item_spec_label(item_spec: str) -> str:
 
 
 def _get_item_material(a: dict, item_spec: str) -> str:
-    """Haal het materiaal op voor een specifiek item_spec."""
+    """
+    Haal het materiaal op voor een specifiek item_spec.
+    Ondersteunt zowel de 'gehele tuin'-opbouw (materiaal_X + X_extra_items)
+    als de 'losse onderdelen'-opbouw (X_items lijst, incl. item 0).
+    """
     if item_spec == "oprit":
+        oprit_items = a.get("oprit_items") or []
+        if oprit_items:
+            return (oprit_items[0].get("materiaal") or "beton").strip().lower()
         return (a.get("materiaal_oprit") or "beton").strip().lower()
     parts = item_spec.split("_")
     if len(parts) != 2:
@@ -718,6 +725,11 @@ def _get_item_material(a: dict, item_spec: str) -> str:
     try:
         idx = int(idx_str)
     except ValueError:
+        return "beton"
+    lo_items = a.get(f"{comp}_items") or []
+    if lo_items:
+        if idx < len(lo_items):
+            return (lo_items[idx].get("materiaal") or "beton").strip().lower()
         return "beton"
     if idx == 0:
         return (a.get(f"materiaal_{comp}") or "beton").strip().lower()
@@ -728,9 +740,18 @@ def _get_item_material(a: dict, item_spec: str) -> str:
 
 
 def _set_item_material(a: dict, item_spec: str, new_mat: str) -> dict:
-    """Stel het materiaal in voor een specifiek item_spec (returnt nieuw dict)."""
+    """
+    Stel het materiaal in voor een specifiek item_spec (returnt nieuw dict).
+    Schrijft ook naar X_items (losse onderdelen) zodat de prijsberekening,
+    die X_items boven materiaal_X verkiest, de wijziging daadwerkelijk meeneemt.
+    """
     a = dict(a)
     if item_spec == "oprit":
+        oprit_items = a.get("oprit_items") or []
+        if oprit_items:
+            new_items = list(oprit_items)
+            new_items[0] = dict(new_items[0], materiaal=new_mat)
+            a["oprit_items"] = new_items
         a["materiaal_oprit"] = new_mat
         return a
     parts = item_spec.split("_")
@@ -740,6 +761,30 @@ def _set_item_material(a: dict, item_spec: str, new_mat: str) -> dict:
     try:
         idx = int(idx_str)
     except ValueError:
+        return a
+    lo_items = a.get(f"{comp}_items") or []
+    if lo_items:
+        if idx < len(lo_items):
+            new_items = list(lo_items)
+            new_mat_lower = (new_mat or "").strip().lower()
+            item_changes = {"materiaal": new_mat}
+            # Voegen wordt alleen gevraagd/toegepast op beton/keramiek (zie intake-flow);
+            # bij wisselen naar grind/gebakken vervalt voegen voor dit item.
+            if comp in ("paden", "terras") and new_mat_lower not in ("beton", "keramiek"):
+                item_changes["gevoegd"] = False
+            new_items[idx] = dict(new_items[idx], **item_changes)
+            a[f"{comp}_items"] = new_items
+            if comp in ("paden", "terras") and "voegen_m2_custom" in a:
+                voegen_total = sum(
+                    float(it.get("m2", 0))
+                    for c in ("paden", "terras")
+                    for it in (a.get(c + "_items") or [])
+                    if it.get("gevoegd", False)
+                )
+                a["voegen_m2_custom"] = voegen_total
+                a["onkruidwerend_gevoegd"] = voegen_total > 0
+        if idx == 0:
+            a[f"materiaal_{comp}"] = new_mat
         return a
     if idx == 0:
         a[f"materiaal_{comp}"] = new_mat
@@ -763,61 +808,82 @@ def material_part_menu_text(ans: dict) -> Tuple[str, Dict[str, str]]:
     mapping: Dict[str, str] = {}
     idx = 1
 
+    def _lo_item_lines(comp: str, comp_label: str) -> bool:
+        """Toont elk item uit X_items (losse-onderdelen model). True als gebruikt."""
+        nonlocal idx
+        items = a.get(f"{comp}_items") or []
+        if not items:
+            return False
+        multi = len(items) > 1
+        for i, item in enumerate(items):
+            m2 = float(item.get("m2") or 0)
+            mat = (item.get("materiaal") or "beton")
+            if m2 <= 0.01 or _material_rank(mat) <= 1:
+                continue
+            mapping[str(idx)] = f"{comp}_{i}"
+            num = f" {i + 1}" if multi else ""
+            lines.append(f"{idx}) {comp_label}{num} – {_nice_mat(mat)} ({int(m2)} m²)")
+            idx += 1
+        return True
+
     # Oprit
-    if _has_bestrating(a, "oprit") and _material_rank(a.get("materiaal_oprit")) > 1:
-        m2 = float(a.get("_direct_oprit_m2") or a.get("oprit_m2") or 0)
-        label = f"Oprit – {_nice_mat(a.get('materiaal_oprit'))}" + (f" ({int(m2)} m²)" if m2 > 0 else "")
-        mapping[str(idx)] = "oprit"
-        lines.append(f"{idx}) {label}")
-        idx += 1
+    if not _lo_item_lines("oprit", "Oprit"):
+        if _has_bestrating(a, "oprit") and _material_rank(a.get("materiaal_oprit")) > 1:
+            m2 = float(a.get("_direct_oprit_m2") or a.get("oprit_m2") or 0)
+            label = f"Oprit – {_nice_mat(a.get('materiaal_oprit'))}" + (f" ({int(m2)} m²)" if m2 > 0 else "")
+            mapping[str(idx)] = "oprit"
+            lines.append(f"{idx}) {label}")
+            idx += 1
 
     # Paden – per item tonen als meerdere aanwezig
-    paden_extra = a.get("paden_extra_items") or []
-    direct_paden = float(a.get("_direct_paden_m2") or 0)
-    mat_paden = (a.get("materiaal_paden") or "beton")
-    if paden_extra or direct_paden > 0:
-        # Pad 1: toon als direct_paden > 0, maar val ook terug op materiaal_paden
-        # als _direct_paden_m2 na een savings-operatie op 0 staat
-        if _material_rank(mat_paden) > 1 and (direct_paden > 0 or paden_extra):
-            m2_label = f" ({int(direct_paden)} m²)" if direct_paden > 0 else ""
-            mapping[str(idx)] = "paden_0"
-            lines.append(f"{idx}) Paden 1 – {_nice_mat(mat_paden)}{m2_label}")
-            idx += 1
-        for i, item in enumerate(paden_extra):
-            m2 = float(item.get("m2") or 0)
-            mat = (item.get("materiaal") or "beton")
-            if m2 > 0.01 and _material_rank(mat) > 1:
-                mapping[str(idx)] = f"paden_{i + 1}"
-                lines.append(f"{idx}) Paden {i + 2} – {_nice_mat(mat)} ({int(m2)} m²)")
+    if not _lo_item_lines("paden", "Paden"):
+        paden_extra = a.get("paden_extra_items") or []
+        direct_paden = float(a.get("_direct_paden_m2") or 0)
+        mat_paden = (a.get("materiaal_paden") or "beton")
+        if paden_extra or direct_paden > 0:
+            # Pad 1: toon als direct_paden > 0, maar val ook terug op materiaal_paden
+            # als _direct_paden_m2 na een savings-operatie op 0 staat
+            if _material_rank(mat_paden) > 1 and (direct_paden > 0 or paden_extra):
+                m2_label = f" ({int(direct_paden)} m²)" if direct_paden > 0 else ""
+                mapping[str(idx)] = "paden_0"
+                lines.append(f"{idx}) Paden 1 – {_nice_mat(mat_paden)}{m2_label}")
                 idx += 1
-    elif _has_bestrating(a, "paden") and _material_rank(mat_paden) > 1:
-        mapping[str(idx)] = "paden_0"
-        lines.append(f"{idx}) Paden (nu: {_nice_mat(mat_paden)})")
-        idx += 1
+            for i, item in enumerate(paden_extra):
+                m2 = float(item.get("m2") or 0)
+                mat = (item.get("materiaal") or "beton")
+                if m2 > 0.01 and _material_rank(mat) > 1:
+                    mapping[str(idx)] = f"paden_{i + 1}"
+                    lines.append(f"{idx}) Paden {i + 2} – {_nice_mat(mat)} ({int(m2)} m²)")
+                    idx += 1
+        elif _has_bestrating(a, "paden") and _material_rank(mat_paden) > 1:
+            mapping[str(idx)] = "paden_0"
+            lines.append(f"{idx}) Paden (nu: {_nice_mat(mat_paden)})")
+            idx += 1
 
     # Terras – per item tonen als meerdere aanwezig
-    terras_extra = a.get("terras_extra_items") or []
-    direct_terras = float(a.get("_direct_terras_m2") or 0)
-    mat_terras = (a.get("materiaal_terras") or "beton")
-    if terras_extra or direct_terras > 0:
-        # Terras 1: toon als direct_terras > 0, maar val ook terug op materiaal_terras
-        # als _direct_terras_m2 na een savings-operatie op 0 staat
-        if _material_rank(mat_terras) > 1 and (direct_terras > 0 or terras_extra):
-            m2_label = f" ({int(direct_terras)} m²)" if direct_terras > 0 else ""
-            mapping[str(idx)] = "terras_0"
-            lines.append(f"{idx}) Terras 1 – {_nice_mat(mat_terras)}{m2_label}")
-            idx += 1
-        for i, item in enumerate(terras_extra):
-            m2 = float(item.get("m2") or 0)
-            mat = (item.get("materiaal") or "beton")
-            if m2 > 0.01 and _material_rank(mat) > 1:
-                mapping[str(idx)] = f"terras_{i + 1}"
-                lines.append(f"{idx}) Terras {i + 2} – {_nice_mat(mat)} ({int(m2)} m²)")
+    if not _lo_item_lines("terras", "Terras"):
+        terras_extra = a.get("terras_extra_items") or []
+        direct_terras = float(a.get("_direct_terras_m2") or 0)
+        mat_terras = (a.get("materiaal_terras") or "beton")
+        if terras_extra or direct_terras > 0:
+            # Terras 1: toon als direct_terras > 0, maar val ook terug op materiaal_terras
+            # als _direct_terras_m2 na een savings-operatie op 0 staat
+            if _material_rank(mat_terras) > 1 and (direct_terras > 0 or terras_extra):
+                m2_label = f" ({int(direct_terras)} m²)" if direct_terras > 0 else ""
+                mapping[str(idx)] = "terras_0"
+                lines.append(f"{idx}) Terras 1 – {_nice_mat(mat_terras)}{m2_label}")
                 idx += 1
-    elif _has_bestrating(a, "terras") and _material_rank(mat_terras) > 1:
-        mapping[str(idx)] = "terras_0"
-        lines.append(f"{idx}) Terras (nu: {_nice_mat(mat_terras)})")
-        idx += 1
+            for i, item in enumerate(terras_extra):
+                m2 = float(item.get("m2") or 0)
+                mat = (item.get("materiaal") or "beton")
+                if m2 > 0.01 and _material_rank(mat) > 1:
+                    mapping[str(idx)] = f"terras_{i + 1}"
+                    lines.append(f"{idx}) Terras {i + 2} – {_nice_mat(mat)} ({int(m2)} m²)")
+                    idx += 1
+        elif _has_bestrating(a, "terras") and _material_rank(mat_terras) > 1:
+            mapping[str(idx)] = "terras_0"
+            lines.append(f"{idx}) Terras (nu: {_nice_mat(mat_terras)})")
+            idx += 1
 
     if not mapping:
         return (
