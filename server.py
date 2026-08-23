@@ -530,18 +530,31 @@ def aanmelden():
     if request.method == "POST":
         bedrijfsnaam        = (request.form.get("bedrijfsnaam") or "").strip()
         regio               = (request.form.get("regio") or "").strip()
+        telefoon            = (request.form.get("telefoon") or "").strip()
+        straat              = (request.form.get("straat") or "").strip()
+        postcode            = (request.form.get("postcode") or "").strip()
+        plaats              = (request.form.get("plaats") or "").strip()
         email               = (request.form.get("email") or "").strip().lower()
         wachtwoord          = request.form.get("wachtwoord") or ""
         wachtwoord2         = request.form.get("wachtwoord2") or ""
         website_impl        = bool(request.form.get("website_implementatie"))
         akkoord_voorwaarden = bool(request.form.get("akkoord_voorwaarden"))
 
-        form = dict(bedrijfsnaam=bedrijfsnaam, regio=regio, email=email,
+        form = dict(bedrijfsnaam=bedrijfsnaam, regio=regio, telefoon=telefoon,
+                    straat=straat, postcode=postcode, plaats=plaats, email=email,
                     website_implementatie=website_impl)
 
         # Validatie
         if not bedrijfsnaam:
             error = "Vul een bedrijfsnaam in."
+        elif not telefoon:
+            error = "Vul een telefoonnummer in."
+        elif not straat:
+            error = "Vul een straat en huisnummer in."
+        elif not postcode:
+            error = "Vul een postcode in."
+        elif not plaats:
+            error = "Vul een plaats in."
         elif not email or "@" not in email:
             error = "Vul een geldig e-mailadres in."
         elif len(wachtwoord) < 8:
@@ -566,6 +579,10 @@ def aanmelden():
                     bedrijfsnaam=bedrijfsnaam,
                     regio=regio,
                     contact_email=email,
+                    contact_telefoon=telefoon,
+                    straat=straat,
+                    postcode=postcode,
+                    plaats=plaats,
                     actief=True,
                 )
                 trial_eindigt_op = tenant_repo.start_trial(tenant_id, dagen=TRIAL_DAGEN)

@@ -238,11 +238,40 @@ input:focus { border-color: var(--accent); }
                    placeholder="Jansen Hoveniers" required/>
           </div>
           <div class="field">
-            <label for="regio">Regio</label>
-            <input type="text" id="regio" name="regio"
-                   value="{{ form.regio or '' }}"
-                   placeholder="Gelderland"/>
+            <label for="telefoon">Telefoonnummer</label>
+            <input type="tel" id="telefoon" name="telefoon"
+                   value="{{ form.telefoon or '' }}"
+                   placeholder="06 12345678" required/>
           </div>
+        </div>
+
+        <div class="field">
+          <label for="straat">Straat en huisnummer</label>
+          <input type="text" id="straat" name="straat"
+                 value="{{ form.straat or '' }}"
+                 placeholder="Kerkstraat 12" required/>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="postcode">Postcode</label>
+            <input type="text" id="postcode" name="postcode"
+                   value="{{ form.postcode or '' }}"
+                   placeholder="1234 AB" required/>
+          </div>
+          <div class="field">
+            <label for="plaats">Plaats</label>
+            <input type="text" id="plaats" name="plaats"
+                   value="{{ form.plaats or '' }}"
+                   placeholder="Arnhem" required/>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="regio">Regio</label>
+          <input type="text" id="regio" name="regio"
+                 value="{{ form.regio or '' }}"
+                 placeholder="Gelderland"/>
         </div>
 
         <div class="field-section">Inloggegevens</div>

@@ -17,6 +17,9 @@ class TenantRepository:
         regio: str = "",
         contact_email: str = "",
         contact_telefoon: str = "",
+        straat: str = "",
+        postcode: str = "",
+        plaats: str = "",
         actief: bool = True,
     ) -> int:
         """Geeft tenant_id terug, maakt tenant + config aan als ze nog niet bestaan."""
@@ -36,11 +39,18 @@ class TenantRepository:
                     regio=regio,
                     contact_email=contact_email,
                     contact_telefoon=contact_telefoon,
+                    straat=straat,
+                    postcode=postcode,
+                    plaats=plaats,
                 ))
             elif not tenant.config:
                 db.add(DbTenantConfig(
                     tenant_id=tenant.id,
                     bedrijfsnaam=bedrijfsnaam,
+                    contact_telefoon=contact_telefoon,
+                    straat=straat,
+                    postcode=postcode,
+                    plaats=plaats,
                 ))
             db.commit()
             db.refresh(tenant)
@@ -93,6 +103,10 @@ class TenantRepository:
                         "aangemaakt_op": t.aangemaakt_op,
                         "email":        cfg.contact_email if cfg else "",
                         "regio":        cfg.regio if cfg else "",
+                        "telefoon":     cfg.contact_telefoon if cfg else "",
+                        "straat":       cfg.straat if cfg else "",
+                        "postcode":     cfg.postcode if cfg else "",
+                        "plaats":       cfg.plaats if cfg else "",
                         "trial_eindigt_op":      t.trial_eindigt_op,
                         "is_betalend":           t.is_betalend,
                         "trial_dagen_resterend": dagen_resterend,
