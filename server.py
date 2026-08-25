@@ -187,9 +187,14 @@ def _delete_session(sid: str) -> None:
 
 
 def _get_or_create(session_id: str | None):
-    if session_id and session_id in _sessions:
-        return session_id, _sessions[session_id]
-    # Probeer van schijf te laden na een gunicorn herstart
+    # Schijf is de enige bron van waarheid die alle gunicorn-workers delen — elke
+    # worker heeft zijn eigen _sessions-cache in apart procesgeheugen (--workers 2),
+    # dus die mag nooit blindelings vertrouwd worden zonder de schijf te checken.
+    # Anders kan bericht N door worker A verwerkt worden terwijl bericht N+1 van
+    # dezelfde sessie bij worker B belandt, die nog de staat van vóór bericht N
+    # in zijn geheugen heeft — met verwarrende, schijnbaar willekeurige gevolgen
+    # (een antwoord wordt verkeerd geïnterpreteerd omdat de flow nog in de vorige
+    # stap zit volgens die worker).
     if session_id:
         state = _load_session(session_id)
         if state is not None:
