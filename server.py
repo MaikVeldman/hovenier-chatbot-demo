@@ -266,7 +266,7 @@ def chatbot_tenant(slug: str):
     primaire_kleur = tenant_cfg.primaire_kleur or "#5c6b1e"
     _inst = tenant_cfg.instellingen or {}
     _bedrijfsnaam = tenant_cfg.bedrijfsnaam or ""
-    avatar_letter = _inst.get("avatar_letter") or (_bedrijfsnaam[0].upper() if _bedrijfsnaam else "H")
+    avatar_letter = _inst.get("avatar_letter") or next((c.upper() for c in _bedrijfsnaam if c.isalpha()), "H")
     return render_template(
         "chatbot/index.html",
         tenant_slug=slug,
@@ -1066,7 +1066,7 @@ def admin_instellingen():
                 if avatar_letter_raw and avatar_letter_raw[0].isalpha():
                     avatar_letter = avatar_letter_raw[0].upper()
                 else:
-                    avatar_letter = (bedrijfsnaam[0].upper() if bedrijfsnaam else "H")
+                    avatar_letter = next((c.upper() for c in (bedrijfsnaam or "") if c.isalpha()), "H")
 
                 with SessionLocal() as db:
                     cfg = db.query(DbTenantConfig).filter_by(tenant_id=tenant_id).first()
@@ -1136,7 +1136,7 @@ def admin_instellingen():
                 from dataclasses import dataclass
                 _inst_laden = dict(cfg_obj.instellingen or {})
                 _naam_laden = cfg_obj.bedrijfsnaam or ""
-                _default_letter = (_naam_laden[0].upper() if _naam_laden else "H")
+                _default_letter = next((c.upper() for c in (_naam_laden or "") if c.isalpha()), "H")
                 @dataclass
                 class _Cfg:
                     bedrijfsnaam: str
